@@ -707,8 +707,17 @@ void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowP
     // DIAGNOSE: is this called at all? If it is not, setTranslucent() never runs
     // and the shader's alpha is ignored -- which is exactly what the measurement
     // shows (opaque over a dark and a light background, difference 3.2).
+    //
     static int pre = 0;
-    if (pre < 6) {
+    // ONE GATE, ONE COUNTER, for both halves of the message. The previous version
+    // incremented `pre` only while it was below six and then asked `pre <= 6`
+    // afterwards: once the counter stopped at six, that condition was TRUE ON EVERY
+    // PAINT of every window, and the journal filled with thousands of identical lines a
+    // second (seen in the real journal, 2026-10-14). A counter that stops incrementing
+    // cannot be used as a gate, and a diagnostic that floods the log destroys the thing
+    // it exists for: the journal stopped being readable exactly when it was needed.
+    const bool loguear = m_active && w->isNormalWindow() && pre < 6;
+    if (loguear) {
         ++pre;
         qInfo() << "[macos-glass] prePaintWindow" << w->caption().left(20)
                 << "normal=" << w->isNormalWindow() << "active=" << m_active;
@@ -717,7 +726,7 @@ void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowP
         // The scene blends a window only if it is told the window is translucent.
         // The shader writing an alpha is not enough on its own.
         data.setTranslucent();
-        if (pre <= 6) {
+        if (loguear) {
             qInfo() << "[macos-glass] setTranslucent called for" << w->caption().left(20);
         }
     }

@@ -322,3 +322,16 @@ sin_codigo=$(comm -13 <(printf '%s\n' "$claves_fuente") <(printf '%s\n' "$claves
 [ -n "$claves_fuente" ] || fallo "no settings found in glass.cpp; the extraction broke"
 afirmar_igual "every key the effect reads is documented" "" "${sin_doc% }"
 afirmar_igual "every documented key is still read by the effect" "" "${sin_codigo% }"
+
+echo "  -- a diagnostic may not flood the journal --"
+# The bug this pins, seen in the real journal on 2026-10-14: prePaintWindow incremented
+# its counter only while it was below six, and then asked whether the counter was "<= 6".
+# Once the counter stopped, that was true on EVERY paint of every window, and the journal
+# took thousands of identical lines a second -- destroying the thing a diagnostic exists
+# for, exactly when it was needed. A counter that stops incrementing cannot be a gate.
+#
+# codigo_contiene strips comments, which matters here: the comment that explains the bug
+# quotes the buggy expression, and a check that matched it would be checking the prose.
+negar "the per-paint diagnostic cannot log on every paint" \
+  codigo_contiene "$FUENTE" 'pre <= 6'
+afirmar_codigo "the diagnostic uses one gate and one counter" "$FUENTE" 'const bool loguear ='

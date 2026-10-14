@@ -124,6 +124,12 @@ was still set when `test-harness.sh` ran.
   `grep -q` in a pipe was forbidden in `effect-kwin/*.sh` and used nine times inside
   `tests/`, including in the helper that runs every assertion. The scan now covers
   both.
+- **A diagnostic that floods the log destroys what it is for.** `prePaintWindow` raised
+  its counter only while it was below six and then gated the message on `pre <= 6`, so once
+  the counter stopped the message went out on every paint of every window: thousands of
+  identical lines a second, found in the real journal. The log stopped being readable
+  exactly when somebody needed to read it. One gate, one counter, and the gate is the same
+  one that increments.
 - **An assertion on a name is not an assertion on the wiring.** Three times in one
   session a test asserted that an identifier appeared in the source, and passed while the
   term was disconnected from the result: `discard;` that could never run, a corner test
