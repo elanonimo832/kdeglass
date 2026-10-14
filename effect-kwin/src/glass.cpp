@@ -226,14 +226,12 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
         // whose own title bar cannot be measured. Better to do nothing than to
         // blur content on a guess.
 
-        ShaderManager::instance()->pushShader(m_shader.get());
-        m_shader->setUniform("uRadius", float(m_frostRadius));
-        m_shader->setUniform("uTexelSize",
-                             QVector2D(1.0f / size.width(), 1.0f / size.height()));
-        m_shader->setUniform("uTextureSize",
-                             QVector2D(float(size.width()), float(size.height())));
-        m_shader->setUniform("uTitleBarHeight", float(barHeight));
-        ShaderManager::instance()->popShader();
+        // The uniforms are NOT set here. The shader is a SINGLE object shared by
+        // every window, so writing per-window values at add time means the last
+        // window to be added wins: uTitleBarHeight would hold another window's
+        // bar height, and every focus change would overwrite it. That is why the
+        // material flickered away and came back when switching windows.
+        // They are set in apply(), which runs per window on every paint.
 
         static int loggedBar = 0;
         if (loggedBar < 6) {
@@ -288,9 +286,34 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         }
         qInfo() << "[macos-glass] apply() totals:" << resumen;
     }
-    if (m_shader) {
-        setShader(w, m_shader.get());
+    if (!m_shader) {
+        return;
     }
+    setShader(w, m_shader.get());
+
+    // Uniforms belong here, not in slotWindowAdded: one shader object is shared by
+    // all windows, so anything written once at add time is a global that the next
+    // window overwrites. Setting them per paint makes each window's band its own.
+    const QSize size = w->frameGeometry().size().toSize();
+    if (size.width() <= 0 || size.height() <= 0) {
+        return;
+    }
+    qreal barHeight = 0.0;
+    if (w->hasDecoration()) {
+        barHeight = w->clientGeometry().top() - w->frameGeometry().top();
+    }
+    if (barHeight < 0.0) {
+        barHeight = 0.0;
+    }
+
+    ShaderManager::instance()->pushShader(m_shader.get());
+    m_shader->setUniform("uRadius", float(m_frostRadius));
+    m_shader->setUniform("uTexelSize",
+                         QVector2D(1.0f / size.width(), 1.0f / size.height()));
+    m_shader->setUniform("uTextureSize",
+                         QVector2D(float(size.width()), float(size.height())));
+    m_shader->setUniform("uTitleBarHeight", float(barHeight));
+    ShaderManager::instance()->popShader();
 }
 
 } // namespace KWin

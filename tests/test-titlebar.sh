@@ -54,3 +54,19 @@ if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'setShader('; t
 else
   fallo "apply() does not re-assert the shader (the band will vanish on repaint)"
 fi
+
+echo "  -- the uniforms are set per paint, not once per window --"
+# The shader is ONE object shared by every window. Setting its uniforms in
+# slotWindowAdded meant the last window added won: uTitleBarHeight held another
+# window's bar height, and every focus change overwrote it. That is why the
+# material flickered away and came back when switching windows.
+if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'uTitleBarHeight'; then
+  ok "apply() sets the band height per window"
+else
+  fallo "the band height is not set per paint (shared-shader bug is back)"
+fi
+if awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$FUENTE" | grep -q 'setUniform'; then
+  fallo "slotWindowAdded still sets uniforms on the shared shader"
+else
+  ok "slotWindowAdded no longer writes to the shared shader"
+fi
