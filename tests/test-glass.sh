@@ -96,33 +96,62 @@ echo "  -- the shader is validated without a screen --"
 # every step of M1.3a pays. glslangValidator answers the syntax and type question
 # without a session.
 #
-# It validates the GLSL the effect embeds, with `#version 330 core` prepended:
-# KWin prepends its OWN version header at runtime, so this proves the shader body
-# is well formed, not that KWin's preamble matches. That limit is written down
-# because a check that oversells itself is worse than no check.
+# It validates the GLSL the effect embeds with THE PREAMBLE KWIN ACTUALLY INJECTS,
+# read from KWin 6.7.5's own source rather than invented:
+#   ShaderManager::generateCustomShader prepends only the TRAIT_* defines, and
+#   GLShader::preprocess prepends the version directive --
+#       #version 140              desktop OpenGL, GLSL >= 1.40 (this machine)
+#       #version 300 es           plus `precision highp ...` on OpenGL ES 3.0
+# Both are checked, because both are paths KWin takes: a shader that compiles on only
+# one of them is a portability bug that would never appear here.
+#
+# What this still cannot prove: that the GL context really reports the version assumed
+# above. Everything else about the compile is now the real thing.
 if ! command -v glslangValidator >/dev/null 2>&1; then
   ok "(SKIPPED: glslangValidator is not installed; the shaders were NOT validated)"
 else
   malos_shader=$(python3 - "$FUENTE" <<'PYEOF'
 import pathlib, re, subprocess, sys, tempfile
+
 texto = pathlib.Path(sys.argv[1]).read_text()
 shaders = {}
 for nombre, var in (("vert", "kDiffusionVertex"), ("frag", "kDiffusionFragment")):
     m = re.search(r'static const char \*' + var + r' = R"\((.*?)\)";', texto, re.S)
     if m:
         shaders[nombre] = m.group(1)
+
+DEFINES = "\n".join([
+    "#define TRAIT_MAP_TEXTURE 1",
+    "#define TRAIT_UNIFORM_COLOR 0",
+    "#define TRAIT_MODULATE 0",
+    "#define TRAIT_ADJUST_SATURATION 0",
+    "#define TRAIT_TRANSFORM_COLORSPACE 0",
+    "#define TRAIT_MAP_EXTERNAL_TEXTURE 0",
+    "#define TRAIT_MAP_MULTI_PLANE_TEXTURE 0",
+    "#define TRAIT_ROUNDED_CORNERS 0",
+    "#define TRAIT_BORDER 0",
+    "#define TRAIT_YUV_CONVERSION 0",
+])
+PREAMBULOS = {
+    "desktop GLSL 140": "#version 140\n" + DEFINES + "\n",
+    "OpenGL ES 300": ("#version 300 es\nprecision highp float;\n"
+                      "precision highp sampler2D;\nprecision highp sampler3D;\n"
+                      + DEFINES + "\n"),
+}
+
 problemas = []
 if len(shaders) != 2:
     problemas.append(f"only {len(shaders)} of 2 shaders could be extracted from glass.cpp")
-for nombre, src in sorted(shaders.items()):
-    with tempfile.TemporaryDirectory() as d:
-        ruta = pathlib.Path(d) / f"glass.{nombre}"
-        ruta.write_text("#version 330 core\n" + src)
-        r = subprocess.run(["glslangValidator", "-S", nombre, str(ruta)],
-                           capture_output=True, text=True)
-    if r.returncode != 0:
-        problemas.append(f"{nombre}: does not compile")
-        problemas.extend("   " + l for l in r.stdout.splitlines() if l.strip())
+for etiqueta, preambulo in PREAMBULOS.items():
+    for nombre, src in sorted(shaders.items()):
+        with tempfile.TemporaryDirectory() as d:
+            ruta = pathlib.Path(d) / f"glass.{nombre}"
+            ruta.write_text(preambulo + src)
+            r = subprocess.run(["glslangValidator", "-S", nombre, str(ruta)],
+                               capture_output=True, text=True)
+        if r.returncode != 0:
+            problemas.append(f"{nombre} does not compile with the {etiqueta} preamble")
+            problemas.extend("   " + l for l in r.stdout.splitlines() if l.strip())
 for p in problemas:
     print("      -> " + p)
 print(len(problemas))
@@ -130,7 +159,7 @@ PYEOF
 )
   n="${malos_shader##*$'\n'}"
   if [ "$n" = "0" ]; then
-    ok "the embedded vertex and fragment shaders compile"
+    ok "the shaders compile with KWin's own preambles (desktop GLSL 140 and ES 300)"
   else
     fallo "the embedded shaders do not compile ($n problems)"
     # The compiler's own words, indented: "got 5" on its own sends the reader

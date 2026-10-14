@@ -311,12 +311,17 @@ Both live test scripts **abort if the installed plugin is not the build in the t
 effect and report its OPAQUE as if it were the new code's. At the time of writing the
 installed plugin IS the pre-capture build, so `./install.sh` is not optional.
 
-**First, without logging out:** `bash tests/run.sh` validates the embedded shaders
-with `glslangValidator` (`#version 330 core` prepended; KWin prepends its own header
-at runtime, so what this proves is that the shader BODY is well formed, not that
-KWin's preamble matches). A shader that does not compile is otherwise invisible until
-a relogin: `loadShader()` logs a critical, the effect draws nothing, and there is no
-way to see it from here. Skipped, loudly, if the validator is not installed.
+**First, without logging out:** `bash tests/run.sh` compiles the embedded shaders with
+`glslangValidator` using **KWin's own preambles**, read from its source rather than
+invented: `ShaderManager::generateCustomShader` prepends only the `TRAIT_*` defines and
+`GLShader::preprocess` prepends the version directive -- `#version 140` on desktop
+OpenGL, `#version 300 es` plus `precision highp` qualifiers on OpenGL ES. **Both are
+checked**, because both are paths KWin takes and a shader that only compiles on one of
+them would break on somebody else's machine and never here. A shader that does not
+compile is otherwise invisible until a relogin: `loadShader()` logs a critical, the
+effect draws nothing, and nothing on this side can see it. Skipped, loudly, if
+`glslangValidator` is not installed. What it still cannot prove is which GLSL version
+the running context reports.
 
 **Then, for M1.3a step 2 specifically:** the criterion is that the band shows the
 desktop, so `test-glass.sh` + `measure-glass.py` is the verdict (it reported 3.2,
