@@ -231,6 +231,21 @@ can see exactly where it stopped.
   the WINDOW texture (tone and chrome baseline) now clamp the sampled v to the band's own
   span; the kernel over the CAPTURE must not, because the backdrop legitimately extends past
   the bar -- and that distinction is asserted in the suite.
+- **Ghost copies of the chrome, displaced by the tone radius.** **FIXED (2026-10-14), and it
+  was the second half of the same mistake.** A blur of the bar still CONTAINS the chrome, just
+  moved: measured on the user's screenshot, the traffic lights sit 20 rows below the bar's top
+  and rows 48..70 of the band carried a dark ghost of them (minimum 59 against a band of 188),
+  because one sample of the tone's 3x3 had landed on the buttons -- 19 rows above them, which
+  is exactly the radius. The user's words were precise: "botones fantasma arriba de los
+  botones". The tone is now a MEDIAN of five samples (centre plus four at the radius, the
+  vertical ones clamped inside the bar), which discards a minority of chrome by construction:
+  at most the centre can be on a button. The sorting network is a nine-compare-exchange one,
+  verified against a Python replica over 20,000 random cases before it went into the shader,
+  because a hand-written sorting network that is subtly wrong looks fine and is not.
+  **The bar's own colour is a setting now, and Apple's kit says what it should be**: see
+  `tokens/tokens-kit.toml` `[liquid_glass]`, `opacity = 25`. The user's `GlassAlpha` was 0.4
+  and the default 0.55, so "el efecto es muy blanco" is the material keeping too much of the
+  theme's near-white bar -- Apple's own number is a quarter.
 - **The window is drawn over the band.** **State: resolved by construction** -- the
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.

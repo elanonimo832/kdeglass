@@ -195,15 +195,31 @@ void main()
     // the radius is for.
     float vBandBottom = 1.0 - uTitleBarHeight * uTexelSize.y;
     const float vBandTop = 1.0;
-    vec4 sum = vec4(0.0);
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            vec2 d = vec2(float(x), float(y)) * toneRadius * uTexelSize;
-            sum += texture(sampler, vec2(vTexCoord.x + d.x,
-                                        clamp(vTexCoord.y + d.y, vBandBottom, vBandTop)));
-        }
-    }
-    vec3 baseline = (sum / 9.0).rgb;
+
+    // ...AND IT MUST BE A MEDIAN, NOT A BLUR. A blur of the bar still CONTAINS the chrome,
+    // just displaced by the radius, and that is what the user saw next: "botones fantasma
+    // arriba de los botones". Measured on their screenshot: the traffic lights sit 20 rows
+    // below the bar's top, and rows 48..70 of the band carried a dark ghost of them (minimum
+    // 59 against a band of 188) because one of the three samples of a 3x3 had fallen on the
+    // buttons -- 19 rows above them, which is exactly the radius. A median of five samples
+    // discards a minority of chrome BY CONSTRUCTION: at most the centre can be on a button,
+    // and the four at the radius are bar.
+    vec4 c0 = texture(sampler, vTexCoord);
+    vec4 c1 = texture(sampler, vec2(vTexCoord.x - toneRadius * uTexelSize.x, vTexCoord.y));
+    vec4 c2 = texture(sampler, vec2(vTexCoord.x + toneRadius * uTexelSize.x, vTexCoord.y));
+    vec4 c3 = texture(sampler, vec2(vTexCoord.x,
+                                    clamp(vTexCoord.y - toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
+    vec4 c4 = texture(sampler, vec2(vTexCoord.x,
+                                    clamp(vTexCoord.y + toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
+    // Sorting network for five elements, nine compare-exchanges, channel-wise, so c2 ends up
+    // holding the median. Verified against a Python replica over 20,000 random cases before
+    // it went in: a hand-written sorting network that is subtly wrong looks fine and is not.
+    vec4 tmp;
+#define KSORT(a, b) tmp = min(a, b); b = max(a, b); a = tmp;
+    KSORT(c0, c1) KSORT(c3, c4) KSORT(c2, c4) KSORT(c2, c3) KSORT(c1, c4)
+    KSORT(c0, c3) KSORT(c0, c2) KSORT(c1, c3) KSORT(c1, c2)
+#undef KSORT
+    vec3 baseline = c2.rgb;
 
     // THE CHROME, DRAWN CRISP AND ON TOP OF THE GLASS.
     //

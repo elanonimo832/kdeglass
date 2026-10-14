@@ -440,7 +440,20 @@ echo "  -- the bar's kernels do not look outside the bar --"
 # the band now; the kernel over the CAPTURE must NOT be, because the backdrop legitimately
 # extends past the bar.
 afirmar_codigo "the band's v span is computed" "$SOURCE" 'vBandBottom = 1[.]0 - uTitleBarHeight [*] uTexelSize[.]y'
-afirmar_codigo "the tone can only sample inside the bar" "$SOURCE" 'clamp[(]vTexCoord[.]y [+] d[.]y, vBandBottom, vBandTop[)]'
+afirmar_codigo "the tone can only sample inside the bar" "$SOURCE" 'clamp[(]vTexCoord[.]y - toneRadius [*] uTexelSize[.]y, vBandBottom, vBandTop[)]'
 afirmar_codigo "and so can the chrome baseline" "$SOURCE" 'clamp[(]c[.]y, vBandBottom, vBandTop[)]'
 afirmar_igual "the backdrop kernel is NOT clamped (the backdrop goes past the bar)" "2" \
   "$(grep -c 'uvBackground + dir' effect-kwin/src/glass.cpp)"
+
+echo "  -- the tone is a median, not a displaced blur --"
+# The user's second look, in their own words: "hay como botones fantasma arriba de los
+# botones". Measured: the traffic lights sit 20 rows below the bar's top and rows 48..70 of
+# the band carried a dark ghost of them, because one sample of the tone's 3x3 had landed on
+# the buttons, 19 rows above them -- the radius. A blur of the bar always contains the chrome
+# displaced; a median of five discards a minority of it by construction.
+afirmar_codigo "the tone takes five samples" "$SOURCE" 'vec4 c4 = texture'
+afirmar_codigo "and sorts them channel-wise for the median" "$SOURCE" 'KSORT[(]c0, c1[)]'
+afirmar_codigo "the median is what becomes the bar's tone" "$SOURCE" 'vec3 baseline = c2[.]rgb'
+# The network itself is pinned: nine compare-exchanges, and the median is the third element.
+afirmar_igual "the sorting network is the verified one" "9" \
+  "$(grep -o 'KSORT[(]c[0-9], c[0-9][)]' effect-kwin/src/glass.cpp | wc -l)"
