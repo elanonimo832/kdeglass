@@ -61,6 +61,18 @@ for s in "$EF/install.sh" "$EF/build.sh" \
   [ -f "$s" ] && { bash -n "$s" 2>/dev/null && ok "$(basename "$s"): bash syntax OK" || fallo "$(basename "$s"): BAD bash syntax"; }
 done
 
+echo "  -- the chain verifier checks the right thing --"
+# It used to look for OUR call to effects->paintWindow(). That was right for M1.1
+# and became WRONG in M1.2, where OffscreenEffect continues the chain and our
+# binary merely links it. It then printed "chain broken" for a correct effect and
+# BLOCKED THE INSTALL. The dangerous thing is not a missing call, it is an
+# override that forgets one, so that is what it must check.
+afirmar_contiene "the verifier looks for overrides" "$EF/verify-chain.sh" 'does not override'
+afirmar_contiene "the verifier checks the base class" "$EF/verify-chain.sh" 'OffscreenEffect'
+afirmar_contiene "the verifier checks the base is linked" "$EF/verify-chain.sh" 'undefined-only'
+negar "the verifier no longer demands our own chain call" \
+  grep -qE 'if grep -qE .effects->paintWindow' "$EF/verify-chain.sh"
+
 echo "  -- no script EXECUTES kwin_wayland --replace --"
 # It leaves the screen black: on Wayland it starts a second compositor that fights
 # for the DRM/GL and kills the live KWin's OpenGL context. We only look at COMMAND

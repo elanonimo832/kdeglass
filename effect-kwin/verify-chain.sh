@@ -1,61 +1,94 @@
 #!/usr/bin/env bash
-# Checks the root cause of the black screen: MacosGlassEffect::paintWindow()
-# MUST continue the KWin chain by calling effects->paintWindow().
+# THE CHECK THAT PREVENTS THE BLACK SCREEN.
 #
-# EffectsHandler::paintWindow() calls ONE single effect; the chain advances because
-# Effect::paintWindow() (the base) re-enters effects->paintWindow(). If an
-# effect overrides paintWindow() and does not call the base, the chain is cut,
-# finalPaintWindow() is not run and NO window is drawn (black background).
+# The incident: EffectsHandler::drawWindow() calls ONE effect at a time and the
+# chain advances because the BASE implementation re-enters it. An effect that
+# overrides drawWindow()/paintWindow() and does NOT continue the chain cuts it
+# there: finalPaintWindow() never runs, no window is painted, and the screen goes
+# black -- while KWin and plasmashell stay alive and answer on D-Bus.
 #
-# NOTE on the grep: `grep -c ... >/dev/null` is used and NOT `grep -q`. With -q, grep
-# aborts as soon as it finds the match and closes the pipe; combined with `pipefail`
-# that gave a NON-DETERMINISTIC result (sometimes it passed, sometimes not). With -c it reads
-# the whole input and the result is stable. See INCIDENT.md.
+# WHAT CHANGED IN M1.2, AND WHY THE OLD CHECK WAS WRONG
+#   M1.1 overrode paintWindow() and had to call effects->paintWindow() itself, so
+#   this script looked for that call in our source and in our binary.
+#
+#   M1.2 derives from OffscreenEffect, which continues the chain for us: its
+#   drawWindow() calls effects->drawWindow() when the window is not redirected and
+#   OffscreenData::paint() when it is. Both paths verified in KWin 6.7's
+#   src/effect/offscreeneffect.cpp.
+#
+#   Looking for our own call therefore reports "chain broken" for a correct
+#   effect. This script printed exactly that false alarm and blocked the install.
+#   The dangerous thing to look for is not a MISSING call -- it is an OVERRIDE
+#   that forgets one. So that is what is checked.
 set -uo pipefail
-AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FUENTE="$AQUI/src/glass.cpp"
-SO="$AQUI/build/plugins/kwin/effects/macosglass2.so"
-SISTEMA=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE="$HERE/src/glass.cpp"
+HEADER="$HERE/src/glass.h"
+SO="$HERE/build/plugins/kwin/effects/macosglass2.so"
+SYSTEM_SO=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
 
 fallo=0
 
-echo "=== 1. The source calls effects->paintWindow() ==="
-if grep -cE 'effects->paintWindow\(' "$FUENTE" >/dev/null; then
-  echo "  OK: $FUENTE contains the chain call"
+echo "=== 1. The effect must not override the chain entry points ==="
+# Overriding either of these means the effect took responsibility for continuing
+# the chain, and must then prove it does. Not overriding is the safe state: the
+# base class handles it.
+for fn in drawWindow paintWindow; do
+  if grep -qE "void MacosGlassEffect::$fn" "$SOURCE" 2>/dev/null; then
+    if grep -qE 'effects->(drawWindow|paintWindow)\(' "$SOURCE" 2>/dev/null; then
+      echo "  OK: overrides $fn and calls the chain"
+    else
+      echo "  FAIL: overrides $fn and does NOT call the chain -> black screen"
+      fallo=1
+    fi
+  else
+    echo "  OK: does not override $fn (the base class continues the chain)"
+  fi
+done
+
+echo
+echo "=== 2. The base class must be one that continues the chain ==="
+# Effect::drawWindow and Effect::paintWindow re-enter the chain. OffscreenEffect
+# overrides drawWindow but calls effects->drawWindow() on every path.
+if grep -qE 'public[[:space:]]+OffscreenEffect' "$HEADER" 2>/dev/null; then
+  echo "  OK: derives from OffscreenEffect (continues the chain in both paths)"
+elif grep -qE 'public[[:space:]]+Effect' "$HEADER" 2>/dev/null; then
+  echo "  OK: derives from Effect (its drawWindow re-enters the chain)"
 else
-  echo "  FAIL: paintWindow() does NOT continue the chain -> black screen"
+  echo "  FAIL: unknown base class -- cannot confirm the chain is continued"
   fallo=1
 fi
 
 echo
-echo "=== 2. The compiled binary calls EffectsHandler::paintWindow ==="
+echo "=== 3. The base class must actually be linked into the plugin ==="
+# A derived class that links nothing of its base cannot have picked up its
+# behaviour. This is the check that replaces the old "our binary calls the chain".
 if [ ! -f "$SO" ]; then
-  echo "  (not compiled yet; run: cmake --build build)"
+  echo "  (not compiled yet; run: ./build.sh)"
   fallo=1
-elif objdump -d --demangle "$SO" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null; then
-  echo "  OK: $(basename "$SO") calls the chain"
+elif nm -D --undefined-only "$SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+  echo "  OK: $(basename "$SO") links OffscreenEffect"
 else
-  echo "  FAIL: the compiled binary does NOT call the chain"
+  echo "  FAIL: the plugin does not link OffscreenEffect"
   fallo=1
 fi
 
 echo
-echo "=== 3. The .so installed on the system ==="
-if [ ! -f "$SISTEMA" ]; then
-  echo "  (no .so installed in $SISTEMA)"
+echo "=== 4. The installed plugin ==="
+if [ ! -f "$SYSTEM_SO" ]; then
+  echo "  (no plugin installed in $SYSTEM_SO)"
   echo "  Install it with:  ./install.sh"
-elif objdump -d --demangle "$SISTEMA" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null; then
-  echo "  OK: the installed .so is the FIXED one"
+elif nm -D --undefined-only "$SYSTEM_SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+  echo "  OK: the installed plugin links OffscreenEffect"
 else
-  echo "  WARN: the installed .so does NOT carry the chain. Do NOT activate it."
-  echo "         Reinstall:  ./install.sh"
+  echo "  WARN: the installed plugin is an older build. Do not activate it."
   fallo=1
 fi
 
 echo
 if [ "$fallo" -eq 0 ]; then
-  echo "CHAIN OK: the effect cannot leave the screen black for this reason."
+  echo "CHAIN OK: nothing overrides the chain without continuing it."
 else
-  echo "CHAIN BROKEN: do NOT activate this effect until it is fixed."
+  echo "CHAIN AT RISK: do NOT activate this effect."
 fi
 exit "$fallo"
