@@ -136,26 +136,28 @@ echo "  -- capture-pair.sh takes both captures and puts the effect back --"
 afirmar_codigo "the effect is unloaded for the theme's capture" "$EF/capture-pair.sh" 'unloadEffect'
 afirmar_codigo "and loaded again" "$EF/capture-pair.sh" 'loadEffect'
 afirmar_codigo "the trap restores it even on interrupt" "$EF/capture-pair.sh" 'trap restaurar EXIT INT TERM'
-afirmar_codigo "the rectangle comes from the effect's own diagnostics" "$EF/capture-pair.sh" "title bar band:"
 afirmar_codigo "both captures are cropped to the same strip" "$EF/capture-pair.sh" 'recorte = '
 
-echo "  -- capture-pair.sh parses the geometry Qt actually streams --"
-# The first version expected QRect(QPoint(...), QSize(...)) and died on the real line, which is
-# `frame= KWin::RectF(1226,476 1387x1138)`. This is the exact line from the user's journal:
-LINEA='[macos-glass] title bar band: "Unsaved* — Spectacle" frame= KWin::RectF(1226,476 1387x1138) client= KWin::RectF(1230,514 1379x1096) expanded= KWin::RectF(1212,474 1415x1142) shadowMargin= QPointF(14,2) barHeight= 38'
-leido=$("$EF/capture-pair.sh" --geometry "$LINEA" 2>/dev/null)
-afirmar_igual "it reads x, y, width, height and barHeight" "1226 476 1387 1138 38" "$leido"
-# A window dragged partly off screen has negative coordinates, and an off-by-one there would crop
-# the wrong strip:
-LINEA2='[macos-glass] title bar band: "x" frame= KWin::RectF(-120,40 800x600) barHeight= 34'
-afirmar_igual "and negative coordinates survive" "-120 40 800 600 34" \
-  "$("$EF/capture-pair.sh" --geometry "$LINEA2" 2>/dev/null)"
-# Five FIELDS, because the caller does `set -- $leidos`: a value that merely looks right is the
-# exact way this broke once already.
-afirmar_igual "the parse yields five fields for set --" "5" \
-  "$("$EF/capture-pair.sh" --geometry "$LINEA" 2>/dev/null | wc -w)"
-# And the CAPTURE PATH must run that same step. The version before this tested the parse while the
-# capture read a variable the parse no longer set, so the guard saw bar='' on every real run and
-# this test could not tell: it never exercised the consumption.
-afirmar_codigo "the capture path calls the same resolver" "$EF/capture-pair.sh" 'resolver_geometria "\$diag"'
-afirmar_codigo "and takes all five from set --" "$EF/capture-pair.sh" 'X=\$1; Y=\$2; ANCHO=\$3; ALTO=\$4; bar=\$5' 
+echo "  -- capture-pair.sh parses the geometry KWin reports --"
+# The first version parsed the effect's journal line, which is STALE: the crop landed on a window
+# that had moved, so "the theme's strip" was the desktop and the simulation still looked
+# convincing. The geometry now comes from KWin's scripting for the ACTIVE window, in the same
+# "x,y,w,h,bar" form test-titlebar.sh uses, and the parse is the same code the capture runs.
+afirmar_igual "it reads the five numbers" "1226 476 1387 1138 38" \
+  "$("$EF/capture-pair.sh" --geometry "1226,476,1387,1138,38" 2>/dev/null)"
+afirmar_igual "a partly off-screen window keeps its negative x" "-120 40 800 600 34" \
+  "$("$EF/capture-pair.sh" --geometry "-120.5,40.25,800,600,34" 2>/dev/null)"
+afirmar_igual "and it is five FIELDS, because the capture does set --" "5" \
+  "$("$EF/capture-pair.sh" --geometry "1226,476,1387,1138,38" 2>/dev/null | wc -w)"
+# A window with no title bar (barHeight 0) must be refused, not cropped to nothing.
+if "$EF/capture-pair.sh" --geometry "10,10,100,100,0" >/dev/null 2>&1; then
+  fallo "a window with no title bar was accepted"
+else
+  ok "a window with no title bar is refused"
+fi
+# THE UNLOAD IS CHECKED, NOT ASSUMED: a capture with the effect on is its output, not its input.
+afirmar_codigo "the unload is verified" "$EF/capture-pair.sh" 'isEffectLoaded'
+afirmar_codigo "with a fallback that KWin does honour" "$EF/capture-pair.sh" '--group Plugins --key'
+afirmar_codigo "and it refuses to capture if the effect is still loaded" "$EF/capture-pair.sh" 'a capture with the effect on is its OUTPUT'
+afirmar_codigo "the geometry comes from the ACTIVE window, fresh" "$EF/capture-pair.sh" 'w[.]normalWindow && w[.]active'
+afirmar_codigo "the trap puts the plugin key back too" "$EF/capture-pair.sh" 'PLUGIN_TOCADO'

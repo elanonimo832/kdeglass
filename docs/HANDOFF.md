@@ -920,6 +920,29 @@ it needs and gave no command to produce them. That is the same defect as a knob 
 suite's list with the properties that matter: it unloads, it loads again, the trap restores on
 interrupt, the rectangle comes from the journal, and both crops are the same strip.
 
+## 9h. The capture pair: fresh geometry, and an unload that is checked
+
+The user ran `capture-pair.sh` successfully and the simulation "looked convincing" -- and it was
+wrong twice, in ways worth writing down because both would have fooled anybody.
+
+**The geometry was stale.** The script read the band's rectangle from the effect's journal, which
+can be an hour old. It was: the crop landed on a window that had moved since, so "the theme's
+strip" was the desktop and the backdrop was something else again. The mean colour gave it away --
+the strip measured 55, a title bar of this theme is near white -- and the simulation matched it to
+within three levels, which is exactly how a self-referential result looks convincing. The geometry
+now comes from KWin's scripting for the **active window**, at the moment of the capture, the same
+"x,y,w,h,bar" route `test-titlebar.sh` uses.
+
+**The unload was assumed.** `unloadEffect` can be refused, and a capture taken with the effect
+still loaded is the effect's OUTPUT, not its input. The script now asks `isEffectLoaded`, falls
+back to disabling the plugin through `[Plugins]` (which KWin does honour, via `/KWin reconfigure`),
+and refuses to capture if neither works -- because a self-referential capture is worse than no
+capture: it produces a simulation that proves nothing and looks right.
+
+One structural lesson, again: the `--geometry` test mode and the capture now share ONE parser, so
+a test of the parse is a test of the step that runs. The version before this tested a parser the
+capture did not use, and the capture failed on every run while the test passed.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

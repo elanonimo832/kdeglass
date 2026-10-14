@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
-# Takes the two captures simulate.py needs, in ONE command, and restores the effect afterwards.
+# Takes the two captures simulate.py needs, in ONE command, and puts everything back.
 #
-#   ./capture-pair.sh
+#   ./capture-pair.sh [output-dir]
+#   ./capture-pair.sh --geometry "1226,476,1387,1138,38"     # test mode: parse only, no screen
 #
 # simulate.py needs the window's title strip with the effect OFF (that is the theme's own
 # drawing, which is what the effect samples) and the SAME region of the desktop with the window
-# out of the way (that is the backdrop it captures). Getting those by hand is three tools and a
-# guess about the rectangle; this reads the rectangle from the effect's own journal, takes both,
-# crops both to it, and puts the effect back even if you interrupt it.
+# out of the way (that is the backdrop it captures). By hand that is three tools and a guess.
+#
+# TWO THINGS THIS LEARNED THE HARD WAY, and both are why it looks like this:
+#
+# 1. The geometry must be FRESH. The first version read the band's rectangle from the effect's own
+#    journal, which can be an hour old -- and was: the crop landed on a window that had moved
+#    since, so "the theme's strip" was really the desktop, and the simulation still looked
+#    convincing. It now asks KWin for the ACTIVE window's geometry at the moment of the capture,
+#    the way test-titlebar.sh does.
+# 2. The unload must be CHECKED, not assumed. `unloadEffect` can be refused, and a capture taken
+#    with the effect still loaded is the effect's OUTPUT, not its input: the simulation would be
+#    self-referential and would prove nothing while looking right. So the script asks
+#    `isEffectLoaded`, falls back to disabling the plugin (which KWin does honour, through
+#    [Plugins] and /KWin reconfigure), and refuses to carry on if neither works.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,124 +27,123 @@ ID=macosglass2
 SALIDA="${1:-/tmp}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+PLUGIN_TOCADO=0
 
-# THE RECTANGLE, from the effect's own diagnostics. The format is Qt's, so the four numbers are
-# inside `frame= KWin::RectF(1226,476 1387x1138)` -- x, y, then width x height. The first version
-# of this expected `QRect(QPoint(...), QSize(...))`, which is NOT what Qt streams for a RectF, and
-# the user's run died on it; hence the tolerant extraction and the --geometry mode, which lets the
-# suite check this against the exact line their journal produced.
-leer_geometria() { # leer_geometria "<journal line>" -> "x y w h bar" or nothing
-    local linea="$1" trozo
-    # head -1 matters: the line carries frame, client AND expanded rectangles, and all three
-    # have numbers. Reading the first is the frame; reading all of them produced three lines.
-    trozo=$(printf '%s' "$linea" | grep -oE 'frame= *[A-Za-z:_]*RectF?\([^)]*\)' \
-            | grep -oE '\([^)]*\)' | head -1 | tr -d '()')
-    [ -n "$trozo" ] || return 1
-    local bar
-    bar=$(printf '%s' "$linea" | grep -oE 'barHeight= *[0-9]+' | grep -oE '[0-9]+' | head -1)
-    # FIVE NUMBERS OUT, not the raw "x,y wxh". The first version of this printed the rectangle as
-    # Qt writes it, which LOOKS right and is not usable: the caller does `set -- $leidos` and got
-    # "1226,476" for x and nothing at all for the height, so the run died with "could not read x,
-    # y, width, height and barHeight" while the --geometry test passed. The test checked the
-    # intermediate value; the path that consumed it was what broke.
-    local xy wh
-    xy=$(printf '%s' "$trozo" | cut -d' ' -f1)
-    wh=$(printf '%s' "$trozo" | cut -d' ' -f2)
-    printf '%s %s %s %s %s\n' \
-        "$(printf '%s' "$xy" | cut -d, -f1)" "$(printf '%s' "$xy" | cut -d, -f2)" \
-        "$(printf '%s' "$wh" | cut -dx -f1)" "$(printf '%s' "$wh" | cut -dx -f2)" "$bar"
+efecto() { # efecto <Method>
+    timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects."$1" "$ID" >/dev/null 2>&1
 }
 
-# TEST MODE FIRST, before the trap is armed: this path must not touch the effect at all, and
-# with the trap armed its "loaded again" line ended up inside the captured output -- which is how
-# the suite noticed that reading a rectangle was reloading the user's effect.
-# ONE resolver, used by the test mode AND by the capture path, so that a test of the parse is a
-# test of the step the capture actually performs. The version before this tested `leer_geometria`
-# while the capture path read a variable named `bar` that no longer existed: the guard saw bar=''
-# on every run, and the test could not see it because it never exercised that step.
-resolver_geometria() { # <line> -> "x y w h bar", all five or nothing
-    local l
-    l=$(leer_geometria "$1") || return 1
-    set -- $l
-    if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ] || [ -z "${5:-}" ]; then
+cargado() { # cargado -> "true" | "false" | ""
+    timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded "$ID" 2>/dev/null \
+        | tr -d '[:space:]'
+}
+
+# ONE parser, used by the test mode AND by the capture, so that a test of it is a test of the step
+# that runs. An earlier version tested a parser while the capture used a different one, and the
+# capture failed on every run while the test passed.
+parse_geometria() { # parse_geometria "<x,y,w,h,bar>" -> "x y w h bar" or nothing
+    local g="$1" x y w h bar
+    x=$(printf '%s' "$g" | cut -d, -f1 | cut -d. -f1)
+    y=$(printf '%s' "$g" | cut -d, -f2 | cut -d. -f1)
+    w=$(printf '%s' "$g" | cut -d, -f3 | cut -d. -f1)
+    h=$(printf '%s' "$g" | cut -d, -f4 | cut -d. -f1)
+    bar=$(printf '%s' "$g" | cut -d, -f5 | cut -d. -f1)
+    if [ -z "$x" ] || [ -z "$y" ] || [ -z "$w" ] || [ -z "$h" ] || [ -z "$bar" ] || [ "$bar" = "0" ]; then
         return 1
     fi
-    printf '%s %s %s %s %s\n' "$1" "$2" "$3" "$4" "$5"
+    printf '%s %s %s %s %s\n' "$x" "$y" "$w" "$h" "$bar"
 }
 
 if [ "${1:-}" = "--geometry" ]; then
-    resolver_geometria "${2:-}" || { echo "could not read x, y, width, height and barHeight"; exit 2; }
+    parse_geometria "${2:-}" || { echo "could not parse that geometry"; exit 2; }
     exit 0
 fi
 
-efecto() { # efecto on|off
-    timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects."$1"Effect "$ID" >/dev/null 2>&1
+# The active window, right now, through KWin's own scripting -- not the journal, which is stale.
+leer_geometria() {
+    cat > /tmp/glass-geom.js <<'JS'
+const wins = workspace.windowList ? workspace.windowList() : workspace.clientList();
+let best = null;
+for (const w of wins) { if (w.normalWindow && w.active) best = w; }
+if (best) print(`G|${best.frameGeometry.x},${best.frameGeometry.y},${best.frameGeometry.width},${best.frameGeometry.height},${best.clientGeometry.y - best.frameGeometry.y}`);
+JS
+    timeout 20 qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript /tmp/glass-geom.js >/dev/null 2>&1
+    timeout 10 qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start >/dev/null 2>&1
+    sleep 1
+    local g
+    g=$(timeout 15 journalctl --user --since '15 sec ago' -o cat 2>/dev/null | grep '^G|' | grep -v systemd-run | tail -1 | cut -d'|' -f2)
+    [ -n "$g" ] || return 1
+    parse_geometria "$g"
+}
+
+descargar() { # leaves the effect unloaded, or reports failure
+    efecto unloadEffect
+    sleep 2
+    if [ "$(cargado)" != "false" ]; then
+        # The D-Bus unload was refused. KWin does honour [Plugins], through the one reconfigure
+        # command that reaches its own effect list.
+        kwriteconfig6 --file kwinrc --group Plugins --key "${ID}Enabled" false
+        timeout 20 qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1
+        sleep 2
+        PLUGIN_TOCADO=1
+    fi
+    [ "$(cargado)" = "false" ]
+}
+
+cargar() { # undoes descargar, both ways round
+    if [ "$PLUGIN_TOCADO" = "1" ]; then
+        kwriteconfig6 --file kwinrc --group Plugins --key "${ID}Enabled" true
+        timeout 20 qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1
+        sleep 1
+    fi
+    efecto loadEffect
 }
 
 restaurar() {
-    efecto loadEffect
+    cargar
     echo
-    echo "the effect is loaded again."
+    echo "the effect is loaded again ($(cargado))."
 }
 trap restaurar EXIT INT TERM
 
-
-CAPTION="${2:-}"
-diag=$(timeout 20 journalctl --user --since '60 min ago' -o cat 2>/dev/null \
-       | grep 'title bar band:' | grep -v systemd-run \
-       | { if [ -n "$CAPTION" ]; then grep -F "$CAPTION"; else cat; fi; } | tail -1)
-if [ -z "$diag" ]; then
-    echo "No 'title bar band: ... frame= ... barHeight= ...' line in the journal from the last hour."
-    echo "That line comes from the effect itself, so:"
-    echo "  1. make sure the effect is loaded and a decorated window is on screen"
-    echo "  2. move that window a little, so it repaints"
-    if [ -n "$CAPTION" ]; then
-        echo "  3. or drop the caption filter '$CAPTION': it may not match any window"
-    else
-        echo "  3. run this again"
-    fi
-    exit 2
-fi
-echo "the effect says:"
-echo "  $diag"
-ventana=$(printf '%s' "$diag" | sed -n 's/.*title bar band: *"\([^"]*\)".*/\1/p')
-echo "  -> that is the window \"$ventana\""
-
-leidos=$(resolver_geometria "$diag") || { echo "could not read the rectangle out of that line"; exit 2; }
+echo "asking KWin for the active window's geometry..."
+leidos=$(leer_geometria) || {
+    echo "  KWin did not report it. Focus the window whose title bar you want and run this again."
+    exit 1
+}
 set -- $leidos
 X=$1; Y=$2; ANCHO=$3; ALTO=$4; bar=$5
-if [ -z "${X:-}" ] || [ -z "${Y:-}" ] || [ -z "${ANCHO:-}" ] || [ -z "${ALTO:-}" ] || [ -z "${bar:-}" ]; then
-    echo "could not read x, y, width, height and barHeight out of that line"
-    echo "  (parsed: x='${X:-}' y='${Y:-}' width='${ANCHO:-}' height='${ALTO:-}' bar='${bar:-}')"
-    exit 2
-fi
-echo "  -> crop x=$X y=$Y w=$ANCHO title bar=${bar}px"
+echo "  -> x=$X y=$Y w=$ANCHO title bar=${bar}px"
 
 echo
-echo "1/3 unloading the effect, so the capture shows the THEME, not the glass..."
-efecto unloadEffect
-sleep 2
+echo "1/3 unloading the effect, so the capture shows the THEME and not the glass..."
+if ! descargar; then
+    echo "  could not unload the effect, and nothing was captured on purpose:"
+    echo "  a capture with the effect on is its OUTPUT, not its input."
+    exit 1
+fi
+echo "  unloaded ($(cargado))."
 if ! timeout 20 spectacle -b -n -o "$SALIDA/_par_titulo.png" >/dev/null 2>&1; then
-    echo "spectacle could not capture the screen"
+    echo "  spectacle could not capture the screen"
     exit 1
 fi
 
 echo
-echo "2/3 MOVE THE WINDOW AWAY from x=$X..$((X+ANCHO)), y=$Y..$((Y+ALTO))"
+echo "2/3 MOVE THE ACTIVE WINDOW AWAY from x=$X..$((X+ANCHO)), y=$Y..$((Y+ALTO))"
 echo "    (any direction is fine, as long as that region shows the desktop)"
 read -r -p "    then press Enter... " _
 
 if ! timeout 20 spectacle -b -n -o "$SALIDA/_par_fondo.png" >/dev/null 2>&1; then
-    echo "spectacle could not capture the screen"
+    echo "  spectacle could not capture the screen"
     exit 1
 fi
 
 echo
-echo "3/3 cropping both to the same rectangle..."
-python3 - "$SALIDA" "$X" "$Y" "$ANCHO" "$ALTO" "$bar" <<'PYEOF'
+echo "3/3 cropping both to the same strip..."
+python3 - "$SALIDA" "$X" "$Y" "$ANCHO" "$bar" <<'PYEOF'
 import sys
 from PIL import Image
-salida, x, y, w, h, bar = sys.argv[1], *(int(v) for v in sys.argv[2:7])
+salida, x, y, w, bar = sys.argv[1], *(int(v) for v in sys.argv[2:6])
 recorte = (x, y, x + w, y + bar)          # the title strip only: that is the band
 for origen, destino in (("_par_titulo.png", "titulo.png"), ("_par_fondo.png", "fondo.png")):
     im = Image.open(f"{salida}/{origen}").convert("RGB")
