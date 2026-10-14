@@ -246,6 +246,21 @@ can see exactly where it stopped.
   `BackgroundRadius=0`, put a window with TEXT behind the target and check whether the
   band's content lines up with the same text where it shows around the window. If it
   does not, the fix is to pass the texture's own size and the margins as uniforms.
+  **And the band's own measurement is NOT evidence that the sampling is fine**, which is
+  worth writing down because it looks like it is: a review derived that the band test
+  normalises `vTexCoord` through `uTextureSize`, so the margin cancels and the band lands
+  exactly at the frame's top edge UNDER EITHER reading. The band sizes correctly and the
+  background can still be sampled 14 px to the left.
+  **The corners, on the other hand, do discriminate, and they point at an offset.** The
+  clip draws a rounded rectangle from `vTexCoord * uTextureSize`, i.e. from the FRAME's box;
+  if `vTexCoord` spanned the expanded texture instead, the arcs would land at the shadow's
+  corners, 14 px left and 7 px up, and a 12 px radius there would leave the window's own
+  corner essentially square. The user saw rounded corners at radius 12 and said so ("creo
+  que ya funcionan las esquinas"), which is evidence for the frame reading -- and therefore
+  evidence that the SAMPLING offset is real rather than hypothetical. Two smaller
+  consequences of the same mismatch, both negligible: the frost and chrome kernels step by a
+  margin-sized fraction fewer texels than asked (~1.9 %), and the clip box is off by the
+  margin.
 - **One capture texture for every window.** The M1.2b hazard (one shader, many
   windows, the last one wins) in a new place. Safe for the two reasons above: the
   capture is never re-entered, and `capture(A) -> draw(A) -> capture(B)` completes

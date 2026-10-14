@@ -124,6 +124,11 @@ was still set when `test-harness.sh` ran.
   `grep -q` in a pipe was forbidden in `effect-kwin/*.sh` and used nine times inside
   `tests/`, including in the helper that runs every assertion. The scan now covers
   both.
+- **A deliberate break must not be able to destroy uncommitted work.** While checking that
+  the eviction guard caught the regression it was written for, the break was reverted with
+  `git checkout`, which restored the file to the last COMMIT and took ten uncommitted fixes
+  with it. They were re-applied from the patch text, but the cheap rule is the one to keep:
+  commit first, or break a copy (`cp file /tmp/file.bak`, break, restore from the copy).
 - **An API behaviour written down is a claim; only the header is evidence.** The handoff
   listed "GL objects are destroyed without making the context current" as a known leak for
   two rounds, with a proposed fix (make the capture per window) that would have been real
