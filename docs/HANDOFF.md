@@ -253,17 +253,24 @@ can see exactly where it stopped.
   capture must become per window. Written down here because it is the third time this
   shape has appeared.
 - **The capture is not limited to the damaged region.** It is one blit of the window's
-  area per repaint, and during a full-screen repaint that is every window. The fix,
-  when it matters, is to capture the BAND only and map its uv in the shader --
-  arithmetic that has to be verified on screen, so it belongs with step 3 or later.
-- **GL objects are destroyed without making the context current.** `~GLFramebuffer`
-  warns and skips deletion when there is no current EGL context, and KWin's own
-  `unredirect()` works around it (`OffscreenEffect::unredirect` makes the context
-  current before erasing). This effect's destructor does not, so unloading it can leak
-  the capture FBO and print a warning. **State: known, low, not fixed** -- it is a leak
-  at unload, not a crash and not a black screen, and it disappears if the capture
-  becomes per window and is released in `slotWindowDeleted`, where the context is
-  current.
+  area per repaint, and during a full-screen repaint that is every window. The fix, when
+  it matters, is to capture the BAND only and map its uv in the shader. **Its condition is
+  now met** -- step 3 is done, and `measure-alignment.py` is what makes that arithmetic
+  verifiable at all: a wrong uv mapping shows up as a displacement of the band's content,
+  which is a number, not an opinion. **It is still not done here on purpose**, and the
+  reason is sequencing rather than risk: the build waiting for a relogin has to be looked
+  at first, and a change to the freshly-verified sampling should not ride along with it.
+  Whoever does it should run the instrument before and after.
+- ~~**GL objects are destroyed without making the context current.**~~ **THIS CLAIM WAS
+  WRONG, and checking it took one paragraph of KWin's own documentation.** It assumed the
+  context is not current in the destructor and proposed making the capture per window to
+  avoid the leak. KWin's `/usr/include/kwin/effect/effect.h` says the opposite, in the section on
+  OpenGL: *"The framework ensures that the OpenGL context is current when the Effect gets
+  created, destroyed or reconfigured and during the painting stages."* The destructor is defaulted,
+  the cache dies with it, and the journal has never carried `~GLFramebuffer`'s "no current
+  context" warning. **State: not a risk; nothing to fix.** Kept here, struck through,
+  because the shape of the mistake -- writing down an API behaviour instead of reading it --
+  is the one this project has paid for most often.
 - **The capture texture used to be reallocated whenever the window size changed.**
   **FIXED (2026-10-14), as this note said it would be once the mechanism was verified.**
   One GL texture sized to the window being captured meant that a frame in which two

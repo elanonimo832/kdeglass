@@ -323,6 +323,14 @@ MacosGlassEffect::MacosGlassEffect()
     effects->addRepaintFull();
 }
 
+// The destructor is defaulted ON PURPOSE, and it is safe, which was checked rather than
+// assumed. KWin's own Effect documentation (/usr/include/kwin/effect/effect.h, "OpenGL")
+// says the framework ensures the OpenGL context is current when the Effect gets created,
+// destroyed or reconfigured, and during the painting stages. A current context is what
+// GLFramebuffer's destructor needs before it will delete anything, and the journal has
+// never carried its "no current context" warning. An earlier version of the handoff listed
+// this as a leak to fix, from assuming the opposite -- and the fix it proposed (making the
+// capture per window) would have been a lot of work for nothing.
 MacosGlassEffect::~MacosGlassEffect() = default;
 
 bool MacosGlassEffect::supported()

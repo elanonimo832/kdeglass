@@ -124,6 +124,15 @@ was still set when `test-harness.sh` ran.
   `grep -q` in a pipe was forbidden in `effect-kwin/*.sh` and used nine times inside
   `tests/`, including in the helper that runs every assertion. The scan now covers
   both.
+- **An API behaviour written down is a claim; only the header is evidence.** The handoff
+  listed "GL objects are destroyed without making the context current" as a known leak for
+  two rounds, with a proposed fix (make the capture per window) that would have been real
+  work. KWin's own `Effect` documentation guarantees the opposite in one paragraph: the
+  context is current when the effect is created, destroyed or reconfigured. The claim had
+  never been read anywhere -- it was inferred from `GLFramebuffer`'s warning, which is
+  about a situation that does not arise. The item is now struck through in the handoff
+  rather than deleted, because the shape of the mistake is the one this project pays for
+  most often.
 - **A diagnostic that floods the log destroys what it is for.** `prePaintWindow` raised
   its counter only while it was below six and then gated the message on `pre <= 6`, so once
   the counter stopped the message went out on every paint of every window: thousands of
