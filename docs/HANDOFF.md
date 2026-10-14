@@ -743,9 +743,16 @@ tool that produced the evidence had been verified.
   3. **The journal-flood fix** in `prePaintWindow` (74,609 spam lines in one boot).
   4. **The per-size capture cache** (one texture+framebuffer per distinct reduced size,
      capped at four), replacing a single pair.
-  5. **Comment-only and documentation changes** that cannot affect the artifact: the
+  5. **The review fixes** (two independent reviews of items 1-4): the capture cache evicts
+     the least recently used size instead of the smallest, the capture pointer is cleared
+     before any early return, the reduced texture is cleared before the blit, the
+     no-capture fallback writes premultiplied like the main path, and windows whose frame
+     reaches the screen's edge are no longer rounded. Plus the vibrancy arithmetic, which
+     now delivers the contrast it promises instead of approaching it.
+  6. **Comment-only and documentation changes** that cannot affect the artifact: the
      destructor's note about the context, the roadmap's closing criterion, the settings
-     table in the effect README, and the new checks in `tests/`.
+     table in the effect README, the sampling evidence in section 5, and the new checks in
+     `tests/`.
   **Every one of those is behaviour-preserving with vibrancy off**, so the relogin that
   installs them should show the band exactly as it is now: that is the thing to look at,
   and only then is `Vibrancy` worth turning on.
