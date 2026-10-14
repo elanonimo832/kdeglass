@@ -27,20 +27,44 @@ it looks like it works: it is done when a test proves it and **fails** when it i
 
 ---
 
-### M1 — The effect draws the material ⬅ **the next one**
+### M1 — The effect draws the material ⬅ **in progress**
 
-The effect loads and hooks into the paint chain, but **draws nothing**.
-It is the only big thing missing from step 5.
+Done in small steps, each measured before the next one starts:
 
-It will be done in small steps, each one measured with `effect-kwin/test-installed.sh`:
+| Sub-step | What it draws | Criterion | State |
+|---|---|---|---|
+| M1.1 | A flat colour patch at the window's top-left | visible, anchored to the window, `black=0%` | ✅ **done** |
+| M1.2 | Diffusion over the window (frost 6/16/16) | the content softens; measurable as loss of local contrast | ⬅ **next** |
+| M1.3 | Refraction (70) | the edge bends; measurable with a grid pattern | |
+| M1.4 | Dispersion (20) | the edge splits into channels; measured in the colour | |
+| M1.5 | Specular highlight + darkened edge (alpha 20) | matches the kit | |
 
-| Sub-step | What it draws | Criterion |
-|---|---|---|
-| M1.1 | A flat color over the window | the effect is visible, and `negro=0%` |
-| M1.2 | Background diffusion (frost) | the background blurs, measurable by contrast |
-| M1.3 | Refraction (70) | the edge bends; measurable with a grid pattern |
-| M1.4 | Dispersion (20) | the edge splits into channels; measurable in the color |
-| M1.5 | Specular highlight + darkened edge (alpha 20) | matches the kit |
+#### M1.1 — done (2026-10-14)
+
+A 48x48 cyan patch drawn with `glScissor` + `glClear` into the window's
+framebuffer, anchored to its top-left corner. Verified on screen **and** by
+measurement: with the effect off and on, nothing moved, 5723 pixels changed
+against 2304 for a single patch — the two or three windows that were open.
+
+What it cost, recorded because **none of it was found by the automatic
+measurements** — three of them gave wrong verdicts, and what found the bug was
+the user describing the behaviour: *"if I moved the app up, the patch went down"*.
+
+  - the window's GLOBAL geometry has to be scaled into device pixels
+  - `frameGeometry().y()` is ALREADY measured from the top of the screen, so
+    flipping Y for glScissor inverts the vertical movement
+  - `mapToDeviceCoordinates()` looked like the culprit but is an identity on a
+    single output at 0,0 with scale 1 — eliminated by measuring, not arguing
+  - KWin does NOT re-read a plugin's `.so` once loaded: it keeps the build from
+    its own start-up, so a changed file needs a fresh session
+  - hot-loading only reaches `paintWindow` for windows that are DAMAGED; loading
+    an effect damages nothing, which is why a plain `loadEffect` appears to do
+    nothing. `test-hot.sh` damages windows on purpose
+  - a screenshot diff is blind to DIRECTION: it counted the changed pixels
+    correctly and still could not say the patch was anchored wrongly
+
+Two regression tests pin the anchoring and the sign, both verified by breaking
+them on purpose.
 
 **Done when:** the five sub-steps pass, the harness is still green, and there are
 screenshots in `evidence/` that prove it.
