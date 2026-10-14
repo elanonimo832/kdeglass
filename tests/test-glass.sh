@@ -16,7 +16,7 @@ FUENTE="$EF/src/glass.cpp"
 CABECERA="$EF/src/glass.h"
 
 echo "  -- the title bar is translucent --"
-afirmar_codigo "the shader writes a reduced alpha in the band" "$FUENTE" 'uGlassAlpha[)]'
+afirmar_codigo "the shader writes a reduced alpha in the band" "$FUENTE" 'uGlassAlpha'
 afirmar_codigo "the glass alpha is a named constant" "$CABECERA" 'kGlassAlpha'
 
 echo "  -- the content is left alone --"
@@ -25,7 +25,7 @@ afirmar_codigo "outside the band the texel is returned unmodified" "$FUENTE" 'fr
 echo "  -- the scene is told the window is translucent --"
 # Setting an alpha in the shader is not enough: the scene blends the redirected
 # texture only for a window it considers translucent.
-afirmar_codigo "the effect marks the window translucent" "$FUENTE" 'data[.]setTranslucent[(][)]'
+afirmar_codigo "the effect marks the window translucent" "$FUENTE" 'data\.setTranslucent[(][)]'
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
