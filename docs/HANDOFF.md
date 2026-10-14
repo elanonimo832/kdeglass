@@ -131,9 +131,10 @@ MacosGlassEffect::drawWindow(...)     <- screen holds THE DESKTOP. Capture here.
 OffscreenEffect::drawWindow(...)      <- maybeRender() + paint(). Draws the window.
 ```
 
-As implemented (step 2), the capture is the window's **whole frame**, not just the
-band: a frame-sized capture lines up with the window's own offscreen texture UV for
-UV, so the composite cannot drift. Band-only is an optimisation for later.
+As implemented (step 2), the capture covers the window's **expanded geometry** -- the
+frame plus the decoration's shadow margins -- because that is the region KWin's own
+offscreen texture covers and the region the shader's `vTexCoord` runs across.
+Band-only is an optimisation for later.
 
 **This requires overriding `drawWindow`.** `verify-chain.sh` used to **forbid** that
 outright, because overriding it badly was the cause of two black screens; the ban
@@ -177,34 +178,68 @@ can see exactly where it stopped.
   not from arithmetic by hand.
 - **The offscreen texture's v axis is flipped relative to window coordinates.**
   Established the hard way in M1.2b: the distance from the window's top is
-  `(1.0 - vTexCoord.y)`, i.e. v = 0 is the window's BOTTOM. **State: a setting, not a
-  guess.** Whether the *capture* agrees with it is the one thing that cannot be
-  settled without a screen, so it is `BackgroundFlipV` in `kwinrc` (default false)
-  and can be flipped with `qdbus6 org.kde.KWin /KWin reconfigure` -- no relogin. If
-  the band shows the desktop upside down, that is the switch.
-  The default rests on an argument, not a coin toss, and it is written down so it can
-  be falsified: the capture is filled by a framebuffer blit whose destination is in
-  texture-local coordinates, and an FBO's texture has v = 0 on its bottom row, so the
-  two textures agree and no flip is due. What would falsify it is KWin mapping that
-  destination through a top-left convention internally -- not visible from the
-  headers, which is why the knob exists.
+  `(1.0 - vTexCoord.y)`, i.e. v = 0 is the window's BOTTOM. **State: settled, and the
+  default is correct.** Reading KWin 6.7.5's `GLFramebuffer::blitFromFramebuffer`
+  settles what the header could not: the blit maps the destination rect's top to
+  `dstY0 = texH - (d.y + d.height)`, i.e. NDC `v = (texH - d.y - 0.5) / texH`, which is
+  the same v the window quad carries for the same device row. Both textures are
+  bottom-up and agree, so `BackgroundFlipV` stays false. The knob is not dead code:
+  the agreement breaks if the source render target's `contentTransform()` is non-Normal
+  (a rotated output), which takes KWin's `texture->render` fallback branch instead of
+  the blit. Keep it, and keep it documented as a rotation escape hatch rather than as
+  an unresolved guess.
+- **The capture must cover the EXPANDED geometry, and getting it wrong looks like a uv
+  bug.** The redirected texture is `snapToPixels(expandedGeometry(), scale) * scale` --
+  the frame PLUS the decoration's shadow margins -- and the shader's `vTexCoord` runs
+  0..1 across all of it. The first version of this step captured `frameGeometry()`:
+  the desktop would have been sampled shifted by the top/left margin and scaled by
+  `expanded/frame`, and the symptom (a band showing the wrong piece of background)
+  would have been blamed on the uv maths or on the flip. **State: fixed**, and the
+  test now asserts the region is `expandedGeometry()` snapped the way KWin snaps it.
+- **The re-render into the offscreen texture does NOT re-enter this effect.**
+  Worth writing down because it is the opposite of what the code looks like, and a
+  review did flag it as a high-severity bug. `OffscreenEffect::maybeRender()` really
+  does call `effects->drawWindow(offscreenRT, ...)`, but
+  `EffectsHandler::drawWindow()` advances the effect cursor *before* calling an effect
+  and **rewinds it after** (`--m_currentDrawWindowIterator;`, effecthandler.cpp) --
+  so while our `drawWindow` runs, the cursor is already past us and the nested call
+  resumes at the NEXT effect. If it re-entered us, every `OffscreenEffect` in KWin
+  would recurse forever: `m_isDirty` is cleared only after the nested call returns.
+  Consequence: the capture is taken once per paint, from the screen, and is not
+  overwritten by the window's own texture. Do not add a re-entry guard for this.
 - **The window is drawn over the band.** **State: resolved by construction** -- the
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.
+- **`uTexelSize`/`uTextureSize` are frame-sized while the texture is expanded-sized.**
+  Real, pre-existing (M1.2b), and it does NOT cancel cleanly: the band boundary lands
+  at `barHeight * (expandedH / frameH)`, and the blur offsets shrink by the same
+  fraction. It looked right because the band's implicit origin is the frame top, which
+  is one shadow margin below the texture top, and the two errors very nearly cancel --
+  within a few percent on a normal window, more on a small one. **State: left alone on
+  purpose.** The obvious fix (`uTextureSize = expanded * scale`) makes the band START
+  at the shadow top and grow by the margin, i.e. it breaks what is verified. The
+  correct change carries the margin explicitly --
+  `(1 - vTexCoord.y) * textureHeight > uMarginTop + uTitleBarHeight` -- and that is a
+  visible geometry change, so it belongs with step 3, where it can be verified on
+  screen together with the blur radius.
 - **One capture texture for every window.** The M1.2b hazard (one shader, many
-  windows, the last one wins) in a new place. Safe only because capture and draw
-  happen inside the same `drawWindow()` call: `capture(A) -> draw(A) -> capture(B)`.
-  If a band ever shows ANOTHER window's background, the capture must become per
-  window. Written down here because it is the third time this shape has appeared.
-- **The capture is the whole frame, and it is not limited to the damaged region.**
-  Deliberate, and it is the one place where correctness was chosen over cost: a
-  frame-sized texture lines up with the window's own texture UV for UV, so the
-  composite cannot drift, and only the band is ever sampled. The price is one
-  framebuffer blit of the window's area per repaint. During a full-screen repaint
-  (video, dragging a window) that is every window. The fix, when it matters, is to
-  capture the BAND only and map its uv in the shader -- arithmetic that has to be
-  verified on screen, so it belongs with step 3 or later, not with the step that is
-  trying to prove the mechanism works.
+  windows, the last one wins) in a new place. Safe for the two reasons above: the
+  capture is never re-entered, and `capture(A) -> draw(A) -> capture(B)` completes
+  inside one compositing pass. If a band ever shows ANOTHER window's background, the
+  capture must become per window. Written down here because it is the third time this
+  shape has appeared.
+- **The capture is not limited to the damaged region.** It is one blit of the window's
+  area per repaint, and during a full-screen repaint that is every window. The fix,
+  when it matters, is to capture the BAND only and map its uv in the shader --
+  arithmetic that has to be verified on screen, so it belongs with step 3 or later.
+- **GL objects are destroyed without making the context current.** `~GLFramebuffer`
+  warns and skips deletion when there is no current EGL context, and KWin's own
+  `unredirect()` works around it (`OffscreenEffect::unredirect` makes the context
+  current before erasing). This effect's destructor does not, so unloading it can leak
+  the capture FBO and print a warning. **State: known, low, not fixed** -- it is a leak
+  at unload, not a crash and not a black screen, and it disappears if the capture
+  becomes per window and is released in `slotWindowDeleted`, where the context is
+  current.
 - **Every code change needs a session restart.** KWin keeps the `.so` it loaded at
   startup; it never re-reads a changed file. Never use `kwin_wayland --replace`.
   `./install.sh` needs sudo; verify by relogin, and keep

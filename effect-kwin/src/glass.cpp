@@ -4,6 +4,7 @@
 #include <QLoggingCategory>
 #include <QString>
 
+#include <core/pixelgrid.h>
 #include <core/region.h>
 #include <core/rendertarget.h>
 #include <core/renderviewport.h>
@@ -307,26 +308,40 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     if (!sourceFbo) {
         return false;
     }
-    const Rect frame = w->frameGeometry().toRect();
-    if (frame.isEmpty()) {
+    // CAPTURE THE **EXPANDED** GEOMETRY, NOT THE FRAME, and this is not a detail.
+    //
+    // KWin redirects the window into a texture of expandedGeometry() * scale
+    // (offscreeneffect.cpp, OffscreenData::maybeRender) -- the frame PLUS the
+    // decoration's shadow margins -- and the shader's vTexCoord runs 0..1 across
+    // that whole texture. Capturing only the frame would therefore map a frame-sized
+    // texture onto expanded-sized coordinates: the desktop would be sampled shifted
+    // by the top/left shadow margin and scaled by expanded/frame. The band would show
+    // the wrong part of the background, and it would look like a uv or flip bug.
+    //
+    // snapToPixels is KWin's own rounding to the device grid, the same call
+    // maybeRender uses, so the captured region is the texture's region and not
+    // approximately it.
+    const Rect region = snapToPixels(w->expandedGeometry(), viewport.scale()).toRect();
+    if (region.isEmpty()) {
         return false;
     }
 
-    // RISK, handled rather than hoped for: frameGeometry() of a MAXIMISED window is
-    // the whole screen, and a window dragged past the edge goes outside it. A blit
-    // with an out-of-bounds source is undefined behaviour, so the source is clamped
-    // to the render target's logical rect. What is left of the destination is then
-    // offset by the same amount, which is why the two are computed separately.
-    const Rect source = frame.intersected(viewport.renderRect().toRect());
+    // RISK, handled rather than hoped for: expandedGeometry() of a MAXIMISED window is
+    // the whole screen plus its shadow, and a window dragged past the edge goes
+    // outside it. A blit with an out-of-bounds source is undefined behaviour, so the
+    // source is clamped to the render target's logical rect. What is left of the
+    // destination is then offset by the same amount, which is why the two are
+    // computed separately.
+    const Rect source = region.intersected(viewport.renderRect().toRect());
     if (source.isEmpty()) {
         return false;
     }
 
     // DEVICE pixels, not logical ones: at scale != 1 the texture must be larger than
-    // frameGeometry(). mapToRenderTargetTexture is KWin's own logical-to-texture
-    // transform, so this is not arithmetic done by hand.
-    const Rect frameDevice = viewport.mapToRenderTargetTexture(frame);
-    const QSize size = frameDevice.size();
+    // the logical geometry. mapToRenderTargetTexture is KWin's own
+    // logical-to-texture transform, so this is not arithmetic done by hand.
+    const Rect regionDevice = viewport.mapToRenderTargetTexture(region);
+    const QSize size = regionDevice.size();
     if (size.isEmpty()) {
         return false;
     }
@@ -355,7 +370,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     }
 
     const Rect sourceDevice = viewport.mapToRenderTargetTexture(source);
-    const Rect destination(sourceDevice.topLeft() - frameDevice.topLeft(), sourceDevice.size());
+    const Rect destination(sourceDevice.topLeft() - regionDevice.topLeft(), sourceDevice.size());
 
     // blitFromFramebuffer reads from the CURRENT framebuffer. It already is the
     // source while the scene is drawn; pushing it says so instead of assuming it.

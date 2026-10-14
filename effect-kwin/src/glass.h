@@ -90,17 +90,26 @@ private:
     // ---------------------------------------------------------------------
     // M1.3a -- the captured desktop.
     //
-    // The texture is the window's FRAME at device resolution, not just the band.
-    // That is deliberate: a frame-sized capture lines up with the window's own
-    // offscreen texture UV for UV, so the composite cannot drift. Band-only is an
-    // optimisation for when this is known to work.
+    // The texture is the window's EXPANDED geometry -- frame plus the decoration's
+    // shadow margins -- because that is exactly the region KWin's own offscreen
+    // texture covers and the region the shader's vTexCoord runs across. Capturing the
+    // frame instead would sample the desktop shifted by the shadow margin. Band-only
+    // is an optimisation for when this is known to work.
     //
     // ONE texture, shared by every window -- which is the hazard that cost M1.2b
-    // (one shader object, many windows, the last one won). It is safe here ONLY
-    // because capture and draw happen inside the SAME drawWindow() call:
-    //     capture(A) -> draw(A) -> capture(B) -> draw(B)
-    // If a band ever shows ANOTHER window's background, this assumption has broken
-    // and the capture has to become per window.
+    // (one shader object, many windows, the last one won). Two facts make it safe
+    // here, and both come from KWin 6.7.5's own source rather than from hope:
+    //   1. EffectsHandler::drawWindow() advances the effect cursor BEFORE calling an
+    //      effect and rewinds it after (effecthandler.cpp): while our drawWindow runs,
+    //      the cursor is past us. The nested effects->drawWindow() that
+    //      OffscreenEffect::maybeRender() does to re-render the window into its own
+    //      FBO therefore resumes AFTER this effect -- it does NOT re-enter us, so the
+    //      capture is not overwritten by the window's own texture. If it ever did,
+    //      every OffscreenEffect would recurse forever.
+    //   2. capture(A) -> draw(A) -> capture(B) -> draw(B) within one compositing pass,
+    //      so the texture is consumed before the next window writes it.
+    // If a band ever shows ANOTHER window's background, fact 2 has broken and the
+    // capture has to become per window.
     // ---------------------------------------------------------------------
     std::unique_ptr<GLTexture> m_background;
     std::unique_ptr<GLFramebuffer> m_backgroundFbo;

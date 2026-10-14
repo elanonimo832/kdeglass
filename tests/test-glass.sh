@@ -44,6 +44,14 @@ afirmar_codigo "the blit source is clamped to the render target" "$FUENTE" 'inte
 # Device pixels, not logical ones: at scale != 1 the texture must be larger than
 # frameGeometry(). KWin's own transform, not arithmetic done by hand.
 afirmar_codigo "the capture is sized in device pixels" "$FUENTE" 'mapToRenderTargetTexture'
+# AND it must cover exactly the region KWin redirected: the offscreen texture is
+# expandedGeometry()*scale (frame PLUS shadow margins) and the shader's vTexCoord runs
+# across all of it. A frame-sized capture samples the desktop shifted by the shadow
+# margin -- a bug that would have looked like a uv or flip problem.
+afirmar_codigo "the capture covers the EXPANDED geometry KWin redirected" "$FUENTE" 'expandedGeometry[(][)]'
+afirmar_codigo "and it is snapped to the device grid the way KWin does" "$FUENTE" 'snapToPixels'
+negar "the capture is not framed to frameGeometry" \
+  grep -qE 'snapToPixels[(]w->frameGeometry' "$FUENTE"
 # The composite happens in the shader, so there is no second quad that could be
 # drawn under the window (HANDOFF section 5, risk 4).
 afirmar_codigo "the shader samples the captured background" "$FUENTE" 'texture[(]background'
