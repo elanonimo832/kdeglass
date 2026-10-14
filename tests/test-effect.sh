@@ -99,3 +99,36 @@ for s in "$EF"/*.sh "$PROY"/*.sh; do
   fi
 done
 afirmar_igual "no script executes --replace" "0" "$malos"
+
+echo "  -- no pipeline may use 'grep -q' under pipefail --"
+# THIS FAILURE HAPPENED THREE TIMES. grep -q exits as soon as it matches and
+# closes the pipe; the producer then dies of SIGPIPE, and with `set -o pipefail`
+# the pipeline returns that failure even though grep succeeded. The check passes
+# or fails depending on timing and data size: it passed here and failed on the
+# user's machine, on the same binary. Verifying a fix with such a check is
+# impossible, which is how it survived three rounds.
+#
+# The --diagnose block reproduces the broken form ON PURPOSE, to show the
+# contrast, so it is the one allowed place.
+malos=$(python3 - "$EF" <<'PYEOF'
+import glob, os, re, sys
+ef = sys.argv[1]
+bad = []
+for path in sorted(glob.glob(os.path.join(ef, '*.sh'))):
+    text = open(path, encoding='utf-8').read()
+    # cut the --diagnose block out: it exists to demonstrate the broken pattern
+    end = text.find('  exit 0\nfi', text.find('--diagnose'))
+    if end > 0:
+        text = text[:text.find('--diagnose')] + text[end + len('  exit 0\nfi'):]
+    for n, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith('#'):
+            continue
+        if re.search(r'\|[^|]*grep[^|]*-q', line):
+            bad.append(f"{os.path.basename(path)}:{n}: {line.strip()}")
+for b in bad:
+    print(f"      -> {b}")
+print(len(bad))
+PYEOF
+)
+n="${malos##*$'\n'}"
+afirmar_igual "no 'grep -q' in a pipeline outside --diagnose" "0" "$n"

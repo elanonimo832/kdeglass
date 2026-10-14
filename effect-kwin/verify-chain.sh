@@ -66,7 +66,7 @@ if [ "${1:-}" = "--diagnose" ] || [ "${2:-}" = "--diagnose" ]; then
   echo "    OffscreenEffect matches=$(grep -c OffscreenEffect /tmp/vc-nm.txt)"
   echo
   echo "  pipeline result (the exact expression used at line 82):"
-  if nm -D --undefined-only "$SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+  if nm -D --undefined-only "$SO" 2>/dev/null | grep -c 'OffscreenEffect' >/dev/null; then
     echo "    -> PASA"
   else
     echo "    -> FALLA"
@@ -74,7 +74,7 @@ if [ "${1:-}" = "--diagnose" ] || [ "${2:-}" = "--diagnose" ]; then
   echo
   echo "  same pipeline WITHOUT pipefail:"
   set +o pipefail
-  if nm -D --undefined-only "$SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+  if nm -D --undefined-only "$SO" 2>/dev/null | grep -c 'OffscreenEffect' >/dev/null; then
     echo "    -> PASA"
   else
     echo "    -> FALLA"
@@ -130,7 +130,7 @@ echo "=== 3. The base class must actually be linked into the plugin ==="
 if [ ! -f "$SO" ]; then
   echo "  (not compiled yet; run: ./build.sh)"
   fallo=1
-elif nm -D --undefined-only "$SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+elif nm -D --undefined-only "$SO" 2>/dev/null | grep -c 'OffscreenEffect' >/dev/null; then
   echo "  OK: $(basename "$SO") links OffscreenEffect"
 else
   echo "  FAIL: the plugin does not link OffscreenEffect"
@@ -149,7 +149,7 @@ else
   # what made this script block the install.
   if [ ! -f "$SYSTEM_SO" ]; then
     echo "  (none installed in $SYSTEM_SO)"
-  elif nm -D --undefined-only "$SYSTEM_SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+  elif nm -D --undefined-only "$SYSTEM_SO" 2>/dev/null | grep -c 'OffscreenEffect' >/dev/null; then
     echo "  OK: the installed plugin links OffscreenEffect"
   else
     echo "  NOTE: the installed plugin is an older build (does not link"
