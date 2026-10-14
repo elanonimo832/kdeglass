@@ -21,12 +21,14 @@ if [ -f "$SO_BUILD" ]; then
   # So the check is that the base class is really linked in, which is what proves
   # the chain will be reached. Searching for EffectsHandler::paintWindow in our
   # own binary was right for M1.1 and is wrong now.
-  nm -D --undefined-only "$SO_BUILD" 2>/dev/null | grep -q 'OffscreenEffect' \
+  # No `nm ... | grep -q`: under `set -o pipefail` the early exit of grep -q kills
+  # nm with SIGPIPE and the pipeline fails on a match. See tests/test-harness.sh.
+  grep -q 'OffscreenEffect' <<< "$(nm -D --undefined-only "$SO_BUILD" 2>/dev/null)" \
     && ok "the compiled .so links OffscreenEffect (which continues the chain)" \
     || fallo "the compiled .so does NOT link OffscreenEffect"
-  nm -D "$SO_BUILD" 2>/dev/null | grep -q 'qt_plugin_instance' \
+  grep -q 'qt_plugin_instance' <<< "$(nm -D "$SO_BUILD" 2>/dev/null)" \
     && ok "the .so exports qt_plugin_instance" || fallo "qt_plugin_instance is missing"
-  strings "$SO_BUILD" 2>/dev/null | grep -q 'KWin/Effect' \
+  grep -q 'KWin/Effect' <<< "$(strings "$SO_BUILD" 2>/dev/null)" \
     && ok "the metadata declares KWin/Effect" || fallo "KPackageStructure KWin/Effect is missing"
 else
   fallo "the .so is not compiled (run: ./build.sh)"
@@ -81,7 +83,7 @@ afirmar_contiene "the verifier checks the base is linked" "$EF/verify-chain.sh" 
 # should, as a NOTE -- but whether that mention sets the failure flag. Setting it
 # is circular: install.sh checks before copying, so a stale installed build would
 # block the install that replaces it. That blocked a real install, twice.
-if grep -A2 'NOTE: the installed plugin is an older build' "$EF/verify-chain.sh" 2>/dev/null | grep -q 'fallo=1'; then
+if grep -q 'fallo=1' <<< "$(grep -A2 'NOTE: the installed plugin is an older build' "$EF/verify-chain.sh" 2>/dev/null)"; then
   fallo "a stale installed plugin sets the failure flag (circular, blocks install)"
 else
   ok "a stale installed plugin does not set the failure flag"
@@ -96,8 +98,8 @@ for s in "$EF"/*.sh "$PROY"/*.sh; do
   [ -f "$s" ] || continue
   # Only counts when the command is EXECUTED: at line start or after a shell
   # separator. Inside an echo (warning against it) it does not count.
-  if grep -vE '^\s*#' "$s" 2>/dev/null \
-       | grep -qE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace'; then
+  if grep -qE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace' \
+       <<< "$(grep -vE '^[[:space:]]*#' "$s" 2>/dev/null)"; then
     malos=$((malos+1)); printf '      -> %s\n' "$(basename "$s")"
     grep -nE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace' "$s" | sed 's/^/         /'
   fi

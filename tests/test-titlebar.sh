@@ -49,7 +49,10 @@ echo "  -- the shader is re-asserted on every paint --"
 # on EVERY paint, so that is where it has to be re-asserted.
 # Checked across lines with awk: the assertion is about what the apply() BODY
 # contains, and grep works line by line, so it cannot see that.
-if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'setShader('; then
+# awk is captured first instead of piped into `grep -q`: under `set -o pipefail`
+# the early exit of grep -q kills awk with SIGPIPE and the pipeline fails on a
+# match, at random. See tests/test-harness.sh.
+if grep -q -- 'setShader(' <<< "$(awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE")"; then
   ok "apply() re-asserts the shader on every paint"
 else
   fallo "apply() does not re-assert the shader (the band will vanish on repaint)"
@@ -60,7 +63,7 @@ echo "  -- the uniforms are set per paint, not once per window --"
 # slotWindowAdded meant the last window added won: uTitleBarHeight held another
 # window's bar height, and every focus change overwrote it. That is why the
 # material flickered away and came back when switching windows.
-if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'uTitleBarHeight'; then
+if grep -q 'uTitleBarHeight' <<< "$(awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE")"; then
   ok "apply() sets the band height per window"
 else
   fallo "the band height is not set per paint (shared-shader bug is back)"
@@ -68,7 +71,7 @@ fi
 # Comments excluded: the comment EXPLAINS why the shared shader must not be
 # written here, and matching that explanation made this assertion fail on correct
 # code. Same trap as several earlier tests in this project.
-if awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$FUENTE" | grep -vE '^[[:space:]]*//' | grep -q 'setUniform'; then
+if grep -q 'setUniform' <<< "$(awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$FUENTE" | grep -vE '^[[:space:]]*//')"; then
   fallo "slotWindowAdded still sets uniforms on the shared shader"
 else
   ok "slotWindowAdded no longer writes to the shared shader"

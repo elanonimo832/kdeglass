@@ -4,7 +4,9 @@
 #   run.sh effect     -> only test-effect.sh
 : "${PROY:=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 : "${PASAN:=0}"; : "${FALLAN:=0}"
-FALLOS_F="${TMPDIR:-/tmp}/tests-failures.$$"
+# Overridable so run-one.sh can give every test file its own failure list; the
+# runner concatenates them in order. Default keeps a lone `source lib.sh` working.
+: "${FALLOS_F:=${TMPDIR:-/tmp}/tests-failures.$$}"
 
 rojo()  { printf '\033[1;31m%s\033[0m' "$1"; }
 verde() { printf '\033[1;32m%s\033[0m' "$1"; }
@@ -23,8 +25,27 @@ afirmar_contiene() { if grep -qE "$3" "$2" 2>/dev/null; then ok "$1"; else fallo
 # a comment that explains the code, and then the test passes while the code does
 # not do it. We learned this the hard way: we removed the paint-chain call and the
 # test stayed green because of the comment that mentions it.
+#
+# NO PIPE, AND THIS IS THE WHOLE POINT. The first version was
+#   grep -vE '^\s*(//|\*|/\*)' "$2" | grep -qE "$3"
+# which made every assertion in this repository non-deterministic: `grep -q` exits
+# at the first match and closes the pipe, the comment-stripper then dies of
+# SIGPIPE, and `set -o pipefail` (set by run.sh) turns that into a pipeline
+# failure even though the match WAS found. It passed 20 times in a row on a small
+# file and failed at random inside the suite, which is why it was misread as state
+# leaking between test files. The rule was already in docs/METHODOLOGY.md ("verify
+# the tool before the object") and already enforced on effect-kwin/*.sh.
+#
+# codigo_contiene is the pure predicate: the counters live in afirmar_codigo so a
+# test can ask the question without printing an OK/FAIL.
+codigo_contiene() { # codigo_contiene <file> <ere-pattern>
+  local sin_comentarios
+  sin_comentarios=$(grep -vE '^[[:space:]]*(//|\*|/\*)' "$1" 2>/dev/null) || true
+  grep -qE -- "$2" <<< "$sin_comentarios"
+}
+
 afirmar_codigo() { # afirmar_codigo <description> <file> <pattern>
-  if grep -vE '^\s*(//|\*|/\*)' "$2" 2>/dev/null | grep -qE "$3"; then ok "$1"
+  if codigo_contiene "$2" "$3"; then ok "$1"
   else fallo "$1: '$3' not found in the CODE of $(basename "$2") (only in comments?)"; fi
 }
 
