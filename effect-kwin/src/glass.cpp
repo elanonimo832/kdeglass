@@ -50,11 +50,29 @@ static const char *kDiffusionFragment = R"(
 uniform sampler2D sampler;
 uniform float uRadius;
 uniform vec2 uTexelSize;
+uniform vec2 uTextureSize;
+uniform float uTitleBarHeight;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
 void main()
 {
+    // THE MATERIAL COVERS THE CHROME, NOT THE CONTENT.
+    //
+    // Blurring the whole window was verified working and is unusable: it blurs
+    // the text you are reading. macOS never does that -- its material covers the
+    // title bar, toolbars and sidebars, and the content stays sharp.
+    //
+    // vTexCoord.y is 0 at the TOP of the window and 1 at the bottom, and
+    // uTextureSize is in device pixels, so this measures distance from the top in
+    // real pixels. Above the title bar: blur. Below it: the original texel,
+    // untouched.
+    float yPixels = vTexCoord.y * uTextureSize.y;
+    if (yPixels > uTitleBarHeight) {
+        fragColor = texture(sampler, vTexCoord);
+        return;
+    }
+
     // 9 taps in a 3x3 grid around the pixel, at a distance of uRadius texels.
     // Enough to be a real blur, few enough to stay cheap.
     vec4 sum = vec4(0.0);
@@ -173,11 +191,36 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
     // exact; making it scale-aware is a refinement for when one exists.
     const QSize size = w->frameGeometry().size().toSize();
     if (size.width() > 0 && size.height() > 0) {
+        // The title bar height, measured rather than assumed: it is the distance
+        // from the top of the frame to the top of the client area. This works for
+        // ANY decoration theme, where a hard-coded value would only suit ours.
+        // Measured on the KdeMacOS theme: 28 logical pixels.
+        qreal barHeight = 0.0;
+        if (w->hasDecoration()) {
+            barHeight = w->clientGeometry().top() - w->frameGeometry().top();
+        }
+        if (barHeight <= 0.0) {
+            // No decoration, or a client-side one: nothing to cover.
+            barHeight = 0.0;
+        }
+
         ShaderManager::instance()->pushShader(m_shader.get());
         m_shader->setUniform("uRadius", float(kFrostRadius));
         m_shader->setUniform("uTexelSize",
                              QVector2D(1.0f / size.width(), 1.0f / size.height()));
+        m_shader->setUniform("uTextureSize",
+                             QVector2D(float(size.width()), float(size.height())));
+        m_shader->setUniform("uTitleBarHeight", float(barHeight));
         ShaderManager::instance()->popShader();
+
+        static int loggedBar = 0;
+        if (loggedBar < 6) {
+            ++loggedBar;
+            qInfo() << "[macos-glass] title bar band:" << w->caption()
+                    << "frame=" << w->frameGeometry()
+                    << "client=" << w->clientGeometry()
+                    << "barHeight=" << barHeight;
+        }
     }
 }
 
