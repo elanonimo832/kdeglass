@@ -523,11 +523,17 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // the user saw on a busy wallpaper. Blurring properly needs samples every pixel or
     // so over the whole footprint, which is hundreds of fetches.
     //
-    // The cheap and correct way is the one KWin's own blur uses: reduce first. The blit
-    // can scale (its header says so, and the filter argument is GL_LINEAR), so the
-    // texture is allocated at region/factor and the blit copies the whole region into
-    // it. Every texel of that texture is then already the average of factor x factor
-    // screen pixels, and the kernel on top only has to be wide, not dense.
+    // The cheap way is the one KWin's own blur uses: reduce first. The blit can scale
+    // (its header says so, and the filter argument is GL_LINEAR), so the texture is
+    // allocated at region/factor and the blit copies the whole region into it.
+    //
+    // WHAT THAT ACTUALLY BUYS, without overselling it: glBlitFramebuffer with GL_LINEAR
+    // minifies with BILINEAR filtering, which reads a 2x2 neighbourhood of the source --
+    // it does NOT box-average the whole factor x factor block, so it is a pre-smoothing
+    // and not a true average. That is still the difference between "sampling text" and
+    // "sampling a blurred version of text", which is what the user saw, and it costs one
+    // blit. A true average would mean averaging the block in the shader, i.e. factor^2
+    // more fetches per tap, and the eye has not asked for it yet.
     const int factor = m_backgroundDownsample > 0
         ? m_backgroundDownsample
         : std::clamp(m_backgroundRadius / 4, 1, 16);
@@ -714,7 +720,15 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uGlassAlpha", m_glassAlpha);
     m_shader->setUniform("uChromeRadius", float(m_chromeRadius));
     m_shader->setUniform("uChromeLow", m_chromeLow);
-    m_shader->setUniform("uCornerRadius", float(m_cornerRadius));
+    // WHICH WINDOWS GET ROUNDED CORNERS, and it is not all of them. A fullscreen window
+    // IS the screen: rounding its corners would carve arcs out of the screen itself and
+    // show the desktop behind them. A window with client-side decoration is the one case
+    // this effect deliberately leaves alone everywhere else (a guessed band there was
+    // tried and removed), so its corners are left alone too. That leaves exactly the
+    // windows the material covers: normal, decorated, not fullscreen.
+    const bool seRedondea = m_cornerRadius > 0
+        && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen();
+    m_shader->setUniform("uCornerRadius", seRedondea ? float(m_cornerRadius) : 0.0f);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

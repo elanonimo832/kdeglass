@@ -200,6 +200,12 @@ can see exactly where it stopped.
   `expanded/frame`, and the symptom (a band showing the wrong piece of background)
   would have been blamed on the uv maths or on the flip. **State: fixed**, and the
   test now asserts the region is `expandedGeometry()` snapped the way KWin snaps it.
+- **The corner clip assumes the fragment's `vTexCoord` runs across the FRAME.** It is
+  the same assumption the band's own geometry was measured under, and the user's first
+  look at the rounded corners -- "creo que ya funcionan las esquinas" -- supports it at
+  the radius in use. It is not proof: a few pixels of error in that mapping would show as
+  arcs that are not symmetric or not concentric with the frame's edge. The pixel
+  comparison written down for step 3d is still the way to settle it exactly.
 - **The re-render into the offscreen texture does NOT re-enter this effect.**
   Worth writing down because it is the opposite of what the code looks like, and a
   review did flag it as a high-severity bug. `OffscreenEffect::maybeRender()` really
@@ -379,8 +385,11 @@ none of it needs a second relogin):
 - *Is the frost a smooth haze, with no recognisable text behind?* Nine samples 16 px
   apart do not average the backdrop, they SAMPLE it, and text stays readable through the
   band with ghost copies of itself. The capture is therefore taken ALREADY REDUCED (a
-  scaled blit, the way KWin's own blur does it), so every texel is an average of a block
-  of screen; `FrostDownsample` overrides the factor and 0 derives it from the radius.
+  scaled blit, the way KWin's own blur does it); `FrostDownsample` overrides the factor
+  and 0 derives it from the radius. Be precise about what that buys: GL minifies with
+  BILINEAR filtering, which reads a 2x2 neighbourhood rather than box-averaging the whole
+  block -- a pre-smoothing, not a true average, and enough to stop the taps from sampling
+  text. A true average would mean averaging the block in the shader.
 - *Is there a ghost of the title itself?* Then the bar's tone in the glass still has
   chrome in it: it is averaged over half the bar's height for exactly that reason.
 - *Is there too much or too little glass?* Then `GlassAlpha` (bar opacity, default

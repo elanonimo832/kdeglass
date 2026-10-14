@@ -82,9 +82,10 @@ rectangle. Rather than patch the theme, the effect draws the rounded rectangle i
 `CornerRadius`, default 12, 0 to disable -- and discards what falls outside it, which is
 the same clipping M2 needs anyway.
 
-The frost is an average now, not a sample: the backdrop is captured already reduced by
-a scaled framebuffer blit -- the technique KWin's own blur effect uses -- so nine taps have
-nothing left to alias, and text behind a window dissolves into haze instead of staying
+The frost pre-smooths now instead of sampling: the backdrop is captured already reduced by
+a scaled framebuffer blit -- the technique KWin's own blur effect uses. GL minifies with
+bilinear filtering rather than a true box average, which is exactly enough to stop nine
+taps from sampling text, and text behind a window dissolves into haze instead of staying
 readable with ghost copies of itself.
 
 Left for the next step: settle whether the captured

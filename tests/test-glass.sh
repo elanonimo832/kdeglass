@@ -90,6 +90,10 @@ afirmar_codigo "by discarding what falls outside the rounding" "$FUENTE" 'discar
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
 afirmar_codigo "outside the arc, and only there" "$FUENTE" 'dot[(]esquina, esquina[)] > uCornerRadius [*] uCornerRadius'
+# ...and only for the windows the material covers. A fullscreen window IS the screen:
+# rounding it would carve arcs out of the screen and show the desktop through them. A
+# client-side decoration is the case this effect leaves alone everywhere else.
+afirmar_codigo "only decorated, non-fullscreen windows are rounded" "$FUENTE" 'isNormalWindow[(][)] && w->hasDecoration[(][)] && !w->isFullScreen[(][)]'
 # The one orientation that cannot be settled without a screen is a setting, so it
 # can be flipped and reconfigured WITHOUT a relogin.
 afirmar_codigo "the capture orientation is configurable, not assumed" "$FUENTE" 'BackgroundFlipV'
