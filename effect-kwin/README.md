@@ -10,7 +10,7 @@ verified working and unusable, because it blurred the text you were reading.
 |---|---|
 | Loads without breaking rendering | ✅ verified with screenshots (`negro=0.0%`) |
 | Hooks into the paint chain | ✅ `OffscreenEffect` continues it; our own `drawWindow` override continues it explicitly |
-| **Diffusion** — the band is blurred | ✅ M1.2, `frost 6` as a 3x3 kernel |
+| **Diffusion** | ✅ M1.2 wrote the 3x3 kernel; since M1.3a the frost is on the BACKDROP and the kernel's role is the band's tone and the chrome's baseline (a flat colour blurs to itself, so blurring the bar was never what made it look frosted) |
 | **The band covers the title bar only** | ✅ M1.2b, verified by the user, survives window switching |
 | **Real glass** — the band shows the desktop behind it | ✅ **verified on screen** (M1.3a, 2026-10-14): the band moves with the background, 73.8 against a threshold of 12, where the alpha-only attempt scored 3.2 |
 | **Frost over the capture** | ✅ seen on screen (2026-10-14): the backdrop is blurred in two scales from the kit's `frost 6/16/16` (`BackgroundRadius`, default 16; 0 = sharp) |
@@ -18,6 +18,33 @@ verified working and unusable, because it blurred the text you were reading.
 | **Vibrancy** (chrome adapts to the glass) | 🟡 implemented, **off by default** (`Vibrancy`, the minimum contrast; 0 disables). For dark backdrops, where the theme's dark title would otherwise disappear |
 | **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 16; only for normal, decorated, non-fullscreen windows -- a fullscreen window IS the screen). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
 | Refraction (70), dispersion (20), specular highlight | ❌ not started |
+
+## The knobs, and which of them are live
+
+Every one of these is read from `[Effect-macosglass2]` in `kwinrc`, and every one can be
+changed WITHOUT a relogin:
+
+```bash
+kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key <name> <value>
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
+```
+
+`/KWin reconfigure` looks like the obvious command and is the wrong one: it re-parses
+`kwinrc` but never calls the effects' `reconfigure()`, so the effect keeps its old values
+while the command reports success.
+
+| Key | Default | What it does |
+|---|---|---|
+| `BackgroundRadius` | 16 | frost radius, in screen pixels (0 = the sharp composite) |
+| `FrostDownsample` | 0 | factor the backdrop is captured at; 0 derives it (radius/4). The capture is what makes the frost an average instead of a sample |
+| `GlassAlpha` | 0.55 | how much of the bar's own tone the glass keeps |
+| `CornerRadius` | 16 | radius of the window's corners; 0 leaves whatever the decoration drew |
+| `ChromeRadius` | 3 | width, in texels, of the baseline that separates the chrome from the bar: too wide and every glyph drags a halo with it |
+| `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |
+| `Vibrancy` | 0 (off) | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
+| `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |
+| `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |
+
 
 An alpha alone was measured **OPAQUE**: the shader's only input is the window's own
 texture, and no alpha puts the desktop into a texture that does not contain it. The

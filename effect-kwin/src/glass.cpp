@@ -69,6 +69,33 @@ uniform float uVibrancy;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
+// VIBRANCY: THE CHROME ADAPTS TO THE GLASS. OFF BY DEFAULT (uVibrancy = 0), so a screen
+// being verified is unaffected unless it is asked for.
+//
+// The theme draws the title in a colour chosen for the BAR's own tone (#404040 here), but
+// the bar's tone is now the frosted backdrop, which can be dark. With little of the bar's
+// own colour kept (a low GlassAlpha) a dark title then sits on a dark glass and vanishes --
+// which is what the user saw on a dark background. macOS solves this by adapting the chrome
+// to the material; this does the same, and only when the minimum contrast is set above
+// zero: ACHROMATIC chrome is pushed towards black or white, whichever end the glass is
+// furthest from. Colour is left alone (the caller says whether it is colour), so the
+// traffic lights stay traffic lights.
+const vec3 kLuma = vec3(0.2126, 0.7152, 0.0722);
+
+vec3 cromoConVibrancy(vec3 cromo, vec3 fondo, float esCromo, float esColor)
+{
+    if (uVibrancy <= 0.001 || esCromo < 0.5 || esColor > 0.5) {
+        return cromo;
+    }
+    float lumFondo = dot(fondo, kLuma);
+    float contraste = abs(dot(cromo, kLuma) - lumFondo);
+    if (contraste >= uVibrancy) {
+        return cromo;
+    }
+    float mezcla = (uVibrancy - contraste) / uVibrancy;
+    return mix(cromo, vec3(lumFondo > 0.5 ? 0.0 : 1.0), mezcla);
+}
+
 void main()
 {
     // THE MATERIAL COVERS THE CHROME, NOT THE CONTENT.
@@ -188,21 +215,29 @@ void main()
     //
     // Writing uGlassAlpha as the alpha was measured OPAQUE: the shader's only input
     // was the window's own texture, and no alpha can put the desktop into a texture
-    // that does not contain it. drawWindow() now captures the desktop into
-    // `background` before the window is painted, and the composite happens HERE, so
-    // the result does not depend on the scene blending our alpha at all.
+    // that does not contain it. drawWindow() captures the desktop into `background`
+    // before the window is painted, and the desktop is composited HERE, in the shader.
+    //
+    // The scene's blend is NOT out of the picture, and an earlier version of this
+    // comment claimed it was. The output carries `window.a` and is premultiplied, which
+    // is what KWin blends with; the shape of the window comes from the clip above rather
+    // than from that alpha, so both conventions land in the same place -- but the comment
+    // was wrong and the corner bug in section 5 came from believing it.
     //
     // Compositing in the fragment shader also settles the ordering risk in
     // HANDOFF section 5: the band is drawn where the window is drawn, so there is no
     // second quad that could end up under the window.
     if (uHasBackground > 0.5) {
-        // uBackgroundFlipV is 1.0 when the capture's v axis disagrees with the
-        // window texture's. See glass.h: the default is the one that has to be
-        // confirmed on screen.
+        // uBackgroundFlipV is 1.0 when the capture's v axis disagrees with the window
+        // texture's. The default (0) is settled from KWin's own blit code -- both
+        // textures are bottom-up -- and the knob is kept for a rotated output, where the
+        // blit takes a different branch. See glass.h.
         vec2 uvBackground = vec2(vTexCoord.x, mix(vTexCoord.y, 1.0 - vTexCoord.y, uBackgroundFlipV));
 
-        // STEP 3a -- FROST: the same 3x3 kernel the bar uses, at the CAPTURE's texel
-        // size (a different texture from the window's, so it has its own scale).
+        // STEP 3a -- FROST. The offsets are in SCREEN pixels (uBackgroundTexel is the
+        // texel of the full-size region, not of the reduced texture), and the capture is
+        // already reduced, so nine taps land on values that are averages rather than on
+        // nine isolated points of text. See captureBackground for the reduction.
         //
         // THE FROST IS TWO SCALES, and that is the kit's own figure: frost 6/16/16 is
         // an inner radius of 6 and an outer of 16, with the 16 repeated. A single 3x3
@@ -245,14 +280,7 @@ void main()
         // does the same, and only when the minimum contrast is set above zero:
         // achromatic chrome is pushed towards black or white, whichever end the glass is
         // furthest from. Colour is left alone, so the traffic lights stay traffic lights.
-        vec3 cromo = window.rgb;
-        const vec3 kLuma = vec3(0.2126, 0.7152, 0.0722);
-        float lumGlass = dot(glass, kLuma);
-        float contraste = abs(dot(cromo, kLuma) - lumGlass);
-        if (uVibrancy > 0.001 && chrome > 0.5 && porColor < 0.5 && contraste < uVibrancy) {
-            float mezcla = (uVibrancy - contraste) / uVibrancy;
-            cromo = mix(cromo, vec3(lumGlass > 0.5 ? 0.0 : 1.0), mezcla);
-        }
+        vec3 cromo = cromoConVibrancy(window.rgb, glass, chrome, porColor);
 
         // PREMULTIPLIED, because that is the convention KWin blends with
         // (GL_ONE, GL_ONE_MINUS_SRC_ALPHA in OffscreenData::paint). Writing an
@@ -265,11 +293,18 @@ void main()
         return;
     }
 
-    // No capture available -- no framebuffer to read, blits unsupported, or the
-    // window is off screen. Keep the previous behaviour rather than sample a
-    // texture that was never filled: the bar's own colour with an alpha, and the
-    // chrome still crisp on top of it.
-    fragColor = vec4(mix(baseline, window.rgb, chrome), uGlassAlpha);
+    // No capture available -- no framebuffer to read, blits unsupported, or the window is
+    // off screen. Keep the previous behaviour rather than sample a texture that was never
+    // filled: the bar's own tone with an alpha, and the chrome crisp on top of it, with
+    // vibrancy applied here too so the two paths do not disagree about the chrome.
+    //
+    // NOTE ON THE ALPHA HERE, left as it was rather than "fixed": this path writes an
+    // UNPREMULTIPLIED colour with an alpha, which is what the alpha-only attempt did when
+    // it measured OPAQUE -- suggesting the scene does not blend this texture's alpha at
+    // all. Premultiplying it without being able to measure the result could darken a path
+    // nobody is looking at. It only runs when the capture is unavailable.
+    vec3 cromoReserva = cromoConVibrancy(window.rgb, baseline, chrome, porColor);
+    fragColor = vec4(mix(baseline, cromoReserva, chrome), uGlassAlpha);
 }
 )";
 

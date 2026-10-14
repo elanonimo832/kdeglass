@@ -78,7 +78,10 @@ afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(
 # a decision for a screen.
 afirmar_codigo "vibrancy is off by default" "$CABECERA" 'kVibrancy = 0'
 afirmar_codigo "and it is a live setting" "$FUENTE" 'Vibrancy'
-afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$FUENTE" 'porColor < 0.5'
+afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$FUENTE" 'esColor > 0[.]5'
+# The wiring: the main path must go through the helper, or vibrancy is a function nobody
+# calls -- the same trap as the `discard;` that could never run.
+afirmar_codigo "and the main path uses it" "$FUENTE" 'cromoConVibrancy[(]window[.]rgb, glass, chrome, porColor[)]'
 # The wiring, not the name: the adaptation must be what gets composited.
 afirmar_codigo "and the adapted chrome is the one composited" "$FUENTE" 'mix[(]glass, cromo, chrome[)]'
 # THE BASELINE MUST BE TIGHT. The first version measured the deviation against the
