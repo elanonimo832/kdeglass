@@ -255,10 +255,22 @@ void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
 
 void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowPrePaintData &data)
 {
+    // DIAGNOSE: is this called at all? If it is not, setTranslucent() never runs
+    // and the shader's alpha is ignored -- which is exactly what the measurement
+    // shows (opaque over a dark and a light background, difference 3.2).
+    static int pre = 0;
+    if (pre < 6) {
+        ++pre;
+        qInfo() << "[macos-glass] prePaintWindow" << w->caption().left(20)
+                << "normal=" << w->isNormalWindow() << "active=" << m_active;
+    }
     if (m_active && w->isNormalWindow()) {
         // The scene blends a window only if it is told the window is translucent.
         // The shader writing an alpha is not enough on its own.
         data.setTranslucent();
+        if (pre <= 6) {
+            qInfo() << "[macos-glass] setTranslucent called for" << w->caption().left(20);
+        }
     }
     // Continue the chain: prePaintWindow must re-enter it like the others.
     OffscreenEffect::prePaintWindow(view, w, data);

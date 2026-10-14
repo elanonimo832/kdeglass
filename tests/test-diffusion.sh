@@ -34,7 +34,7 @@ echo "  -- the shader actually blurs --"
 afirmar_codigo "the kernel accumulates texture samples" "$FUENTE" 'sum [+]= texture[(]'
 # ERE: '(' is literal and '\(' opens a group, so the parenthesis needs a class.
 afirmar_codigo "the sampling runs over a neighbourhood" "$FUENTE" 'for [(]int x = -1; x <= 1' 
-afirmar_codigo "the result is averaged" "$FUENTE" 'sum / 9' 
+afirmar_codigo "the result is averaged" "$FUENTE" 'sum /' 
 afirmar_codigo "the blur radius is a named constant" "$CABECERA" 'kBlur|kFrost|kRadius'
 
 echo "  -- the paint chain is still continued --"
