@@ -776,6 +776,32 @@ sentence stays because the shape of the mistake is the lesson -- a plausible
 mechanism ("state leaks between files") was written down as a finding before the
 tool that produced the evidence had been verified.
 
+## 10a. Two taste changes the user asked for, made in the THEME not the effect
+
+"podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
+install, and it needs no build, because neither the buttons nor the title are drawn by this
+effect: it composites what the theme drew. Two settings, both live:
+
+- **Buttons 12 px -> 16 px**, in `output/aurorae/KdeMacOS/KdeMacOSrc` (`ButtonWidth`,
+  `ButtonHeight`) and in the installed copy at
+  `~/.local/share/aurorae/themes/KdeMacOS/KdeMacOSrc` (backed up next to it). The SVG button
+  files are five-state 100x20 sheets with a 12 px circle in each 20 px cell, and aurorae
+  SCALES that cell to these numbers, so the sheet needs no edit. **macOS's own is 12 px and
+  the kit in `tokens/` does not define it**, so 16 is the user's taste and is recorded as
+  taste -- the same argument as the corner radius: at 1:1 on a 4K 27" panel, 12 px reads small.
+- **Title 12 pt bold**, in `kdeglobals [WM] activeFont` and `inactiveFont` and in
+  `kwinrc [org.kde.kdecoration2] Font` (the system default was Noto Sans 10 regular). Both
+  places are set because which one aurorae reads is not worth guessing, and the font string's
+  weight field is 75 for bold against 50 for normal.
+- `/KWin reconfigure` applies both, and unlike the case in section 10 it DOES work here: the
+  decoration is KWin's own, so there is no effect whose `reconfigure()` has to be reached. The
+  theme's own rc may need a reload; if the buttons do not grow, the relogin the pending install
+  wants anyway will do it.
+
+The effect needs no change for either: it samples the window's texture, so a bolder, larger
+title arrives with the theme. Worth writing down because the instinct is to look for the
+button size in the effect, and it is not there.
+
 ## 10b. The language drift, and where it stands
 
 The working agreement is **English in-repo**; Spanish is the language of the conversation. The

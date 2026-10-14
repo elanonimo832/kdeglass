@@ -18,8 +18,10 @@ Shadow=true
 BorderBottom=1
 BorderLeft=1
 BorderRight=1
-ButtonHeight=12
-ButtonWidth=12
+# 16, not macOS's 12: at 1:1 on a 4K 27" panel 12 px reads small,
+# and the user asked for buttons they can aim at. aurorae scales the SVG cell to this.
+ButtonHeight=16
+ButtonWidth=16
 # Separacion generosa: en macOS los semaforos respiran. Este era el problema del
 # tema anterior, que tenia 8.
 ButtonSpacing=8
