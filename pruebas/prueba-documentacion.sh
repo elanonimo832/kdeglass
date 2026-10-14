@@ -57,8 +57,10 @@ echo "  -- secretos: el repo no admite credenciales --"
 # Un token en el historial de git es permanente: GitHub revoca los que detecta.
 afirmar_contiene ".env esta ignorado" "$PROY/.gitignore" '^\.env$'
 afirmar_contiene "los .pem/.key estan ignorados" "$PROY/.gitignore" '\*\.pem'
+# OJO: `.env.example` es la PLANTILLA y SI debe versionarse (no lleva valores).
+# Se excluye a proposito; lo que no puede entrar es el `.env` real.
 malos=0
-for f in $(git -C "$PROY" ls-files 2>/dev/null | grep -iE '^\.env|\.pem$|\.key$|secret'); do
+for f in $(git -C "$PROY" ls-files 2>/dev/null | grep -iE '^\.env|\.pem$|\.key$|secret' | grep -v '\.example$'); do
   malos=$((malos+1)); printf '      -> versionado: %s\n' "$f"
 done
 afirmar_igual "ningun fichero de secretos versionado" "0" "$malos"
@@ -68,3 +70,28 @@ afirmar_literal "el README menciona el arnes" "$PROY/README.md" 'pruebas/ejecuta
 for d in ARQUITECTURA METODOLOGIA ROADMAP; do
   afirmar_literal "el README enlaza docs/$d" "$PROY/README.md" "docs/$d.md"
 done
+
+echo "  -- plantilla de entorno (.env.example) --"
+# La plantilla SI se versiona (es documentacion); el .env real NO.
+# Un fallo real: el patron '.env.*' ignoraba tambien la plantilla.
+afirmar_existe "existe .env.example" "$PROY/.env.example"
+negar ".env.example NO esta ignorado" git -C "$PROY" check-ignore -q .env.example
+afirmar ".env SI esta ignorado" git -C "$PROY" check-ignore -q .env
+afirmar ".env.local SI esta ignorado" git -C "$PROY" check-ignore -q .env.local
+
+# La plantilla no puede llevar un token de verdad. Patrones de GitHub clasicos.
+afirmar_existe ".env.example sin tokens reales" "$PROY/.env.example"
+if grep -qE 'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}' "$PROY/.env.example" 2>/dev/null; then
+  fallo ".env.example contiene algo que parece un token real"
+else
+  ok ".env.example no contiene ningun token"
+fi
+
+# Y tiene que explicar la forma correcta de autenticar.
+afirmar_literal ".env.example documenta gh auth login" "$PROY/.env.example" 'gh auth login'
+afirmar_literal ".env.example avisa de que el historial es permanente" "$PROY/.env.example" 'PERMANENTE'
+
+echo "  -- el remoto esta preparado --"
+remoto="$(git -C "$PROY" remote get-url origin 2>/dev/null)"
+afirmar_igual "el remoto apunta a kdeglass" "https://github.com/elanonimo832/kdeglass.git" "$remoto"
+afirmar_igual "la rama es main" "main" "$(git -C "$PROY" branch --show-current)"

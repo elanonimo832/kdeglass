@@ -41,6 +41,9 @@ efecto-kwin/bisect/build/
 # ---------------------------------------------------------------------------
 .env
 .env.*
+# La PLANTILLA si se versiona: no lleva valores reales y sirve de documentacion.
+# (La excepcion va DESPUES del patron que la excluye, o no funciona.)
+!.env.example
 *.token
 *token*.txt
 .secrets
