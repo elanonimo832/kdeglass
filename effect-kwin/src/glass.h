@@ -8,7 +8,9 @@
 #include <opengl/glframebuffer.h>
 #include <opengl/gltexture.h>
 
+#include <map>
 #include <memory>
+#include <utility>
 
 namespace KWin
 {
@@ -111,11 +113,23 @@ private:
     // If a band ever shows ANOTHER window's background, fact 2 has broken and the
     // capture has to become per window.
     // ---------------------------------------------------------------------
-    std::unique_ptr<GLTexture> m_background;
-    std::unique_ptr<GLFramebuffer> m_backgroundFbo;
-    QSize m_backgroundSize;      // the reduced texture
-    QSize m_backgroundRegion;    // the region it covers, in screen pixels
-    int m_backgroundFactor = 1;  // how much it was reduced by
+    // ONE PAIR PER DISTINCT CAPTURE SIZE, not one pair for the whole effect.
+    //
+    // With a single pair, a frame in which two windows of DIFFERENT sizes both repaint
+    // allocated and freed a texture and a framebuffer twice -- per frame, for as long as
+    // that kept happening, which is a terminal with a blinking cursor next to a video.
+    // The cache keeps the uv maths identical (it is still a texture per size, not one
+    // packed texture with a scale uniform) and the network of assumptions above intact:
+    // entries are used inside the same capture/draw call that fills them.
+    struct CapturaFondo {
+        std::unique_ptr<GLTexture> textura;   // declared first, so the FBO dies first
+        std::unique_ptr<GLFramebuffer> fbo;
+    };
+    std::map<std::pair<int, int>, std::unique_ptr<CapturaFondo>> m_fondos;
+    CapturaFondo *m_fondoActual = nullptr;   // the one this paint uses; apply() binds it
+    static constexpr int kMaxCapturas = 4;   // enough for a desktop, bounded on purpose
+
+    QSize m_backgroundRegion;    // the region the CURRENT capture covers, in screen px
     bool m_hasBackground = false;
 
     // THE ONE THING THAT CANNOT BE SETTLED WITHOUT A SCREEN.

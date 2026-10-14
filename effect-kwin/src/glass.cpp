@@ -611,30 +611,39 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     const QSize reducido(std::max(1, size.width() / factor),
                          std::max(1, size.height() / factor));
 
-    if (!m_background || m_backgroundSize != reducido || m_backgroundFactor != factor) {
-        m_background = GLTexture::allocate(GL_RGBA8, reducido);
-        if (!m_background) {
-            m_backgroundFbo.reset();
-            m_backgroundSize = QSize();
+    // Looked up, not rebuilt: two windows of different sizes used to allocate and free a
+    // texture and a framebuffer twice per frame for as long as both kept repainting.
+    m_fondoActual = nullptr;
+    const auto clave = std::make_pair(reducido.width(), reducido.height());
+    auto encontrado = m_fondos.find(clave);
+    if (encontrado == m_fondos.end()) {
+        auto nuevoFondo = std::make_unique<CapturaFondo>();
+        nuevoFondo->textura = GLTexture::allocate(GL_RGBA8, reducido);
+        if (!nuevoFondo->textura) {
             qWarning() << "[macos-glass] cannot allocate the capture texture" << reducido;
             return false;
         }
-        m_background->setFilter(GL_LINEAR);
-        m_background->setWrapMode(GL_CLAMP_TO_EDGE);
-        m_backgroundFbo = std::make_unique<GLFramebuffer>(m_background.get());
-        if (!m_backgroundFbo->valid()) {
-            m_backgroundFbo.reset();
-            m_background.reset();
-            m_backgroundSize = QSize();
+        nuevoFondo->textura->setFilter(GL_LINEAR);
+        nuevoFondo->textura->setWrapMode(GL_CLAMP_TO_EDGE);
+        nuevoFondo->fbo = std::make_unique<GLFramebuffer>(nuevoFondo->textura.get());
+        if (!nuevoFondo->fbo->valid()) {
             qWarning() << "[macos-glass] the capture framebuffer is not valid";
             return false;
         }
-        m_backgroundSize = reducido;
-        m_backgroundFactor = factor;
-        m_backgroundRegion = size;
+        // Bounded on purpose. A desktop has a handful of window sizes; a cap keeps a
+        // pathological session (a resizing window, or many different sizes) from growing
+        // the cache without limit, and evicting the oldest is enough because a live
+        // capture is consumed inside the call that fills it.
+        if (int(m_fondos.size()) >= kMaxCapturas) {
+            m_fondos.erase(m_fondos.begin());
+        }
+        encontrado = m_fondos.emplace(clave, std::move(nuevoFondo)).first;
         qInfo() << "[macos-glass] capture texture" << reducido
-                << "(1/" << factor << "de" << size << ") for" << w->caption().left(20);
+                << "(1/" << factor << "de" << size << ") for" << w->caption().left(20)
+                << "-- cached:" << int(m_fondos.size());
     }
+    m_fondoActual = encontrado->second.get();
+    m_backgroundRegion = size;
 
     const Rect sourceDevice = viewport.mapToRenderTargetTexture(source);
     const Rect completo(sourceDevice.topLeft() - regionDevice.topLeft(), sourceDevice.size());
@@ -646,7 +655,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // blitFromFramebuffer reads from the CURRENT framebuffer. It already is the
     // source while the scene is drawn; pushing it says so instead of assuming it.
     GLFramebuffer::pushFramebuffer(sourceFbo);
-    const bool ok = m_backgroundFbo->blitFromRenderTarget(renderTarget, viewport, source, destination);
+    const bool ok = m_fondoActual->fbo->blitFromRenderTarget(renderTarget, viewport, source, destination);
     GLFramebuffer::popFramebuffer();
 
     if (!ok) {
@@ -818,15 +827,12 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     // apply() runs BEFORE the draw, so unbinding here would leave the draw without
     // its background. Leaving it bound on a unit KWin does not use for the window is
     // the smaller risk, and unit 0 is made active again for whoever draws next.
-    const bool conFondo = m_hasBackground && m_background;
+    const bool conFondo = m_hasBackground && m_fondoActual && m_fondoActual->textura;
     if (conFondo) {
         glActiveTexture(GL_TEXTURE0 + 1);
-        m_background->bind();
+        m_fondoActual->textura->bind();
         m_shader->setUniform("background", 1);
         glActiveTexture(GL_TEXTURE0);
-        // The capture's own texel size, so the frost radius is in TEXELS of the
-        // texture it samples. Using the window's uTexelSize here would be a 3% lie
-        // (frame vs expanded) and there is no reason to accept it.
         // The kernel's spacing is expressed in SCREEN pixels, so this is the texel of
         // the full-size region -- not of the reduced texture, which is factor times
         // bigger per texel and would multiply every radius by that factor.

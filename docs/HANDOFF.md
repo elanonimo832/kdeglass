@@ -264,17 +264,19 @@ can see exactly where it stopped.
   at unload, not a crash and not a black screen, and it disappears if the capture
   becomes per window and is released in `slotWindowDeleted`, where the context is
   current.
-- **The capture texture is reallocated whenever the window size changes.** One GL
-  texture, sized to the window being captured, so a frame in which two windows of
-  DIFFERENT sizes both repaint allocates and frees it twice -- per frame, for as long
-  as that keeps happening (a terminal with a blinking cursor next to a video, for
-  instance). One window repainting is free. **State: known, not fixed, deliberately.**
-  The fix is to cache one texture+framebuffer per distinct size, capped at a few sizes,
-  which keeps the uv maths IDENTICAL -- unlike the other obvious fix (one grow-only
-  texture with a scale uniform), which would add a packed-layout mapping that has to be
-  verified on a screen. It is left out until the mechanism itself is verified: adding
-  thirty lines of resource juggling to the build that gets the first relogin risks
-  failing that relogin for a reason that has nothing to do with the capture.
+- **The capture texture used to be reallocated whenever the window size changed.**
+  **FIXED (2026-10-14), as this note said it would be once the mechanism was verified.**
+  One GL texture sized to the window being captured meant that a frame in which two
+  windows of DIFFERENT sizes both repainted allocated and freed it twice -- per frame,
+  for as long as that kept happening (a terminal with a blinking cursor next to a video).
+  It is now one texture+framebuffer per distinct reduced size, capped at four, evicting
+  the oldest; the uv maths is IDENTICAL, which is why this shape was chosen over the
+  other obvious fix (one grow-only texture with a scale uniform, which would add a
+  packed-layout mapping that has to be verified on a screen). Three things keep it honest:
+  `m_fondoActual` is cleared at the start of every capture, so a failure can never leave a
+  stale texture bound; a live capture is consumed inside the call that fills it (the
+  capture/draw ordering the note above depends on), which is why eviction is safe; and
+  `std::map` nodes do not move on insert, so a pointer into the cache stays valid.
 - **`test-installed.sh` is an M1.1-era instrument and its verdict is meaningless now.**
   It looks for the flat 48x48 marker patch that M1.1 drew; M1.2 replaced it with the
   material band. Running it today reports "not drawn" about a working effect. Its

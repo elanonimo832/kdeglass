@@ -335,3 +335,16 @@ echo "  -- a diagnostic may not flood the journal --"
 negar "the per-paint diagnostic cannot log on every paint" \
   codigo_contiene "$FUENTE" 'pre <= 6'
 afirmar_codigo "the diagnostic uses one gate and one counter" "$FUENTE" 'const bool loguear ='
+
+echo "  -- the capture is cached per size, not rebuilt per paint --"
+# Two windows of different sizes repainting used to allocate and free a texture and a
+# framebuffer twice PER FRAME for as long as both kept repainting (a terminal with a
+# blinking cursor next to a video). The note that deferred the fix said to do it once the
+# mechanism was verified; the capture measured 73.8 against a threshold of 12, so it is.
+afirmar_codigo "the capture lives in a per-size cache" "$CABECERA" 'm_fondos'
+afirmar_codigo "the cache is bounded, so a resizing window cannot grow it forever" "$CABECERA" 'kMaxCapturas'
+afirmar_codigo "a capture is looked up by size" "$FUENTE" 'm_fondos[.]find[(]clave[)]'
+# And the wiring, which is the check that keeps mattering: apply() must bind the capture
+# this paint filled, not one it hopes is current.
+afirmar_codigo "apply() binds the capture this paint filled" "$FUENTE" 'm_fondoActual->textura->bind[(][)]'
+afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$FUENTE" 'm_fondoActual = nullptr;'
