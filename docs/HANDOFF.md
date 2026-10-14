@@ -811,6 +811,28 @@ cause is that the anti-aliased edge of a coloured button is only PARTLY saturate
 achromatic test let those edge pixels through and vibrancy pushed them to a light grey. The gate
 is `isColour > 0.15` now instead of `> 0.5`.
 
+## 9c. The colours of adapted content are Apple's, from Apple's tokens
+
+The user asked, before installing, whether the chrome's colour adaptation was right: "el texto
+cambia de color, de blanco a negro dependiendo del fondo... creo que apple usa un gris obscuro,
+no estoy seguro". They were right, and the exact value was in their own tokens:
+
+```toml
+[label]         primary = { light = { hex = "#000000", alfa = 0.85 } }   # a VEIL: black at 85%
+[label_vibrant] primary = { light = { hex = "#1A1A1A", alfa = 1 }        # opaque, and the one
+                            dark  = { hex = "#F5F5F5", alfa = 1 } }      # a material needs
+```
+
+The kit has both, and the distinction is the whole answer: `[label]` is a veil composed over a
+background, while `[label_vibrant]` is OPAQUE -- which is what content on a material is. So the
+flip targets are **#1A1A1A** and **#F5F5F5**, not black and white.
+
+The theme's own text colour was `#404040`, which is `[label_vibrant] tertiary`, and it is now
+`#1A1A1A` (the vibrant primary) with `#727272` for the inactive title (vibrant secondary). The
+effect still samples whatever the theme draws, so the two changes compose: a dark-grey title on a
+light material, and the same title flipped to near-white when the material goes dark -- which is
+Apple's behaviour and, in their tokens, literally written down.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

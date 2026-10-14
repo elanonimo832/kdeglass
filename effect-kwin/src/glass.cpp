@@ -113,8 +113,16 @@ vec3 chromeWithVibrancy(vec3 chromeColour, vec3 backdrop, float isChrome, float 
     // near-black on a light one. The ramp is short on purpose -- going to the extreme the
     // instant the threshold is crossed would flicker as a backdrop moves, and a quarter of the
     // threshold is enough to keep the change crisp without the flicker.
+    // APPLE'S OWN TWO ENDS, not black and white. `tokens/tokens-colors.toml`,
+    // `[label_vibrant] primary`: light = #1A1A1A, dark = #F5F5F5 at alpha 1 -- and the reason
+    // it is the VIBRANT group and not `[label]`: the plain label is a veil (black at 85%), the
+    // vibrant one is opaque, which is what a material like this needs. The user asked whether
+    // the light case should be black "o mas bien creo que apple usa un gris obscuro": they were
+    // right, and the exact grey was in their own tokens.
+    const float kLabelDark = 26.0 / 255.0;    // #1A1A1A
+    const float kLabelLight = 245.0 / 255.0;  // #F5F5F5
     float falta = clamp((uVibrancy - contraste) / max(uVibrancy * 0.25, 0.001), 0.0, 1.0);
-    return mix(chromeColour, vec3(backdropLuma > 0.5 ? 0.0 : 1.0), falta);
+    return mix(chromeColour, vec3(backdropLuma > 0.5 ? kLabelDark : kLabelLight), falta);
 }
 
 void main()

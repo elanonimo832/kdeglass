@@ -420,7 +420,13 @@ afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touches
 # CHANGED: aiming at the minimum contrast produced a mid-grey glyph on a mid-grey glass,
 # which the user read as "borroso o de mala calidad". The chrome is FLIPPED to the far end now,
 # which is what macOS does, over a short ramp so a moving backdrop cannot flicker it.
-afirmar_codigo "vibrancy flips the chrome to the far end" "$SOURCE" 'vec3[(]backdropLuma > 0[.]5 [?] 0[.]0 : 1[.]0[)]'
+# The two ends are Apple's `[label_vibrant] primary` (#1A1A1A / #F5F5F5), not black and white:
+# the user asked whether the light case should be black or a dark grey, and their own tokens
+# answer it -- and the VIBRANT group is the right one because it is opaque, unlike `[label]`,
+# which is a veil (black at 85%).
+afirmar_codigo "vibrancy flips to Apple's vibrant label colours" "$SOURCE" 'kLabelDark = 26[.]0 / 255[.]0'
+afirmar_codigo "and its light end" "$SOURCE" 'kLabelLight = 245[.]0 / 255[.]0'
+afirmar_codigo "picking by the material's luminance" "$SOURCE" 'backdropLuma > 0[.]5 [?] kLabelDark : kLabelLight'
 afirmar_codigo "over a ramp, not an instant jump" "$SOURCE" 'falta = clamp'
 
 echo "  -- the sampling sub-rectangle is a live switch, off by default --"
