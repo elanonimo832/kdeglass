@@ -252,15 +252,53 @@ running the tests, none by reading the diff.
 - The user values persistence over giving up, and has said so directly. What they do
   not want is a fifth hypothesis presented as a fix.
 
-## 10. Repository state
+## 10. OPEN AND PRIORITY: the harness itself is not deterministic
+
+Found while checking this document against reality, and it undermines confidence in
+every "all green" claim made during the session that produced it. Five consecutive
+runs of `bash tests/run.sh`, with nothing else touching the repository:
+
+    run 1: pass=148
+    run 2: pass=149
+    run 3: pass=149
+    run 4: did not finish
+    run 5: did not finish
+
+and the `== section ==` headers did not appear in the captured output at all, even
+though `tests/run.sh` prints them.
+
+**Start here.** A test runner whose result varies between identical runs cannot
+verify anything, and this is the third time this project has hit that idea -- after
+the `grep -q` under `pipefail` and the test files damaged by edits made while the
+suite was reading them. The difference is that this time the runner itself is the
+unreliable component, so no individual assertion can compensate.
+
+Things to check, in order:
+
+  1. Does `run.sh` capture output in a way that loses the section headers, or was the
+     capture in the check the problem? The suite may be fine and the *measurement of
+     it* broken -- which would be entirely in keeping with this session.
+  2. Does one test leave state behind for the next? `test-glass.sh` and
+     `test-titlebar.sh` talk to the running KWin over the session bus, unload and
+     reload the effect, and write to `build/`. If any of them runs during a
+     non-interactive suite invocation, it must not touch the live session at all.
+  3. Is there a timeout? Two runs produced no summary, which looks like truncation
+     rather than an assertion failure.
+
+Until this is resolved, treat any "all green" in this repository as unconfirmed.
+
+## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
 - Harness: `bash tests/run.sh`. Do not write its size in docs: a doc that quotes
   the count breaks the run that verifies it.
 - Effect plugin id: `macosglass2`. The id `macosglass` broke rendering with
   byte-identical code; the cause was never explained, and `macosglass2` works.
-- `macosglass2Enabled` in `~/.config/kwinrc` is **false** as of the last change, so
-  the desktop starts sharp. Turn it on to test the effect.
+- `macosglass2Enabled` in `~/.config/kwinrc` is **true**, so the effect loads at
+  login. It is stable in that state (the band stays put across window switches),
+  but it also means the desktop is NOT sharp on login. If a test needs a sharp
+  baseline, set it false and re-login, or unload it for the session with:
+  `qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass2`
 - Installation target: `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so`
   (note `plugins/` at the end; installing one level up makes KWin never see it).
 - No Apple material in version control. SF Pro is not redistributable; the project
