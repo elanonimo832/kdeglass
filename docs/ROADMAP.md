@@ -123,4 +123,4 @@ is independent, large work. Milestones M1-M5 provide value without it.
 | `macosglass2` effect | ✅ loads without breaking rendering |
 | Color scheme | `BreezeDark` (switched to `KdeMacosDark` from Settings) |
 | Tokens | ✅ 859, with provenance |
-| Test harness | ✅ 68 checks |
+| Test harness | ✅ the full harness |

@@ -49,3 +49,4 @@ effect-kwin/build/
 *.pem
 *.key
 id_rsa*
+.pass-count

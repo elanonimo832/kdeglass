@@ -68,7 +68,7 @@ HDR explicitly to v3.
 ## How to verify that everything is still fine
 
 ```bash
-tests/run.sh            # 68 checks (~30 s)
+tests/run.sh            # the full harness (~30 s)
 tests/run.sh efecto     # only one area: artefactos|efecto|scripts|documentacion
 ```
 

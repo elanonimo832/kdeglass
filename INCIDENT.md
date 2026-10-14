@@ -115,19 +115,21 @@ binary) and `build.sh` / `install.sh` **abort** if the chain is not there.
 ```bash
 cd "~/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin"
 ./verify-chain.sh                      # source + binary
-sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
-     /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
-./probar-en-vivo.sh                        # loads, captures, measures and ONLY unloads
+sudo install -Dm755 build/plugins/kwin/effects/macosglass2.so \
+     /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+./test-installed.sh                        # loads, captures, measures and ONLY unloads
 ```
 
 `test-installed.sh` unloads the effect **always** (`trap EXIT`) even if the render
-broke, and it refuses to start if the installed `.so` does not carry the fix. If
-something went wrong anyway: `bash ~/RECOVER-KDE.sh reanimar`.
+broke, and it installs nothing. It does **not** verify the paint chain itself: that
+check is `verify-chain.sh`'s job. If something went wrong anyway:
+`bash ~/RECOVER-KDE.sh reanimar`.
 
-> Note: the agent could not install the `.so` (the sandbox cannot `sudo`), so
-> the system binary **is still the old one** until the `sudo install` above is run.
-> The fixed `.so` is in
-> `effect-kwin/build/plugins/kwin/effects/macosglass.so`.
+> **HISTORICAL (2026-10-13, old id `macosglass`):** the agent could not install the
+> `.so` (the sandbox cannot `sudo`), so the system binary **was still the old one**
+> until the `sudo install` above was run. The fixed `.so` was then in
+> `effect-kwin/build/plugins/kwin/effects/macosglass.so`; the current build emits
+> `effect-kwin/build/plugins/kwin/effects/macosglass2.so`.
 
 ## One-line summary
 Our own KWin effect `macosglass` is loaded (a build we compiled ourselves) and the Plasma
@@ -143,10 +145,10 @@ but it stops rendering because of a failure of the **OpenGL context / scene-grap
 | Time | Event |
 |---|---|
 | 22:54 | Boot (boot 0). Graphical session **with `macosglassEnabled=false`**: it worked (KWin 1314, **0** context errors). |
-| 23:03:42 | The user reinstalls the new `.so`: `sudo install build/plugins/kwin/effects/macosglass.so /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. `kwinrc` ends up with `macosglassEnabled=true`. |
+| 23:03:42 | The user reinstalls the new `.so` (old id `macosglass`, as it was at the time): `sudo install build/plugins/kwin/effects/macosglass.so /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. `kwinrc` ends up with `macosglassEnabled=true`. |
 | 23:04:22 | Logout/login. New Wayland session (session 5, **tty3**). `startplasma-wayland`. |
-| 23:04:23 | KWin **3458** starts and loads the effect: `[macos-glass] cargado. Borde oscurecido activo, alfa 20`. |
-| 23:04:24 | `[macos-glass] paintWindow alcanzado para ""`. The effect enters the paint path. |
+| 23:04:23 | KWin **3458** starts and loads the effect: `[macos-glass] cargado. Borde oscurecido activo, alfa 20` (log string as it appeared at the time; the current source reads `[macos-glass] loaded. Darkened border active, alpha 20`). |
+| 23:04:24 | `[macos-glass] paintWindow alcanzado para ""` (log string as it appeared at the time; that line no longer exists in the source). The effect enters the paint path. |
 | 23:04:42–23:05:19 | 5× `kwin_wayland[3458]: Could not delete render time query because no context is current` → **black screen**. |
 | 23:05:54 | The user goes into tty2 (session 6) to talk to the agent. |
 | 23:10:01 | `RECOVER-KDE.sh recuperar --reset-output` (backup `20261013-231001`). |
@@ -208,7 +210,7 @@ cycle / `reinitialize`), not in a wave as on boot. That is why the acid test is 
 
 Evidence in `analisis-kde-macos/evidence/`:
 `2026-10-13-2324-prueba-control-escritorio.png`,
-`2026-10-13-2324-prueba-efecto-cargado-negro.png`,
+`2026-10-13-2324-test-effect-loaded-black.png`,
 `2026-10-13-2324-prueba-tras-descargar.png`.
 
 ### Reproducing the test
@@ -280,9 +282,10 @@ Effect:
 - **Unloaded live** from the live KWin (`isEffectLoaded=false`, active `activeEffects` empty).
 - User `.so` set aside: `~/.local/lib/plugins/kwin/effects/libmacosglass.so.disabled-20261013-231244`.
 - System `.so` **is still installed** (deleting it requires root):
-  `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. It is inert as long as it is disabled.
+  `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so` (at the time of the incident
+  the installed file carried the old id, `macosglass.so`). It is inert as long as it is disabled.
 - To remove it completely (the most advisable):
-  `sudo rm /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`
+  `sudo rm /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so`
 Backups:
 - `~/.cache/kwinrc.before-exp-<epoch>`
 - `~/.local/state/kde-macos/incidente-recuperacion/` (includes `20261013-231001/`)
@@ -321,8 +324,9 @@ Other project changes (reversible): aurorae/GTK/scheme themes in `~/.local/share
    `~/.config/plasma-org.kde.plasma.desktop-appletsrc`, `~/.config/kwinoutputconfig.json`.
 
 ## Re-enabling the macOS look
-The `macosglass` effect **no longer breaks the session** (fixed 2026-10-13 23:32; see
-the section above). Even so it **still draws nothing**: it is safe, but inert.
+The `macosglass2` effect **does not break the session** (the old id `macosglass` did;
+that is the final root cause — see the top summary and the "RESOLVED" section below).
+Even so it **still draws nothing**: it is safe, but inert.
 
 What does change the look and does not touch the render:
 ```
@@ -335,9 +339,9 @@ use the test with a safety net (**never** `kwin_wayland --replace`):
 ```
 cd effect-kwin
 ./verify-chain.sh
-sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
-     /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
-./probar-en-vivo.sh          # loads, measures and only unloads
+sudo install -Dm755 build/plugins/kwin/effects/macosglass2.so \
+     /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+./test-installed.sh          # loads, measures and only unloads
 ```
 `RECOVER-KDE.sh revertir` re-applies everything at once (at your own risk).
 
@@ -454,10 +458,14 @@ After rebooting the machine (sudo restored), with **only `macosglass2.so`** in t
 path and the three test plugins removed:
 
 ```
-control          : black=  0.0%
-macosglass2      : black=  0.0%   <- THE EFFECT WORKS
-tras-descargar   : black=  0.0%
-VERDICT: it does NOT break it
+Effect: macosglass2 (already installed). Nothing is installed.
+    control        black=  0.0%
+Loading macosglass2 ...
+    loaded         black=  0.0%
+Unloading...
+    after-unload   black=  0.0%
+
+VERDICT: does NOT break it (black=0.0%) -> THE EFFECT WORKS
 ```
 
 The script `test-installed.sh` does it without sudo (it reinstalls nothing: it loads, measures and

@@ -11,7 +11,7 @@ generated artifacts. It does not include the QStyle or the KWin effect (steps 4 
 ## 1. What has been generated
 
 ```
-tokens.toml                     THE DESIGN SYSTEM (1814 lines, 5 axes)
+tokens.toml                     THE DESIGN SYSTEM (1813 lines, 5 axes)
 output/
 ├── color-schemes/
 │   ├── KdeMacosLight.colors    KDE light color scheme
@@ -85,7 +85,7 @@ After applying, the GTK theme is selected by hand in:
 
 | Check | Result |
 |---|---|
-| The 16 partial TOMLs parse | **16/16** |
+| The 18 partial TOMLs parse | **18/18** |
 | `tokens.toml` consolidated parses | **Yes**, 5 axes |
 | The 2 `.colors` parse as INI | **Yes**, 13 groups, no mandatory key missing |
 | RGB values in the 0-255 range | **All** |
@@ -134,7 +134,7 @@ None of the three would have been seen without running the installer against you
 
 | Missing | Phase |
 |---|---|
-| QStyle in C++ | Step 4 of the plan. It needs `cmake` and `ninja`, which are not installed |
+| QStyle in C++ | Step 4 of the plan. Not written yet; the `cmake` and `ninja` it needs are installed (see §10) |
 | KWin effect (material + corners) | Step 5. It depends on the previous one, although the material is already measured |
 | Icons | Outside the current scope. Apple's are not used for license reasons |
 | Inter font | It has to be installed in `~/.local/share/fonts` (SIL OFL, redistributable) |
@@ -153,6 +153,10 @@ The material effect has been started. Honest status, with what was verified and 
 
 **1. A KWin effect can be built on this system without `cmake`.** Verified:
 it compiles and links.
+
+> **HISTORICAL (hand-rolled `g++` build, old id `macosglass`).** The commands below
+> record the manual build done at the time; they produced `macosglass.so`. The
+> current build uses `cmake` and emits `macosglass2.so` (see "RESOLVED" below).
 
 ```
 g++ -c -fPIC -std=c++20 -I/usr/include/kwin -I/usr/include/kwin/effect <rutas KF6> glass.cpp
@@ -191,7 +195,7 @@ With `cmake` and `ninja` installed, and after figuring out four things that cost
 Result:
 
 ```
-[6/6] Linking CXX shared module plugins/kwin/effects/libmacosglass.so
+[6/6] Linking CXX shared module plugins/kwin/effects/macosglass2.so
 ```
 
 And the checks that failed before now pass:
@@ -320,6 +324,11 @@ To verify it without guessing, there is a script: **`effect-kwin/verify-chain.sh
 ---
 
 ## 12. KWin effect status: what is verified and what is not
+
+> **HISTORICAL (old id `macosglass`).** This section records the state before the
+> identifier was identified as the cause. The effect is now `macosglass2`, it is
+> installed as `macosglass2.so` and KWin reports `isEffectSupported : true`
+> (see §16, §17 and INCIDENT.md).
 
 ### Verified: the plugin fulfills the KWin contract
 
@@ -474,7 +483,7 @@ Screenshots 23:10:58 and 23:12:20, with the panel clock advancing 11:06 -> 11:12
 ### Status and protection
 
 - `macosglass` and `blur` disabled; user `.so` set aside as `.disabled`.
-- The system `.so` is still in `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so` (deleting it requires root).
+- The system `.so` is still in `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so` (the old id at the time was `macosglass.so`; deleting it requires root).
 - `effect-kwin/install.sh` now **aborts** unless `--force` is passed.
 - Document: [INCIDENT.md](INCIDENT.md) · script: [RECOVER-KDE.sh](RECOVER-KDE.sh)
 
@@ -503,7 +512,7 @@ error `no context is current` reappeared only 1 time (tied to the effect cycle),
 a wave. The conclusive test was the **image**, not the journal.
 
 Evidence: `evidence/2026-10-13-2324-prueba-control-escritorio.png`,
-`evidence/2026-10-13-2324-prueba-efecto-cargado-negro.png`,
+`evidence/2026-10-13-2324-test-effect-loaded-black.png`,
 `evidence/2026-10-13-2324-prueba-tras-descargar.png`.
 Detail and commands: [INCIDENT.md](INCIDENT.md) §"Decisive test — EXECUTED".
 
@@ -537,7 +546,7 @@ New tools:
 | File | What it does |
 |---|---|
 | `effect-kwin/verify-chain.sh` | Checks source + binary and warns if the installed `.so` is the old one |
-| `effect-kwin/test-installed.sh` | Loads, captures, measures % black and **always unloads** (`trap EXIT`); it aborts if the installed `.so` does not carry the fix |
+| `effect-kwin/test-installed.sh` | Loads the installed effect, captures, measures % black and **always unloads** (`trap EXIT`); it installs nothing and needs no `sudo`. It does **not** verify the paint chain — that is `verify-chain.sh`'s job |
 
 `build.sh` and `install.sh` now **abort** if the chain is not there, and
 `build.sh` **no longer activates** the effect (before it could load the old system
@@ -546,13 +555,14 @@ New tools:
 The effect still **does not draw** (the material shader is the next step),
 but it is safe: it behaves as if it were not loaded.
 
-> The agent could not install the binary (the sandbox cannot `sudo`), so the
-> system `.so` is still the old one. Installation and test:
+> **HISTORICAL (2026-10-13, old id `macosglass`):** the agent could not install the
+> binary (the sandbox cannot `sudo`), so at that time the system `.so` was still the
+> old one. Installation and test with the current id:
 > ```
 > cd effect-kwin && ./verify-chain.sh
-> sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
->      /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
-> ./probar-en-vivo.sh
+> sudo install -Dm755 build/plugins/kwin/effects/macosglass2.so \
+>      /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+> ./test-installed.sh
 > ```
 
 ---
@@ -570,7 +580,7 @@ with `macosglass2` it works. The effect is now called `macosglass2`.
 **Effect status (2026-10-14):**
 - Installed in the correct path (`kwin/effects/plugins/`) and it loads without breaking anything
 - **It does not draw yet**: the material shader is the next step
-- The project is under git, with a harness of **55 checks** (`tests/run.sh`)
+- The project is under git, with a full test harness (`tests/run.sh`)
 - Of the 9 debugging scripts, 4 remain, and the deleted ones pointed to the old id
 
 > For the complete, ordered account, see **`INCIDENT.md`**, which also carries
