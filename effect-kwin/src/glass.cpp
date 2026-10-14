@@ -204,13 +204,24 @@ void main()
     // buttons -- 19 rows above them, which is exactly the radius. A median of five samples
     // discards a minority of chrome BY CONSTRUCTION: at most the centre can be on a button,
     // and the four at the radius are bar.
+    // ...AND THE SAMPLES MUST GO UP AND DOWN, NOT SIDEWAYS. The first median took two of its
+    // five samples along the row, and the chrome in this theme is WIDE and THIN: a line of
+    // text and a row of three traffic lights both cover it horizontally, so three of the five
+    // samples were chrome and the median WAS chrome -- the ghost survived at the title and
+    // around the buttons while the buttons themselves came out clean, which is exactly what
+    // the user's next two screenshots showed. Vertical samples miss it: the bar's chrome is a
+    // few pixels tall and the nearest sample is nineteen away, so up, down and further out are
+    // all bar. The clamp keeps them inside the band, which is also what stops the strip at the
+    // bar's bottom from coming back.
     vec4 c0 = texture(sampler, vTexCoord);
-    vec4 c1 = texture(sampler, vec2(vTexCoord.x - toneRadius * uTexelSize.x, vTexCoord.y));
-    vec4 c2 = texture(sampler, vec2(vTexCoord.x + toneRadius * uTexelSize.x, vTexCoord.y));
-    vec4 c3 = texture(sampler, vec2(vTexCoord.x,
+    vec4 c1 = texture(sampler, vec2(vTexCoord.x,
                                     clamp(vTexCoord.y - toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
-    vec4 c4 = texture(sampler, vec2(vTexCoord.x,
+    vec4 c2 = texture(sampler, vec2(vTexCoord.x,
                                     clamp(vTexCoord.y + toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
+    vec4 c3 = texture(sampler, vec2(vTexCoord.x,
+                                    clamp(vTexCoord.y - 2.0 * toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
+    vec4 c4 = texture(sampler, vec2(vTexCoord.x,
+                                    clamp(vTexCoord.y + 2.0 * toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
     // Sorting network for five elements, nine compare-exchanges, channel-wise, so c2 ends up
     // holding the median. Verified against a Python replica over 20,000 random cases before
     // it went in: a hand-written sorting network that is subtly wrong looks fine and is not.

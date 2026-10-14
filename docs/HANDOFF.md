@@ -242,6 +242,13 @@ can see exactly where it stopped.
   at most the centre can be on a button. The sorting network is a nine-compare-exchange one,
   verified against a Python replica over 20,000 random cases before it went into the shader,
   because a hand-written sorting network that is subtly wrong looks fine and is not.
+  **AND THE SAMPLES HAD TO GO UP AND DOWN, NOT SIDEWAYS.** The first median took two of its
+  five samples along the row; this theme's chrome is WIDE and THIN, so a line of text and a row
+  of three traffic lights both cover it horizontally and three of the five samples were chrome
+  again -- the user's next screenshots showed the buttons clean and the title still doubled,
+  which is that difference exactly. All five samples are vertical now (centre, one radius, two
+  radii, clamped inside the bar), and vertical is the only direction in which this chrome is
+  not there. The suite asserts BOTH halves: no sample along the row, four along the column.
   **The bar's own colour is a setting now, and Apple's kit says what it should be**: see
   `tokens/tokens-kit.toml` `[liquid_glass]`, `opacity = 25`. The user's `GlassAlpha` was 0.4
   and the default 0.55, so "el efecto es muy blanco" is the material keeping too much of the

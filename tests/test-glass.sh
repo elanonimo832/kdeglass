@@ -457,3 +457,14 @@ afirmar_codigo "the median is what becomes the bar's tone" "$SOURCE" 'vec3 basel
 # The network itself is pinned: nine compare-exchanges, and the median is the third element.
 afirmar_igual "the sorting network is the verified one" "9" \
   "$(grep -o 'KSORT[(]c[0-9], c[0-9][)]' effect-kwin/src/glass.cpp | wc -l)"
+
+echo "  -- the tone's samples go up and down, never sideways --"
+# The second look: the buttons clean, the title still doubled. The chrome of this theme is WIDE
+# and THIN, so the two samples the first median took along the row landed on it too -- three of
+# five -- and the median was chrome. Every sample is vertical now, which is the only direction
+# in which the chrome is not there.
+afirmar_igual "no tone sample is taken along the row" "0" \
+  "$(grep -c 'toneRadius [*] uTexelSize[.]x' effect-kwin/src/glass.cpp)"
+afirmar_igual "and all five are vertical" "4" \
+  "$(grep -c 'toneRadius [*] uTexelSize[.]y' effect-kwin/src/glass.cpp)"
+afirmar_codigo "reaching two radii out" "$SOURCE" '2[.]0 [*] toneRadius [*] uTexelSize[.]y'
