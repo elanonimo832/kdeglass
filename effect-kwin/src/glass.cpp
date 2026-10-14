@@ -4,6 +4,9 @@
 #include <QLoggingCategory>
 #include <QString>
 
+#include <core/region.h>
+#include <core/rendertarget.h>
+#include <core/renderviewport.h>
 #include <opengl/glshader.h>
 #include <opengl/glshadermanager.h>
 
@@ -48,11 +51,14 @@ void main()
 
 static const char *kDiffusionFragment = R"(
 uniform sampler2D sampler;
+uniform sampler2D background;
 uniform float uRadius;
 uniform vec2 uTexelSize;
 uniform vec2 uTextureSize;
 uniform float uTitleBarHeight;
 uniform float uGlassAlpha;
+uniform float uHasBackground;
+uniform float uBackgroundFlipV;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -91,9 +97,35 @@ void main()
             sum += texture(sampler, vTexCoord + d);
         }
     }
-    // Translucent: this is what lets the desktop behind the window show through,
-    // and it is the difference between a smudged bar and a glass one.
-    fragColor = vec4((sum / 9.0).rgb, uGlassAlpha);
+    vec3 barColour = (sum / 9.0).rgb;
+
+    // M1.3a -- THE DESKTOP ITSELF, NOT AN ALPHA.
+    //
+    // Writing uGlassAlpha as the alpha was measured OPAQUE: the shader's only input
+    // was the window's own texture, and no alpha can put the desktop into a texture
+    // that does not contain it. drawWindow() now captures the desktop into
+    // `background` before the window is painted, and the composite happens HERE, so
+    // the result does not depend on the scene blending our alpha at all.
+    //
+    // Compositing in the fragment shader also settles the ordering risk in
+    // HANDOFF section 5: the band is drawn where the window is drawn, so there is no
+    // second quad that could end up under the window.
+    if (uHasBackground > 0.5) {
+        // uBackgroundFlipV is 1.0 when the capture's v axis disagrees with the
+        // window texture's. See glass.h: the default is the one that has to be
+        // confirmed on screen.
+        vec2 uvBackground = vec2(vTexCoord.x, mix(vTexCoord.y, 1.0 - vTexCoord.y, uBackgroundFlipV));
+        vec3 desktop = texture(background, uvBackground).rgb;
+        // The bar keeps uGlassAlpha of its own colour and lets the rest through:
+        // that is the translucency macOS has.
+        fragColor = vec4(mix(desktop, barColour, uGlassAlpha), 1.0);
+        return;
+    }
+
+    // No capture available -- no framebuffer to read, blits unsupported, or the
+    // window is off screen. Keep the previous behaviour rather than sample a
+    // texture that was never filled.
+    fragColor = vec4(barColour, uGlassAlpha);
 }
 )";
 
@@ -131,7 +163,13 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     const KConfigGroup cfg = effects->config()->group(QStringLiteral("Effect-macosglass2"));
     m_frostRadius = cfg.readEntry("FrostRadius", kFrostRadius);
 
-    qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius;
+    // Only one of the two textures' orientations is unknown until it is seen on a
+    // screen, so it is a setting rather than a guess baked into the source: if the
+    // band shows the desktop upside down, flip it and reconfigure. No relogin.
+    m_backgroundFlipV = cfg.readEntry("BackgroundFlipV", false);
+
+    qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
+            << "backgroundFlipV=" << m_backgroundFlipV;
 
     m_shader.reset();
     loadShader();
@@ -253,6 +291,103 @@ void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
     unredirect(w);
 }
 
+bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
+                                         const RenderViewport &viewport, EffectWindow *w)
+{
+    if (!m_active || !w->isNormalWindow() || !w->hasDecoration()) {
+        return false;
+    }
+    // Reading from a QImage render target is not possible with a framebuffer blit.
+    GLFramebuffer *sourceFbo = renderTarget.framebuffer();
+    if (!sourceFbo) {
+        return false;
+    }
+    const Rect frame = w->frameGeometry().toRect();
+    if (frame.isEmpty()) {
+        return false;
+    }
+
+    // RISK, handled rather than hoped for: frameGeometry() of a MAXIMISED window is
+    // the whole screen, and a window dragged past the edge goes outside it. A blit
+    // with an out-of-bounds source is undefined behaviour, so the source is clamped
+    // to the render target's logical rect. What is left of the destination is then
+    // offset by the same amount, which is why the two are computed separately.
+    const Rect source = frame.intersected(viewport.renderRect().toRect());
+    if (source.isEmpty()) {
+        return false;
+    }
+
+    // DEVICE pixels, not logical ones: at scale != 1 the texture must be larger than
+    // frameGeometry(). mapToRenderTargetTexture is KWin's own logical-to-texture
+    // transform, so this is not arithmetic done by hand.
+    const Rect frameDevice = viewport.mapToRenderTargetTexture(frame);
+    const QSize size = frameDevice.size();
+    if (size.isEmpty()) {
+        return false;
+    }
+
+    if (!m_background || m_backgroundSize != size) {
+        m_background = GLTexture::allocate(GL_RGBA8, size);
+        if (!m_background) {
+            m_backgroundFbo.reset();
+            m_backgroundSize = QSize();
+            qWarning() << "[macos-glass] cannot allocate the capture texture" << size;
+            return false;
+        }
+        m_background->setFilter(GL_LINEAR);
+        m_background->setWrapMode(GL_CLAMP_TO_EDGE);
+        m_backgroundFbo = std::make_unique<GLFramebuffer>(m_background.get());
+        if (!m_backgroundFbo->valid()) {
+            m_backgroundFbo.reset();
+            m_background.reset();
+            m_backgroundSize = QSize();
+            qWarning() << "[macos-glass] the capture framebuffer is not valid";
+            return false;
+        }
+        m_backgroundSize = size;
+        qInfo() << "[macos-glass] capture texture" << size
+                << "for" << w->caption().left(20);
+    }
+
+    const Rect sourceDevice = viewport.mapToRenderTargetTexture(source);
+    const Rect destination(sourceDevice.topLeft() - frameDevice.topLeft(), sourceDevice.size());
+
+    // blitFromFramebuffer reads from the CURRENT framebuffer. It already is the
+    // source while the scene is drawn; pushing it says so instead of assuming it.
+    GLFramebuffer::pushFramebuffer(sourceFbo);
+    const bool ok = m_backgroundFbo->blitFromRenderTarget(renderTarget, viewport, source, destination);
+    GLFramebuffer::popFramebuffer();
+
+    if (!ok) {
+        // Not fatal and not silent: the shader falls back to the alpha-only band.
+        static int avisos = 0;
+        if (avisos < 4) {
+            ++avisos;
+            qWarning() << "[macos-glass] the background blit was refused for"
+                       << w->caption().left(20)
+                       << "-- blits unsupported on this GL context?";
+        }
+    }
+    return ok;
+}
+
+void MacosGlassEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewport &viewport,
+                                  EffectWindow *w, int mask, const Region &deviceRegion,
+                                  WindowPaintData &data)
+{
+    // THE CAPTURE HAPPENS HERE, AND BEFORE THE BASE CLASS RUNS.
+    //
+    // apply() is where the shader's uniforms live, but it never receives the render
+    // target, so it cannot capture anything. At this point the screen still holds
+    // the DESKTOP: OffscreenEffect::drawWindow is what paints the window over it.
+    //
+    // The base class is called on the ONLY path out of this function. That is not
+    // decoration: verify-chain.sh checks it, and an early return here is the exact
+    // shape of the two black screens this project already paid for (HANDOFF §3).
+    m_hasBackground = captureBackground(renderTarget, viewport, w);
+    OffscreenEffect::drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
+}
+
 void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowPrePaintData &data)
 {
     // DIAGNOSE: is this called at all? If it is not, setTranslucent() never runs
@@ -340,6 +475,21 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
                          QVector2D(float(size.width()), float(size.height())));
     m_shader->setUniform("uTitleBarHeight", float(barHeight));
     m_shader->setUniform("uGlassAlpha", kGlassAlpha);
+    m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
+
+    // The captured desktop goes on texture unit 1: unit 0 is the window's own
+    // texture, bound by KWin. The texture is NOT unbound afterwards on purpose --
+    // apply() runs BEFORE the draw, so unbinding here would leave the draw without
+    // its background. Leaving it bound on a unit KWin does not use for the window is
+    // the smaller risk, and unit 0 is made active again for whoever draws next.
+    const bool conFondo = m_hasBackground && m_background;
+    if (conFondo) {
+        glActiveTexture(GL_TEXTURE0 + 1);
+        m_background->bind();
+        m_shader->setUniform("background", 1);
+        glActiveTexture(GL_TEXTURE0);
+    }
+    m_shader->setUniform("uHasBackground", conFondo ? 1.0f : 0.0f);
     ShaderManager::instance()->popShader();
 }
 

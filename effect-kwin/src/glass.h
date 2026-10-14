@@ -5,6 +5,9 @@
 #include <effect/effectwindow.h>
 #include <effect/offscreeneffect.h>
 
+#include <opengl/glframebuffer.h>
+#include <opengl/gltexture.h>
+
 #include <memory>
 
 namespace KWin
@@ -49,6 +52,18 @@ public:
      */
     void apply(EffectWindow *w, int mask, WindowPaintData &data, WindowQuadList &quads) override;
 
+    /**
+     * M1.3a: capture what is painted UNDER the window, before the window is drawn
+     * on top of it. This is the only place the render target is available -- apply()
+     * does not receive it -- and the desktop is still on screen at this moment,
+     * because OffscreenEffect::drawWindow is what replaces it with the window.
+     *
+     * The base class is called on the single exit path: verify-chain.sh checks that
+     * property, and an early return here is the shape of the two black screens.
+     */
+    void drawWindow(const RenderTarget &renderTarget, const RenderViewport &viewport, EffectWindow *w,
+                    int mask, const Region &deviceRegion, WindowPaintData &data) override;
+
     // Marks the window translucent, which is what makes the scene BLEND the alpha
     // the shader writes. Without this the alpha is ignored and the bar stays
     // opaque no matter what the shader outputs -- the same class of mistake as
@@ -59,9 +74,50 @@ private:
     void slotWindowAdded(EffectWindow *w);
     void slotWindowDeleted(EffectWindow *w);
 
+    /**
+     * Copies the desktop behind @a w into m_background. Returns false when there is
+     * nothing to copy (no GL framebuffer to read, the window is off screen, blits
+     * unsupported); the shader then keeps the old alpha-only behaviour instead of
+     * showing a texture that was never filled.
+     */
+    bool captureBackground(const RenderTarget &renderTarget, const RenderViewport &viewport,
+                           EffectWindow *w);
+
     bool loadShader();
 
     std::unique_ptr<GLShader> m_shader;
+
+    // ---------------------------------------------------------------------
+    // M1.3a -- the captured desktop.
+    //
+    // The texture is the window's FRAME at device resolution, not just the band.
+    // That is deliberate: a frame-sized capture lines up with the window's own
+    // offscreen texture UV for UV, so the composite cannot drift. Band-only is an
+    // optimisation for when this is known to work.
+    //
+    // ONE texture, shared by every window -- which is the hazard that cost M1.2b
+    // (one shader object, many windows, the last one won). It is safe here ONLY
+    // because capture and draw happen inside the SAME drawWindow() call:
+    //     capture(A) -> draw(A) -> capture(B) -> draw(B)
+    // If a band ever shows ANOTHER window's background, this assumption has broken
+    // and the capture has to become per window.
+    // ---------------------------------------------------------------------
+    std::unique_ptr<GLTexture> m_background;
+    std::unique_ptr<GLFramebuffer> m_backgroundFbo;
+    QSize m_backgroundSize;
+    bool m_hasBackground = false;
+
+    // THE ONE THING THAT CANNOT BE SETTLED WITHOUT A SCREEN.
+    //
+    // Two GL textures are involved: the window's (created by OffscreenEffect) and
+    // the capture's (created here). The window's is known to have its v axis
+    // inverted relative to window coordinates -- measured in M1.2b, and that is why
+    // the band test uses (1 - vTexCoord.y). Whether the capture, filled by a
+    // framebuffer blit, agrees with it depends on KWin's texture-local convention.
+    // If the band shows the desktop UPSIDE DOWN, this is the switch:
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundFlipV true
+    //   qdbus6 org.kde.KWin /KWin reconfigure
+    bool m_backgroundFlipV = false;
 
     // ---------------------------------------------------------------------
     // M1.2 -- diffusion.

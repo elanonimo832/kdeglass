@@ -126,12 +126,16 @@ Desktop painted
       |
       v
 MacosGlassEffect::drawWindow(...)     <- screen holds THE DESKTOP. Capture here.
-      |  capture the band rectangle into our own FBO
+      |  capture the desktop into our own FBO
       v
 OffscreenEffect::drawWindow(...)      <- maybeRender() + paint(). Draws the window.
 ```
 
-This requires overriding `drawWindow`. `verify-chain.sh` used to **forbid** that
+As implemented (step 2), the capture is the window's **whole frame**, not just the
+band: a frame-sized capture lines up with the window's own offscreen texture UV for
+UV, so the composite cannot drift. Band-only is an optimisation for later.
+
+**This requires overriding `drawWindow`.** `verify-chain.sh` used to **forbid** that
 outright, because overriding it badly was the cause of two black screens; the ban
 was the wrong rule. Since step 1 below it checks the property instead: **an override
 is acceptable if its body continues the chain on every path** -- it must contain an
@@ -149,8 +153,8 @@ deliberately, so that a correct override is not another false alarm.
 | Step | Change | State at the end |
 | --- | --- | --- |
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
-| 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | compiles, verifiable |
-| 3 | Blur the captured background, tune alpha, restore `frost 6` and the kit values. | green |
+| 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | 🟡 **written and compiled** (2026-10-14), **not yet seen on screen**: the desktop is captured frame-sized, clamped to the render target, and composited in the fragment shader (unit 1, `uHasBackground`). Needs `./install.sh` + a relogin to verify |
+| 3 | Blur the captured background, tune alpha, restore `frost 6` and the kit values. | not started |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -162,22 +166,35 @@ can see exactly where it stopped.
   window partly off screen (or a maximised one: `frame=(0,0 3840x2160)`, which is
   the full framebuffer) produces a source rect at or beyond the edge.
   `blitFromRenderTarget` with an out-of-bounds source is undefined behaviour, and
-  the visible symptom would be a black or garbage band. **Clamp to the framebuffer
-  rectangle and intersect with the region before blitting.** This has not been
-  implemented yet.
+  the visible symptom would be a black or garbage band. **State: done** -- the source
+  is `intersected()` with `viewport.renderRect()` and the destination is offset by the
+  same amount, so a partly off-screen window captures only what exists.
 - **Coordinate spaces.** KWin's blur converts with
   `viewport.mapFromDeviceCoordinatesContained(deviceRegion)`. `frameGeometry()` is
   in logical coordinates. On this machine the scale is 1 so they coincide, but the
-  code must not assume it.
+  code must not assume it. **State: done** -- sizes and offsets come from
+  `viewport.mapToRenderTargetTexture()`, KWin's own logical-to-texture transform,
+  not from arithmetic by hand.
 - **The offscreen texture's v axis is flipped relative to window coordinates.**
   Established the hard way in M1.2b: the distance from the window's top is
-  `(1.0 - vTexCoord.y)`. The captured background will need the same treatment, and
-  the two samplers must agree or the composite will be misaligned.
-- **The window is drawn over the band** by the base class, so the composite has to
-  happen **after** the base call, or the band has to be drawn by us on top. Order
-  is the most likely thing to get wrong, and it is not testable except on screen.
+  `(1.0 - vTexCoord.y)`. **State: a setting, not a guess.** Whether the *capture*
+  agrees with it is the one thing that cannot be settled without a screen, so it is
+  `BackgroundFlipV` in `kwinrc` (default false) and can be flipped with
+  `qdbus6 org.kde.KWin /KWin reconfigure` -- no relogin. If the band shows the
+  desktop upside down, that is the switch.
+- **The window is drawn over the band.** **State: resolved by construction** -- the
+  composite happens inside the fragment shader that draws the band, so there is no
+  second quad that could end up under the window.
+- **One capture texture for every window.** The M1.2b hazard (one shader, many
+  windows, the last one wins) in a new place. Safe only because capture and draw
+  happen inside the same `drawWindow()` call: `capture(A) -> draw(A) -> capture(B)`.
+  If a band ever shows ANOTHER window's background, the capture must become per
+  window. Written down here because it is the third time this shape has appeared.
 - **Every code change needs a session restart.** KWin keeps the `.so` it loaded at
   startup; it never re-reads a changed file. Never use `kwin_wayland --replace`.
+  `./install.sh` needs sudo; verify by relogin, and keep
+  `bash ~/RECOVER-KDE.sh reanimar` at hand. The effect can also be unloaded for the
+  session with `qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass2`.
 
 ## 6. What is already done and verified
 
@@ -187,7 +204,9 @@ can see exactly where it stopped.
 | **M1.1** — an effect draws, anchored to the window | ✅ verified on screen |
 | **M1.2** — diffusion (`frost 6`), shader correct | ✅ verified |
 | **M1.2b** — the band covers the title bar only, and survives window switches | ✅ verified by the user |
-| **M1.3a** — translucent band | 🟡 implemented, **measured OPAQUE**, does not achieve glass (see §2) |
+| **M1.3a** — translucent band by alpha alone | 🔴 **measured OPAQUE**, does not achieve glass (see §2): the shader only ever saw the window's own texture |
+| **M1.3a step 1** — the chain rule accepts a correct override | ✅ done, and the verifier is shown to fail on defective sources |
+| **M1.3a step 2** — the desktop is captured and composited | 🟡 compiled and green in the harness, **not yet seen on screen**: needs `./install.sh` + relogin |
 | M1.3 refraction (70), M1.4 dispersion (20), M1.5 specular highlight | not started |
 | M2 squircle clipping, M3 Plasma theme, M4 typography, M5 icons, M6 QStyle | not started |
 

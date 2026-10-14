@@ -50,7 +50,17 @@ echo "  -- the paint chain is still continued --"
 # was wrong -- an earlier version of this test did exactly that and reported
 # "chain broken" for a correct effect.
 afirmar_codigo "derives from OffscreenEffect (which continues the chain)" "$CABECERA" 'public[[:space:]]+OffscreenEffect'
-negar "the effect does not override drawWindow itself" grep -qE 'void MacosGlassEffect::drawWindow' "$FUENTE"
+# CHANGED IN M1.3a. This used to assert the opposite -- that the effect does NOT
+# override drawWindow -- and it was right for M1.2, where the base class did the
+# whole job and overriding it was the known cause of two black screens. M1.3a needs
+# the override: the desktop has to be captured before the window is painted, and
+# drawWindow is the only place with the render target.
+#
+# The ban was the wrong test, not the override. What protects the screen is the
+# property, and that is checked where it can be SHOWN to fail: verify-chain.sh with
+# defective sources (tests/test-effect.sh) and the line below.
+afirmar_codigo "the effect overrides drawWindow to capture the desktop" "$FUENTE" 'void MacosGlassEffect::drawWindow'
+afirmar_codigo "and that override continues the chain" "$FUENTE" 'OffscreenEffect::drawWindow[(]'
 
 echo "  -- the measurement tool exists --"
 afirmar_existe "measure-diffusion.py exists" "$EF/measure-diffusion.py"
