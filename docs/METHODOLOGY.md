@@ -3,7 +3,7 @@
 This is not theory: every rule in this document came out of a real failure in this
 project, and most of them cost hours. They are ordered by what they cost.
 
-## The five rules
+## The six rules
 
 ### 1. Measure before reasoning
 
@@ -74,6 +74,18 @@ it was «the safety working properly». It was not: it was a bug of mine.
 it**, because it makes you doubt something that is fine. Before trusting a tool,
 check that it is deterministic and that it fails when it should.
 
+**The same bug, a second time, in the tool that runs every test.** `afirmar_codigo`
+in `tests/lib.sh` stripped comments with `grep -vE ... | grep -qE`. On the real
+14 KB `glass.cpp` that produced **1 false failure in 200 calls**; on a 500 KiB file,
+**200 in 200**. It made `bash tests/run.sh` return 148, 149 or 150 on the same tree,
+and three sessions of assertions were patched one by one because of it.
+
+A race cannot be tested by waiting for it. **Make it certain:** a file larger than
+the pipe buffer means the producer is always still writing when `grep -q` exits, so
+the bug becomes a deterministic failure. `tests/test-harness.sh` does exactly that,
+and carries the case for stripping comments too, because the cheap fix for the race
+is to stop stripping them and match comments -- the false positive of rule 3.
+
 ### 5. Never destroy state without being able to go back
 
 **The cost of ignoring it:** two black screens, one lost session, and hours of
@@ -90,6 +102,28 @@ recovery from a TTY.
   (the `trap EXIT` in `test-installed.sh` always unloads the effect).
 - Before touching anything, know how to undo it.
 - **Commit before every risky change.**
+
+### 6. Every test file runs in its own shell
+
+**The cost of ignoring it:** three sessions in which the failures of this suite
+"moved between files". The real cause was the race of rule 4, but the reason it
+could not be placed was the runner: `tests/run.sh` **`source`d every test file into
+one shell**, so a variable, a function, a `set` flag or an `exit` in one file
+reached the next. Measured, not deduced: `test-diffusion.sh` sets `CABECERA`, and it
+was still set when `test-harness.sh` ran.
+
+**Practical rule:**
+- A runner must not execute the test files inside its own process. One file, one
+  process (`tests/run-one.sh`), with the counters written from an `EXIT` trap so a
+  file that dies halfway still reports what it did check.
+- **Bound every file with a `timeout`.** A run that "did not finish" and a run
+  whose output was truncated look identical from outside; two runs ended with no
+  summary and it was read as a hang. A hang must become a *named failure*, never a
+  silence.
+- A rule enforced on the code must also cover the tool that verifies the code.
+  `grep -q` in a pipe was forbidden in `effect-kwin/*.sh` and used nine times inside
+  `tests/`, including in the helper that runs every assertion. The scan now covers
+  both.
 
 ## The work cycle
 

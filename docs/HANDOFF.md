@@ -281,7 +281,84 @@ running the tests, none by reading the diff.
 - The user values persistence over giving up, and has said so directly. What they do
   not want is a fifth hypothesis presented as a fix.
 
-## 10. OPEN AND PRIORITY: the harness itself is not deterministic
+## 10. RESOLVED: the harness was not deterministic, and the cause was measurable
+
+**No longer a priority.** The failure was not state leaking between test files, and
+it was not the live session. It was one line in `tests/lib.sh`:
+
+    grep -vE '^\s*(//|\*|/\*)' "$2" | grep -qE "$3"
+
+`grep -q` exits at the FIRST match and closes the pipe. The comment-stripper on the
+left is then killed by SIGPIPE, and `set -o pipefail` -- set by `run.sh` -- makes the
+whole pipeline report 141 **even though the match was found**. Whether the producer
+is still writing when `grep -q` exits is a scheduling question, so the same
+assertion on the same file was stable on its own and unreliable in company.
+
+That signature -- deterministic alone, unstable together -- is exactly what state
+leaking between files would look like, and it is why the failures moved from one
+file to another: whichever `afirmar_codigo` call lost the race was the one reported.
+
+Measured instead of guessed:
+
+    the helper on the real glass.cpp (14 KB), 200 calls   -> 1 false FAIL
+    the same helper on a 500 KiB file, 200 calls          -> 200 false FAILS
+    before the fix: 8 full runs -> 150,150,150,150 and 149,149,148,148 (1-2 fails)
+    after the fix:  25 full runs -> 0 fails, rc 0, all nine section headers
+
+The 500 KiB case matters: larger than the 64 KiB pipe buffer, the producer is still
+writing when `grep -q` exits, so the race becomes **certain**. A race that cannot be
+forced cannot be tested, and `tests/test-harness.sh` now forces it.
+
+What changed:
+
+- `tests/lib.sh`: `afirmar_codigo` is split into `codigo_contiene` (the predicate,
+  no pipe) plus the counter. Comments are still stripped, and there is a check for
+  that too, because the cheap fix for a race is to match comments as well -- which
+  is the false-positive trap this project already paid for once.
+- Nine `... | grep -q ...` pipelines -- one in `lib.sh`, five in `test-effect.sh`,
+  three in `test-titlebar.sh` -- now capture the producer first
+  (`grep -q PAT <<< "$(producer)"`).
+- `tests/run.sh` no longer `source`s the test files into its own shell. Each file
+  runs in its own process through `tests/run-one.sh`, with its own counters and its
+  own failure list, and the runner sums them. A variable, a function, a `set` flag
+  or an `exit` in one file can no longer reach the next.
+- Each file is bounded by `timeout` (120 s default, `TEST_TIMEOUT` overrides). A
+  hang is now a named failure of that file, in the summary, so "did not finish"
+  cannot pass unnoticed again.
+
+### The three candidates in the older reading, checked one by one
+
+1. **The headers were lost by the runner.** No: every full run -- before the fix as
+   well as after -- contains all nine `== name ==` headers. The loss was in that
+   session's capture, not in `run.sh`.
+2. **A test was touching the live session.** No: `test-glass.sh` and
+   `test-titlebar.sh` are pure static assertions over `glass.cpp` and `glass.h`.
+   Nothing under `tests/` contains `qdbus`, `busctl`, `dbus` or an executed
+   `kwin_wayland --replace`. The scripts that DO talk to the live KWin are
+   `effect-kwin/test-installed.sh` and `effect-kwin/test-hot.sh`, and the suite
+   never runs them.
+3. **The `.pass-count` cache was a race.** No: `run.sh` writes it and nothing reads
+   it -- no test, no tool, no doc, and it is git-ignored. It stays as a convenience
+   only.
+
+### The contamination was real, it just was not the cause
+
+Sourcing every test file into one shell did leak state, and that was measured, not
+deduced: `test-diffusion.sh` sets `CABECERA`, and with the old runner that variable
+was still set when `test-harness.sh` ran. `tests/test-harness.sh` keeps a canary
+for it, so a future runner that goes back to one shared shell fails a test instead
+of losing a session.
+
+**The harness is deterministic now.** The count itself is deliberately not written
+in this document (see section 11); what is written is the property: 25 consecutive
+full runs, identical result. The rule that was broken was already in
+`docs/METHODOLOGY.md` and already enforced on `effect-kwin/*.sh` -- the file that
+runs every assertion was the one place it did not reach. Rule 6 exists for that.
+
+### Superseded (kept for the record): the isolation hypothesis
+
+This is how the evidence read before the cause was measured. It was wrong about the
+mechanism, and right that the harness could not be trusted.
 
 Found while checking this document against reality, and it undermines confidence in
 every "all green" claim made during the session that produced it. Five consecutive
@@ -343,11 +420,19 @@ anything outside the repository:
 
 Until this is resolved, treat any "all green" in this repository as unconfirmed.
 
+**That conclusion is superseded: it is resolved, see the top of this section.** The
+sentence stays because the shape of the mistake is the lesson -- a plausible
+mechanism ("state leaks between files") was written down as a finding before the
+tool that produced the evidence had been verified.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
-- Harness: `bash tests/run.sh`. Do not write its size in docs: a doc that quotes
-  the count breaks the run that verifies it.
+- Harness: `bash tests/run.sh` (all) or `bash tests/run.sh <name>` (one file). Each
+  test file runs in its own process via `tests/run-one.sh`, bounded by
+  `timeout` (`TEST_TIMEOUT` overrides, 0 disables). `tests/test-harness.sh` audits
+  the harness itself. Do not write the harness size in docs: a doc that quotes the
+  count breaks the run that verifies it.
 - Effect plugin id: `macosglass2`. The id `macosglass` broke rendering with
   byte-identical code; the cause was never explained, and `macosglass2` works.
 - `macosglass2Enabled` in `~/.config/kwinrc` is **true**, so the effect loads at

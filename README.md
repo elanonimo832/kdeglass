@@ -9,7 +9,7 @@ a theme.
 | File | What it is |
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | **How the project is structured** and why |
-| [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) | **How we work**: the five rules, each one born from a real failure |
+| [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) | **How we work**: the six rules, each one born from a real failure |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | **What is missing**, by milestone, with a "done" criterion |
 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Continue here.** Current state, the next step in detail, its risks, and the lessons this step paid for |
 | [`BRIEF-ORIGINAL.md`](BRIEF-ORIGINAL.md) | The original brief, as is (3551 bytes, `sha256:1f95c523…`). Unmodified |
