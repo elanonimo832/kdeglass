@@ -194,9 +194,19 @@ private:
     // background to show, all of them would be equally invisible.
     //
     // The band keeps some of the window's own colour and lets the rest through.
-    // Too low and the title text becomes unreadable; too high and it is paint.
+    // Too low and the bar's flat colour stops reading as a bar; too high and it is
+    // paint. It no longer decides whether the TITLE is readable: the chrome is drawn
+    // crisp on top of the glass whatever this is (see the fragment shader), so this
+    // can now be lowered for more glass without losing the title.
+    //
+    // It is a setting, because that balance is a taste call and the right way to settle
+    // it is on a screen:
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key GlassAlpha 0.4
+    //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
     // ---------------------------------------------------------------------
-    static constexpr float kGlassAlpha = 0.55f;   // how much of the bar stays opaque
+    static constexpr float kGlassAlpha = 0.55f;   // default: how much of the bar stays
+
+    float m_glassAlpha = kGlassAlpha;
 
     // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
     // it belongs with the veil work in M1.5.

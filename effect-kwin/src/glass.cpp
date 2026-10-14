@@ -86,13 +86,26 @@ void main()
     // (1 - vTexCoord.y). The content sampling is left alone: it already reads the
     // right texel at the right place, so only the band test needed flipping.
     float yPixelsFromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
+    vec4 window = texture(sampler, vTexCoord);
     if (yPixelsFromTop > uTitleBarHeight) {
-        fragColor = texture(sampler, vTexCoord);
+        // The content is returned untouched, alpha included: this effect has no
+        // business changing anything outside the chrome.
+        fragColor = window;
         return;
     }
 
     // 9 taps in a 3x3 grid around the pixel, at a distance of uRadius texels.
     // Enough to be a real blur, few enough to stay cheap.
+    //
+    // WHAT THIS BLUR IS FOR NOW, because it changed. In M1.2 it WAS the material: the
+    // band was the window's own texture, softened. In M1.3a the material is the
+    // FROSTED BACKDROP, and blurring the bar is not only pointless (a flat colour
+    // blurs to itself) but harmful: it smears the title text and the traffic lights,
+    // which is precisely what the user reported and asked to have back.
+    //
+    // So it is no longer the band's colour; it is the band's BASELINE. Averaged over a
+    // radius larger than a glyph stroke, it is what the bar would look like without
+    // any chrome, and `window - baseline` is therefore the chrome itself.
     vec4 sum = vec4(0.0);
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
@@ -100,7 +113,17 @@ void main()
             sum += texture(sampler, vTexCoord + d);
         }
     }
-    vec3 barColour = (sum / 9.0).rgb;
+    vec3 baseline = (sum / 9.0).rgb;
+
+    // THE CHROME, DRAWN CRISP AND ON TOP OF THE GLASS.
+    //
+    // macOS keeps the title and the buttons fully readable: the glass is BEHIND the
+    // chrome, not over it. The deviation from the baseline is what tells them apart --
+    // a flat bar deviates by nothing, a glyph or a traffic light deviates a lot --
+    // and it needs no mask drawn by hand. The two thresholds are in luminance
+    // (0..1): below the first it is background, above the second it is chrome.
+    float deviation = abs(dot(window.rgb - baseline, vec3(0.2126, 0.7152, 0.0722)));
+    float chrome = smoothstep(0.05, 0.18, deviation);
 
     // M1.3a -- THE DESKTOP ITSELF, NOT AN ALPHA.
     //
@@ -148,16 +171,27 @@ void main()
             desktop = texture(background, uvBackground).rgb;
         }
 
-        // The bar keeps uGlassAlpha of its own colour and lets the rest through:
-        // that is the translucency macOS has.
-        fragColor = vec4(mix(desktop, barColour, uGlassAlpha), 1.0);
+        // The bar keeps uGlassAlpha of its own colour -- its BASELINE, so the chrome is
+        // not smeared into the glass -- and lets the frosted backdrop through.
+        vec3 glass = mix(desktop, baseline, uGlassAlpha);
+
+        // ROUNDED CORNERS, for free and without a corner radius.
+        //
+        // The band used to be an opaque RECTANGLE, so it squared off the window's
+        // rounded top corners: the user saw exactly that. The decoration already knows
+        // its own shape, and it says so in the alpha channel of the redirected texture
+        // -- transparent outside the rounding, and antialiased on the curve. Writing
+        // that alpha out means the band follows the decoration instead of overpainting
+        // it, whatever radius the theme uses, including a theme that has none.
+        fragColor = vec4(mix(glass, window.rgb, chrome), window.a);
         return;
     }
 
     // No capture available -- no framebuffer to read, blits unsupported, or the
     // window is off screen. Keep the previous behaviour rather than sample a
-    // texture that was never filled.
-    fragColor = vec4(barColour, uGlassAlpha);
+    // texture that was never filled: the bar's own colour with an alpha, and the
+    // chrome still crisp on top of it.
+    fragColor = vec4(mix(baseline, window.rgb, chrome), uGlassAlpha);
 }
 )";
 
@@ -217,9 +251,14 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // the band's mean, which is what measure-glass.py compares).
     m_backgroundRadius = cfg.readEntry("BackgroundRadius", kBackgroundRadius);
 
+    // How much of the bar's own colour stays. Not a readability knob any more -- the
+    // chrome is drawn crisp on top -- so it is free to go lower for more glass.
+    m_glassAlpha = float(cfg.readEntry("GlassAlpha", double(kGlassAlpha)));
+
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
-            << "backgroundRadius=" << m_backgroundRadius;
+            << "backgroundRadius=" << m_backgroundRadius
+            << "glassAlpha=" << m_glassAlpha;
 
     m_shader.reset();
     loadShader();
@@ -585,7 +624,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uTextureSize",
                          QVector2D(float(size.width()), float(size.height())));
     m_shader->setUniform("uTitleBarHeight", float(barHeight));
-    m_shader->setUniform("uGlassAlpha", kGlassAlpha);
+    m_shader->setUniform("uGlassAlpha", m_glassAlpha);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

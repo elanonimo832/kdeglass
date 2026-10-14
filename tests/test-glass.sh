@@ -20,7 +20,8 @@ afirmar_codigo "the shader writes a reduced alpha in the band" "$FUENTE" 'uGlass
 afirmar_codigo "the glass alpha is a named constant" "$CABECERA" 'kGlassAlpha'
 
 echo "  -- the content is left alone --"
-afirmar_codigo "outside the band the texel is returned unmodified" "$FUENTE" 'fragColor = texture[(]sampler, vTexCoord[)]'
+afirmar_codigo "outside the band the window texel is returned unmodified" "$FUENTE" 'vec4 window = texture[(]sampler, vTexCoord[)]'
+afirmar_codigo "and that is exactly what the content path returns" "$FUENTE" 'fragColor = window;'
 
 echo "  -- the scene is told the window is translucent --"
 # Setting an alpha in the shader is not enough: the scene blends the redirected
@@ -56,7 +57,22 @@ negar "the capture is not framed to frameGeometry" \
 # drawn under the window (HANDOFF section 5, risk 4).
 afirmar_codigo "the shader samples the captured background" "$FUENTE" 'texture[(]background'
 afirmar_codigo "the composite does not depend on the scene blending alpha" "$FUENTE" 'uHasBackground'
-afirmar_codigo "the composite keeps part of the bar colour" "$FUENTE" 'mix[(]desktop, barColour, uGlassAlpha[)]'
+afirmar_codigo "the composite keeps part of the bar colour" "$FUENTE" 'mix[(]desktop, baseline, uGlassAlpha[)]'
+afirmar_codigo "the bar's opacity is tunable too" "$FUENTE" 'GlassAlpha'
+
+echo "  -- the chrome stays readable, and the corners stay round --"
+# The user, after the frost landed: "que se vean los botones y el titulo de la ventana".
+# The band used to be the BLURRED window texture, so the title and the traffic lights
+# were smeared into it. Now the blur is the BASELINE, and what deviates from it is the
+# chrome, which is drawn crisp over the glass -- the way macOS does it: the glass is
+# behind the chrome, not over it.
+afirmar_codigo "the chrome is found by its deviation from the blurred bar" "$FUENTE" 'abs[(]dot[(]window.rgb - baseline'
+afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, window.rgb, chrome[)]'
+# And the corners: the band was an opaque rectangle, so it squared off the window's
+# rounded top corners. The decoration's own alpha says where the window is, so writing
+# it out makes the band follow the shape -- whatever radius the theme uses, and zero if
+# the theme has none.
+afirmar_codigo "the band takes its shape from the decoration's alpha" "$FUENTE" 'vec4[(]mix[(]glass, window.rgb, chrome[)], window[.]a[)]'
 # The one orientation that cannot be settled without a screen is a setting, so it
 # can be flipped and reconfigured WITHOUT a relogin.
 afirmar_codigo "the capture orientation is configurable, not assumed" "$FUENTE" 'BackgroundFlipV'

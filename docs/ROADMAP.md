@@ -68,7 +68,14 @@ reads as nine ghost copies of it. It is tuned live with
 note that `/KWin reconfigure` does NOT reach the effects, which cost a session of
 believing a value had been applied when it had not.
 
-Left for the next steps: tune `kGlassAlpha`, and settle whether the captured
+The chrome stays readable by construction: the blurred bar is the *baseline*, what
+deviates from it is the title text and the buttons, and those are drawn crisp on top of
+the glass -- the way macOS does it, the glass behind the chrome and not over it. The
+band also takes its alpha from the decoration, so the window's rounded corners are
+rounded in the band too, without a hard-coded radius anywhere. `GlassAlpha` (bar
+opacity) is a setting, like the frost radius.
+
+Left for the next step: settle whether the captured
 background is sampled with the right size and offset — the shader's sizes come from
 `frameGeometry()` while KWin's texture is the expanded geometry, which the decoration
 makes 933x765 against a 905x751 frame. The answer needs TEXT behind the window; a flat

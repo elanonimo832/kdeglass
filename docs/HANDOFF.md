@@ -156,7 +156,8 @@ deliberately, so that a correct override is not another false alarm.
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
 | 2 | Override `drawWindow`; capture the desktop into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | ✅ **VERIFIED ON SCREEN** (2026-10-14): band moved **73.8** over two backgrounds where 12 is the threshold, `capture: ok=1200 refused=0`. The capture covers the window's expanded geometry, clamped to the render target, composited in the fragment shader (unit 1, `uHasBackground`) |
 | 3a | Blur the captured background, in two scales so it does not read as ghost copies. | ✅ **done and seen on screen** (2026-10-14): `BackgroundRadius` defaults to the kit's outer 16, the inner scale is 6/16 of it, and 0 still takes the single-sample path. Tuned live with `reconfigureEffect`; the user's eye picked 16 over 6 |
-| 3b | Tune `kGlassAlpha`, and settle whether the *sampled* background needs the texture's own size and the shadow margins as uniforms (section 5: the band's SHAPE measured correct; only the sampling is unverified, and only against structured content). | not started -- alpha is a judgement call on screen, and the sampling test needs text behind the window |
+| 3b | Make the chrome readable again (title and buttons), round the band's corners, and make `kGlassAlpha` tunable. | ✅ **done** (2026-10-14): the bar's blur became the BASELINE that isolates the chrome, which is drawn crisp over the glass; the band takes its shape from the decoration's alpha, so the corners are round without a hard-coded radius; `GlassAlpha` is a setting |
+| 3c | Settle whether the *sampled* background needs the texture's own size and the shadow margins as uniforms (section 5: the band's SHAPE measured correct; only the sampling is unverified, and only against structured content). | not started -- needs text behind the window with `BackgroundRadius=0` |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -283,7 +284,7 @@ can see exactly where it stopped.
 | --- | --- |
 | Tokens, KDE colour schemes, GTK CSS, aurorae decoration | done |
 | **M1.1** — an effect draws, anchored to the window | ✅ verified on screen |
-| **M1.2** — diffusion (`frost 6`), shader correct | ✅ verified |
+| **M1.2** — diffusion (`frost 6`), shader correct | ✅ verified — and since M1.3a step 3b its role is the band's **baseline**, not its colour: the material is the frosted backdrop, and the blur is what isolates the chrome from the bar |
 | **M1.2b** — the band covers the title bar only, and survives window switches | ✅ verified by the user |
 | **M1.3a** — translucent band by alpha alone | 🔴 **measured OPAQUE**, does not achieve glass (see §2): the shader only ever saw the window's own texture |
 | **M1.3a step 1** — the chain rule accepts a correct override | ✅ done, and the verifier is shown to fail on defective sources |
