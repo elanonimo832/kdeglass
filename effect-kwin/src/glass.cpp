@@ -309,9 +309,21 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
         static int loggedBar = 0;
         if (loggedBar < 6) {
             ++loggedBar;
+            // expanded= and shadowMargin= are here because they are the numbers the
+            // material's geometry depends on and they CANNOT be reasoned out: the
+            // redirected texture is expandedGeometry()*scale, so every size the
+            // shader uses is only exact if the decoration's shadow margins are zero.
+            // This theme sets Shadow=true and ships no shadow.svg, which may or may
+            // not mean "no shadow" -- so it is logged, not assumed. (The capture line
+            // logs the texture size too, so the two together settle it either way.)
+            const RectF expandido = w->expandedGeometry();
+            const RectF marco = w->frameGeometry();
             qInfo() << "[macos-glass] title bar band:" << w->caption()
-                    << "frame=" << w->frameGeometry()
+                    << "frame=" << marco
                     << "client=" << w->clientGeometry()
+                    << "expanded=" << expandido
+                    << "shadowMargin=" << QPointF(marco.x() - expandido.x(),
+                                                  marco.y() - expandido.y())
                     << "barHeight=" << barHeight;
         }
     }

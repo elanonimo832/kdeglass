@@ -212,17 +212,20 @@ can see exactly where it stopped.
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.
 - **`uTexelSize`/`uTextureSize` are frame-sized while the texture is expanded-sized.**
-  Real, pre-existing (M1.2b), and it does NOT cancel cleanly: the band boundary lands
-  at `barHeight * (expandedH / frameH)`, and the blur offsets shrink by the same
-  fraction. It looked right because the band's implicit origin is the frame top, which
-  is one shadow margin below the texture top, and the two errors very nearly cancel --
-  within a few percent on a normal window, more on a small one. **State: left alone on
-  purpose.** The obvious fix (`uTextureSize = expanded * scale`) makes the band START
-  at the shadow top and grow by the margin, i.e. it breaks what is verified. The
-  correct change carries the margin explicitly --
-  `(1 - vTexCoord.y) * textureHeight > uMarginTop + uTitleBarHeight` -- and that is a
-  visible geometry change, so it belongs with step 3, where it can be verified on
-  screen together with the blur radius.
+  The texture half of that is settled: KWin redirects the window into
+  `snapToPixels(expandedGeometry(), scale) * scale`, so every size the shader uses is
+  exact ONLY if the decoration's shadow margins are zero. **Whether they are is not
+  established for this theme.** It sets `Shadow=true` in its `KdeMacOSrc` and ships no
+  `shadow.svg`, and what KWin's aurorae library does with that combination has not
+  been read -- so instead of reasoning it out, the effect now logs it: the
+  `title bar band:` line carries `expanded=` and `shadowMargin=`, and the
+  `capture texture` line carries the redirected texture's size. Two lines, and the
+  margin stops being a hypothesis.
+  **State: measured next relogin.** If the margin is 0 the shader's sizes were already
+  exact and the arithmetic below is void; if it is not, the band boundary currently
+  lands at `barHeight * (expandedH / frameH)` and the fix is to carry the margin
+  explicitly -- `(1 - vTexCoord.y) * textureHeight > uMarginTop + uTitleBarHeight` --
+  which is a visible geometry change and therefore step 3b, not this one.
 - **One capture texture for every window.** The M1.2b hazard (one shader, many
   windows, the last one wins) in a new place. Safe for the two reasons above: the
   capture is never re-entered, and `capture(A) -> draw(A) -> capture(B)` completes
