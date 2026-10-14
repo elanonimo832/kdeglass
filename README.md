@@ -8,6 +8,9 @@ un tema.
 
 | Fichero | Qué es |
 |---|---|
+| [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) | **Cómo está estructurado el proyecto** y por qué |
+| [`docs/METODOLOGIA.md`](docs/METODOLOGIA.md) | **Cómo trabajamos**: las cinco reglas, cada una salida de un fallo real |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | **Qué falta**, por hitos, con criterio de «hecho» |
 | [`PROYECTO-KDE-MACOS.md`](PROYECTO-KDE-MACOS.md) | El brief original, tal cual (3551 bytes, `sha256:1f95c523…`). Sin modificar |
 | [`ANALISIS.md`](ANALISIS.md) | El análisis: veredicto, correcciones técnicas, omisiones y plan reordenado |
 | [`INSTALACION.md`](INSTALACION.md) | Cómo se instala y cómo se aplica: repo, destinos reales, etapas de despliegue y reversión |
@@ -81,3 +84,29 @@ El arnés vigila los invariantes que han costado más caro, no el formato:
 > buena hasta comprobar que **falla** al romper el código. Ambas reglas salieron de
 > errores reales: una prueba que pasaba por un comentario, y otra que no detectaba
 > la rotura.
+
+---
+
+## Credenciales: este repositorio no guarda ninguna
+
+**Nunca metas un token, contraseña o clave en el repositorio.** `.env`, `.pem`, `.key`
+y similares están en `.gitignore`, pero eso es una red, no una garantía: **un secreto
+que entra en el historial de git es permanente** aunque se borre después, y GitHub
+revoca los que detecta filtrados —publicándolos en el proceso—.
+
+Para subir el proyecto, el token se queda en tu máquina:
+
+```bash
+# Opción A: GitHub CLI (hace el login una vez, guarda el token en el llavero)
+sudo pacman -S --needed github-cli
+gh auth login
+gh repo create <nombre> --public --source=. --push
+
+# Opción B: git con credential helper
+git config --global credential.helper libsecret
+git remote add origin https://github.com/<usuario>/<repo>.git
+git push -u origin master
+```
+
+Si algún día se filtra uno: **revócalo primero** en GitHub y después limpia el
+historial. Revocar es lo urgente; el historial puede esperar.

@@ -33,3 +33,17 @@ efecto-kwin/bisect/build/
 #   evidencia/     -> capturas de NUESTRO escritorio (no de Apple)
 #   tokens/        -> los tokens extraidos, con su procedencia
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Secretos. Un token en el historial de git es permanente: aunque se borre
+# despues, sigue siendo recuperable, y GitHub revoca los que detecta filtrados.
+# Aunque el proyecto los ignore, NUNCA metas credenciales en el repo.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+*.token
+*token*.txt
+.secrets
+*.pem
+*.key
+id_rsa*
