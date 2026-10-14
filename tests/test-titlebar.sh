@@ -53,4 +53,4 @@ if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'setShader('; t
   ok "apply() re-asserts the shader on every paint"
 else
   fallo "apply() does not re-assert the shader (the band will vanish on repaint)"
-fi'
+fi
