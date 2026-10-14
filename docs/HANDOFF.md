@@ -156,7 +156,7 @@ deliberately, so that a correct override is not another false alarm.
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
 | 2 | Override `drawWindow`; capture the desktop into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | ✅ **VERIFIED ON SCREEN** (2026-10-14): band moved **73.8** over two backgrounds where 12 is the threshold, `capture: ok=1200 refused=0`. The capture covers the window's expanded geometry, clamped to the render target, composited in the fragment shader (unit 1, `uHasBackground`) |
 | 3a | Blur the captured background. Split out from "tune alpha" so that it stays ONE variable: it is a setting (`BackgroundRadius`) whose default of 0 keeps the sharp composite the relogin verified. | 🟡 **in the verified build, off by default**: radius 0 is the single-sample path; the frost is switched on in the same session with a `kwinrc` key + `reconfigure`, no relogin |
-| 3b | Tune `kGlassAlpha`, make the shader's sizes use the expanded geometry with an explicit top margin, and confine the band horizontally to the frame so it stops painting the 14 px side margins (section 5 has the measured numbers). | not started -- it is a visible geometry change, so it needs a build + relogin + screenshot |
+| 3b | Tune `kGlassAlpha`, and settle whether the *sampled* background needs the texture's own size and the shadow margins as uniforms (section 5: the band's SHAPE measured correct; only the sampling is unverified, and only against structured content). | not started -- alpha is a judgement call on screen, and the sampling test needs text behind the window |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -212,29 +212,29 @@ can see exactly where it stopped.
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.
 - **`uTexelSize`/`uTextureSize` are frame-sized while the texture is expanded-sized.**
-  **Measured (2026-10-14), so this is no longer a question.** KWin reported
-  `frame= KWin::RectF(1467,669 905x751)` and `expanded= KWin::RectF(1453,662 933x765)`,
-  i.e. `shadowMargin= QPointF(14, 7)`: 14 logical pixels on the left and right, 7 on the
-  top and bottom. The shader's sizes are therefore NOT exact, and the errors are now
-  numbers instead of a shape:
-  - **Vertically**, `yPixelsFromTop = (1 - vTexCoord.y) * 751` measures the distance
-    from the TEXTURE top scaled by 751/765 (0.9817). So the band starts at the texture
-    top -- 7 px ABOVE the frame -- and ends at 38 / 0.9817 = 38.7 px, about 6 px short
-    of the title bar's bottom edge. The fix is
-    `(1 - vTexCoord.y) * textureHeight > uMarginTop + uTitleBarHeight` with
-    textureHeight 765 and uMarginTop 7, which covers texture rows 0..45 = margin 7 +
-    bar 38: the intended band.
-  - **Horizontally there is a second consequence nobody has looked for yet**: the
-    condition tests only y, so the band spans the whole 933 px texture width, and 14 px
-    of that is shadow on each side. The shader writes alpha 1.0 there, so those margins
-    may be painted OPAQUE -- a small rectangular tab sticking out on each side of the
-    title bar. Whether it is visible has not been checked; it is the first thing to
-    look for in the next screenshot, and the fix (a horizontal test against
-    `uMarginLeft` and the frame width) belongs with the same change.
-  - The blur offsets are wrong by the same 1.9% (751 against 765): invisible at frost 6,
-    and free to correct in passing.
-  **State: step 3b.** It is a visible geometry change, so it needs a build + relogin and
-  a screenshot -- not a hot reconfigure.
+  **State: measured, and the predicted artefacts are NOT there.** An off/on capture
+  pair of a real window, differenced, gives the band's exact rectangle: **39 rows**
+  starting at the window's visible top edge and ending at the client top (barHeight
+  38), spanning the window's **full visible width**, with hard zero-difference
+  boundaries immediately outside. So the band covers the whole title strip and paints
+  nothing into the shadow: no tab on either side, no strip above the frame, no short
+  band. The screenshot shows the same thing -- the blurred traffic lights and title
+  text sit inside the strip, and the wallpaper outside is untouched.
+  **What was wrong in the first reading**, recorded because it is the same trap twice:
+  the "side tabs" came from taking the *whole-window* difference bounding box and
+  attributing it to the band, with the frame's origin taken from the log line of a
+  DIFFERENT window ("~ : fish" against the captured "effect-kwin : bash"). Comparing
+  the band rows against client rows -- the margins change in the former and not in the
+  latter -- is what settled it: those columns are the window's own left and right
+  edges, not shadow.
+  **What is still open is the SAMPLING, not the shape.** Every size the shader uses is
+  derived from `frameGeometry()` while KWin's texture is
+  `snapToPixels(expandedGeometry(), scale) * scale`, so the sampled background may be
+  offset by the top/left shadow margin and scaled by ~1.9%. Against a flat wallpaper
+  that is invisible, and no measurement so far can see it. The test that would: with
+  `BackgroundRadius=0`, put a window with TEXT behind the target and check whether the
+  band's content lines up with the same text where it shows around the window. If it
+  does not, the fix is to pass the texture's own size and the margins as uniforms.
 - **One capture texture for every window.** The M1.2b hazard (one shader, many
   windows, the last one wins) in a new place. Safe for the two reasons above: the
   capture is never re-entered, and `capture(A) -> draw(A) -> capture(B)` completes

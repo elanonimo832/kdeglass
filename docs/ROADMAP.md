@@ -65,11 +65,14 @@ to 0, so the relogin verified one variable (is the desktop there?) before a seco
 changed how it looks. It is switched on with a `kwinrc` key plus `reconfigure`, without
 a relogin.
 
-Left for the next steps: tune `kGlassAlpha`, and correct the shader's sizes, which are
-still frame-based while the texture is expanded-based. That is measured now, not
-guessed: the decoration's shadow margin is `QPointF(14, 7)`, so the band starts 7 px
-above the frame and ends about 6 px short of the title bar, and it may be painting the
-14 px side margins opaque (see the risks list in `HANDOFF.md`).
+Left for the next steps: tune `kGlassAlpha`, and settle whether the captured
+background is sampled with the right size and offset — the shader's sizes come from
+`frameGeometry()` while KWin's texture is the expanded geometry, which the decoration
+makes 933x765 against a 905x751 frame. The answer needs TEXT behind the window; a flat
+wallpaper cannot show a 1.9% scale error. What is already measured is the band's
+shape, and it is correct: 39 rows from the window's top edge to the client top, the
+window's full width, nothing painted into the shadow (see the risks list in
+`HANDOFF.md`).
 
 **The full analysis, the next step in detail, and its risks are in
 [`HANDOFF.md`](HANDOFF.md).** Start there, not here.
