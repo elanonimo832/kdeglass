@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # ============================================================================
-# RECOVER-KDE.sh — recuperación de la pantalla negra (incidente 2026-10-13)
+# RECOVER-KDE.sh — black screen recovery (2026-10-13 incident)
 #
-# Contexto completo en:  ~/INCIDENT.md   (léelo primero)
+# Full context in:  ~/INCIDENT.md   (read it first)
 #
-# Caso típico: se cargó el efecto macosglass (o se usó `kwin_wayland --replace`)
-# y KWin deja de renderizar: pantalla negra con el cursor visible, pero KWin y
-# plasmashell siguen vivos y responden por D-Bus.
+# Typical case: the macosglass effect was loaded (or `kwin_wayland --replace` was used)
+# and KWin stops rendering: black screen with a visible cursor, but KWin and
+# plasmashell are still alive and respond over D-Bus.
 #
-# Uso:
-#   bash ~/RECOVER-KDE.sh estado                 # ver qué hay configurado
-#   bash ~/RECOVER-KDE.sh reanimar               # ARREGLA EN CALIENTE, sin cerrar sesión
-#   bash ~/RECOVER-KDE.sh recuperar              # desactiva efectos/decoración en disco
-#   bash ~/RECOVER-KDE.sh recuperar --reset-output   # + regenera config de salida
-#   bash ~/RECOVER-KDE.sh revertir               # rehabilita el aspecto macOS (¡cuidado!)
+# Usage:
+#   bash ~/RECOVER-KDE.sh estado                 # see what is configured
+#   bash ~/RECOVER-KDE.sh reanimar               # FIXES IT ON THE FLY, without closing the session
+#   bash ~/RECOVER-KDE.sh recuperar              # disables effects/decoration on disk
+#   bash ~/RECOVER-KDE.sh recuperar --reset-output   # + regenerates the output config
+#   bash ~/RECOVER-KDE.sh revertir               # re-enables the macOS look (be careful!)
 #
-# Es idempotente y reversible: hace backup de todo lo que toca.
+# It is idempotent and reversible: it backs up everything it touches.
 #
-# ORDEN RECOMENDADO CUANDO ESTÁ NEGRA:
+# RECOMMENDED ORDER WHEN IT IS BLACK:
 #   1) reanimar            (reconfigure -> unloadEffect -> reinitialize)
-#   2) si no basta:  sudo systemctl restart plasmalogin   (o sudo reboot)
+#   2) if that is not enough:  sudo systemctl restart plasmalogin   (or sudo reboot)
 # ============================================================================
 set -uo pipefail
 
@@ -38,26 +38,26 @@ ok()    { printf '  \033[1;32mOK\033[0m   %s\n' "$1"; }
 aviso() { printf '  \033[1;33mAVISO\033[0m %s\n' "$1"; }
 
 tengo() { command -v "$1" >/dev/null 2>&1; }
-kwrite() { # kwrite <fichero> <grupo> <clave> <valor>
+kwrite() { # kwrite <file> <group> <key> <value>
   if tengo kwriteconfig6; then
     kwriteconfig6 --file "$1" --group "$2" --key "$3" "$4" 2>/dev/null && return 0
   fi
-  aviso "no se pudo escribir $3 en $1 (¿kwriteconfig6?)"
+  aviso "could not write $3 in $1 (kwriteconfig6?)"
   return 1
 }
-kbaja() { # kbaja <fichero> <grupo> <clave>
+kbaja() { # kbaja <file> <group> <key>
   if tengo kwriteconfig6; then
     kwriteconfig6 --file "$1" --group "$2" --key "$3" --delete 2>/dev/null
   fi
 }
 
-# Prepara el entorno para hablar con el KWin de la sesión gráfica.
+# Prepares the environment to talk to the KWin of the graphical session.
 entorno_kwin() {
   export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
   export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 }
 
-# Devuelve la TTY de la sesión *wayland* (p. ej. "tty3"), o nada si no hay.
+# Returns the TTY of the *wayland* session (e.g. "tty3"), or nothing if there is none.
 tty_wayland() {
   local s t
   for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do
@@ -74,9 +74,9 @@ dime_como_volver() {
   local tty
   tty="$(tty_wayland || true)"
   if [ -n "${tty:-}" ]; then
-    echo "  1) Vuelve a la sesión gráfica con Ctrl+Alt+F${tty#tty}  (está en $tty; no siempre es tty2)."
+    echo "  1) Return to the graphical session with Ctrl+Alt+F${tty#tty}  (it is on $tty; it is not always tty2)."
   else
-    echo "  1) Cambia a la TTY de la sesión gráfica (mírala con: loginctl list-sessions)."
+    echo "  1) Switch to the TTY of the graphical session (find it with: loginctl list-sessions)."
   fi
 }
 
@@ -85,82 +85,82 @@ backup() {
   for f in "$KWINRC" "$KDEGLOBALS" "$OUTCFG"; do
     [ -f "$f" ] && cp -a "$f" "$ESTADO/$FECHA/" 2>/dev/null
   done
-  ok "backup en $ESTADO/$FECHA"
+  ok "backup in $ESTADO/$FECHA"
 }
 
 cmd_estado() {
   entorno_kwin
-  azul "ESTADO ACTUAL"
+  azul "CURRENT STATUS"
   echo "--- $KWINRC [Plugins] / [org.kde.kdecoration2] ---"
   [ -f "$KWINRC" ] && grep -E 'Enabled|ButtonsOn|library|theme' "$KWINRC"
   echo "--- $KDEGLOBALS ---"
   [ -f "$KDEGLOBALS" ] && grep -iE '^ColorScheme=|^LookAndFeelPackage=|^widgetStyle=' "$KDEGLOBALS"
-  echo "--- sesiones ---"
+  echo "--- sessions ---"
   loginctl list-sessions 2>/dev/null | sed 's/^/  /'
-  echo "--- efectos cargados en KWin vivo ---"
+  echo "--- effects loaded in the live KWin ---"
   if timeout 6 qdbus6 org.kde.KWin /KWin org.kde.KWin.supportInformation >/dev/null 2>&1; then
     timeout 8 qdbus6 org.kde.KWin /KWin org.kde.KWin.supportInformation 2>/dev/null \
       | sed -n '/Currently Active Effects/,/Effect Settings/p' | head -8 | sed 's/^/  /'
   else
-    aviso "KWin no responde por D-Bus (¿sesión gráfica caída?)"
+    aviso "KWin does not respond over D-Bus (graphical session down?)"
   fi
-  echo "--- errores de render recientes ---"
-  printf '  errores de render de KWin en 10 min: '
+  echo "--- recent render errors ---"
+  printf '  KWin render errors in 10 min: '
   journalctl --user -b --no-pager -o short-iso --since '10 min ago' 2>/dev/null \
     | grep -cE 'kwin_wayland\[[0-9]+\]: (Could not delete render time query|No QSGTexture)'
 }
 
 # ---------------------------------------------------------------------------
-# REANIMAR: la recuperación en caliente que funcionó el 2026-10-13 a las 23:12
+# REANIMAR: the hot recovery that worked on 2026-10-13 at 23:12
 # ---------------------------------------------------------------------------
 cmd_reanimar() {
   entorno_kwin
-  azul "REANIMAR — recuperar la pantalla EN CALIENTE (sin cerrar sesión)"
+  azul "REANIMAR — recover the screen ON THE FLY (without closing the session)"
   if ! tengo qdbus6; then
-    aviso "falta qdbus6 (paquete qt6-tools); no puedo reanimar en caliente"
+    aviso "qdbus6 is missing (qt6-tools package); cannot revive on the fly"
     return 1
   fi
   if ! timeout 6 qdbus6 org.kde.KWin /KWin org.kde.KWin.supportInformation >/dev/null 2>&1; then
-    aviso "KWin no responde por D-Bus; esto hay que arreglarlo reiniciando la sesión"
+    aviso "KWin does not respond over D-Bus; this has to be fixed by restarting the session"
     dime_como_volver
-    echo "  2) sudo systemctl restart plasmalogin   (o sudo reboot)"
+    echo "  2) sudo systemctl restart plasmalogin   (or sudo reboot)"
     return 1
   fi
 
-  # 1) Que KWin relea kwinrc. IMPRESCINDIBLE: si no, reinitialize() recarga
-  #    macosglass desde la config que KWin tiene EN MEMORIA (pasó a las 23:10:07).
+  # 1) Have KWin re-read kwinrc. ESSENTIAL: otherwise reinitialize() reloads
+  #    macosglass from the config KWin has IN MEMORY (it happened at 23:10:07).
   if timeout 10 qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1; then
-    ok "KWin releyó la configuración (reconfigure)"
+    ok "KWin re-read the configuration (reconfigure)"
   else
-    aviso "reconfigure falló; sigo igualmente"
+    aviso "reconfigure failed; continuing anyway"
   fi
 
-  # 2) Descargar los efectos de riesgo que estén cargados.
+  # 2) Unload the risky effects that are loaded.
   descargar_riesgo
 
-  # 3) Recrear el contexto OpenGL / backend de composición.
+  # 3) Recreate the OpenGL context / compositing backend.
   if timeout 15 qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize >/dev/null 2>&1; then
-    ok "backend de composición reinicializado (reinitialize)"
+    ok "compositing backend reinitialized (reinitialize)"
   else
-    aviso "reinitialize falló"
+    aviso "reinitialize failed"
   fi
   sleep 2
 
-  # 4) reinitialize() puede recargar efectos: volver a descargarlos.
+  # 4) reinitialize() can reload effects: unload them again.
   descargar_riesgo
 
   echo
-  azul "COMPROBACIÓN"
+  azul "CHECK"
   printf '  isEffectLoaded macosglass = '
   timeout 6 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded macosglass 2>&1
   printf '  isEffectLoaded blur      = '
   timeout 6 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded blur 2>&1
-  printf '  errores de render de KWin en los últimos 2 min = '
+  printf '  KWin render errors in the last 2 min = '
   journalctl --user -b --no-pager -o short-iso --since '2 min ago' 2>/dev/null \
     | grep -cE 'kwin_wayland\[[0-9]+\]: (Could not delete render time query|No QSGTexture)'
   echo
-  echo "  Si la pantalla sigue negra, reinicia la sesión:"
-  echo "      sudo systemctl restart plasmalogin    (o sudo reboot)"
+  echo "  If the screen is still black, restart the session:"
+  echo "      sudo systemctl restart plasmalogin    (or sudo reboot)"
 }
 
 descargar_riesgo() {
@@ -169,9 +169,9 @@ descargar_riesgo() {
     estado="$(timeout 6 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded "$e" 2>/dev/null || true)"
     if [ "$estado" = "true" ]; then
       if timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect "$e" >/dev/null 2>&1; then
-        ok "efecto descargado en caliente: $e"
+        ok "effect unloaded on the fly: $e"
       else
-        aviso "no se pudo descargar $e"
+        aviso "could not unload $e"
       fi
     fi
   done
@@ -179,63 +179,63 @@ descargar_riesgo() {
 
 cmd_recuperar() {
   local reset_output="${1:-}"
-  azul "RECUPERAR — dejando KWin casi de fábrica"
+  azul "RECUPERAR — leaving KWin almost factory-fresh"
   backup
 
-  kwrite "$KWINRC" Plugins macosglassEnabled false && ok "macosglass desactivado"
-  kwrite "$KWINRC" Plugins blurEnabled       false && ok "blur desactivado"
-  kbaja  "$KWINRC" org.kde.kdecoration2 theme   && ok "decoración: theme borrado (queda la de fábrica)"
-  kbaja  "$KWINRC" org.kde.kdecoration2 library && ok "decoración: library borrada (queda la de fábrica)"
+  kwrite "$KWINRC" Plugins macosglassEnabled false && ok "macosglass disabled"
+  kwrite "$KWINRC" Plugins blurEnabled       false && ok "blur disabled"
+  kbaja  "$KWINRC" org.kde.kdecoration2 theme   && ok "decoration: theme deleted (the factory one remains)"
+  kbaja  "$KWINRC" org.kde.kdecoration2 library && ok "decoration: library deleted (the factory one remains)"
 
   if tengo plasma-apply-colorscheme && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
-    plasma-apply-colorscheme BreezeDark 2>/dev/null && ok "esquema de color BreezeDark"
+    plasma-apply-colorscheme BreezeDark 2>/dev/null && ok "BreezeDark color scheme"
   fi
   kwrite "$KDEGLOBALS" General ColorScheme BreezeDark && ok "kdeglobals -> BreezeDark"
 
   if [ "$reset_output" = "--reset-output" ] && [ -f "$OUTCFG" ]; then
     mv -f "$OUTCFG" "$ESTADO/$FECHA/kwinoutputconfig.json.movido" 2>/dev/null \
-      && ok "kwinoutputconfig.json apartado (KWin lo regenerará)"
+      && ok "kwinoutputconfig.json moved aside (KWin will regenerate it)"
   fi
 
   echo
-  azul "SIGUIENTE PASO"
-  echo "  0) Para recuperar la pantalla AHORA, sin cerrar sesión:  bash $0 reanimar"
+  azul "NEXT STEP"
+  echo "  0) To recover the screen NOW, without closing the session:  bash $0 reanimar"
   dime_como_volver
-  echo "  2) Si sigue negra:   sudo systemctl restart plasmalogin   (o sudo reboot)"
-  echo "  3) macosglass/blur ya no se cargarán en el próximo KWin."
+  echo "  2) If it is still black:   sudo systemctl restart plasmalogin   (or sudo reboot)"
+  echo "  3) macosglass/blur will no longer be loaded in the next KWin."
 }
 
 cmd_revertir() {
-  azul "REVERTIR — rehabilitando el aspecto macOS (hazlo solo si el escritorio ya va)"
-  aviso "OJO: el efecto macosglass ROMPE el render (incidente 2026-10-13, 2 veces)."
-  aviso "Recomendado: NO activarlo. Si aun así lo haces, reinicia el equipo, no solo la sesión."
+  azul "REVERTIR — re-enabling the macOS look (do it only if the desktop already works)"
+  aviso "WATCH OUT: the macosglass effect BREAKS rendering (2026-10-13 incident, 2 times)."
+  aviso "Recommended: do NOT activate it. If you still do, reboot the machine, not just the session."
   backup
-  kwrite "$KWINRC" Plugins macosglassEnabled true && ok "macosglass activado (requiere reiniciar)"
-  kwrite "$KWINRC" Plugins blurEnabled       true && ok "blur activado"
-  kwrite "$KDEGLOBALS" General ColorScheme KdeMacosDark && ok "esquema KdeMacosDark"
+  kwrite "$KWINRC" Plugins macosglassEnabled true && ok "macosglass activated (requires a reboot)"
+  kwrite "$KWINRC" Plugins blurEnabled       true && ok "blur activated"
+  kwrite "$KDEGLOBALS" General ColorScheme KdeMacosDark && ok "KdeMacosDark scheme"
 
   if [ -x "$PROY/install-decoration.sh" ]; then
-    aviso "ejecuta esto para la decoración (semáforos) si la quieres:"
+    aviso "run this for the decoration (traffic lights) if you want it:"
     echo "    cd \"$PROY\" && ./install-decoration.sh aplicar --si --activar"
   fi
   echo
-  aviso "Reinicia el equipo (sudo reboot) para que KWin cargue el efecto."
+  aviso "Reboot the machine (sudo reboot) so KWin loads the effect."
 }
 
 ayuda() {
   cat <<EOF
-Uso: bash $0 {estado|reanimar|recuperar [--reset-output]|revertir}
+Usage: bash $0 {estado|reanimar|recuperar [--reset-output]|revertir}
 
-  estado                     Muestra la configuración actual de KWin/Plasma.
-  reanimar                   Recupera la pantalla EN CALIENTE, sin cerrar sesión:
+  estado                     Shows the current KWin/Plasma configuration.
+  reanimar                   Recovers the screen ON THE FLY, without closing the session:
                              reconfigure -> unloadEffect macosglass/blur -> reinitialize.
-  recuperar                  Desactiva macosglass y blur, resetea la decoración
-                             y pone el esquema BreezeDark. Hace backup.
-  recuperar --reset-output   Además aparta kwinoutputconfig.json para que KWin
-                             regenere la configuración de la pantalla.
-  revertir                   Vuelve a activar el efecto y el esquema macOS (¡rompe!).
+  recuperar                  Disables macosglass and blur, resets the decoration
+                             and sets the BreezeDark scheme. Makes a backup.
+  recuperar --reset-output   Also moves kwinoutputconfig.json aside so that KWin
+                             regenerates the screen configuration.
+  revertir                   Re-activates the effect and the macOS scheme (it breaks!).
 
-Notas completas: ~/INCIDENT.md
+Full notes: ~/INCIDENT.md
 EOF
 }
 

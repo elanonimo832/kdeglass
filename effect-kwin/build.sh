@@ -1,39 +1,39 @@
 #!/usr/bin/env bash
-# Compila el efecto KWin y comprueba que la cadena de pintado sigue intacta.
+# Compiles the KWin effect and checks that the paint chain is still intact.
 #
-# NO instala ni activa. Para eso:  ./install.sh
+# Does NOT install or activate. For that:  ./install.sh
 set -euo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$AQUI"
 
 if ! command -v cmake >/dev/null 2>&1; then
   cat <<'MSG'
-FALTA CMAKE
+CMAKE IS MISSING
 
   sudo pacman -S --needed cmake ninja
 
-Los headers de KWin y de KF6 ya estan instalados: no hace falta nada mas.
+The KWin and KF6 headers are already installed: nothing else is needed.
 MSG
   exit 1
 fi
 
-# Los headers de Vulkan solo se usan para compilar (no enlazamos con Vulkan), asi
-# que basta un stub propio: evita instalar los 42 MiB de vulkan-headers.
+# The Vulkan headers are only used to compile (we do not link against Vulkan), so
+# a stub of our own is enough: it avoids installing the 42 MiB of vulkan-headers.
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
       -DVulkan_INCLUDE_DIR="$AQUI/_stub"
 cmake --build build
 
-# Si la cadena no esta, NO se sigue: instalar ese .so deja el escritorio negro.
+# If the chain is not there, it does NOT continue: installing that .so leaves the desktop black.
 if ! "$AQUI/verify-chain.sh"; then
   echo
-  echo "NO se instala: el efecto no continua la cadena de pintado de KWin."
+  echo "NOT installing: the effect does not continue KWin's paint chain."
   exit 1
 fi
 
 echo
-echo "Compilado: build/plugins/kwin/effects/macosglass2.so"
-echo "  Instalar:      ./install.sh"
-echo "  Probar (sin cerrar sesion):  ./test-installed.sh"
+echo "Compiled: build/plugins/kwin/effects/macosglass2.so"
+echo "  Install:       ./install.sh"
+echo "  Test (without closing the session):  ./test-installed.sh"
 echo
-echo "El efecto todavia NO dibuja: el shader del material es el paso siguiente."
+echo "The effect still does NOT draw: the material shader is the next step."

@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
-# Instala y activa el efecto KWin del proyecto. Necesita sudo. SIN sudo delante.
+# Installs and activates the project's KWin effect. Needs sudo. WITHOUT sudo in front.
 #
-# Autosuficiente: no depende de binarios en build/ (que es regenerable).
+# Self-contained: it does not depend on binaries in build/ (which is regenerable).
 set -euo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SO="$AQUI/build/plugins/kwin/effects/macosglass2.so"
 ID=macosglass2
 DEST=/usr/lib/qt6/plugins/kwin/effects/plugins
 
-[ -f "$SO" ] || { echo "Falta el .so. Compila primero:  ./build.sh"; exit 1; }
+[ -f "$SO" ] || { echo "The .so is missing. Compile first:  ./build.sh"; exit 1; }
 
-# 1. La cadena de pintado: sin ella KWin no dibuja NINGUNA ventana (pantalla negra).
+# 1. The paint chain: without it KWin draws NO window (black screen).
 if ! "$AQUI/verify-chain.sh" >/dev/null 2>&1; then
-  echo "ABORTADO: el .so no continua la cadena de pintado -> pantalla negra."
-  echo "Detalle:  ./verify-chain.sh"
+  echo "ABORTED: the .so does not continue the paint chain -> black screen."
+  echo "Detail:  ./verify-chain.sh"
   exit 1
 fi
-echo "1. Cadena de pintado: OK"
+echo "1. Paint chain: OK"
 
-# 2. Instalar en la ruta que KWin LEE. PluginEffectLoader busca en
-#    "kwin/effects/plugins"; un nivel mas arriba KWin no lo ve, y en silencio.
-echo "2. Instalando $ID en $DEST"
+# 2. Install in the path KWin READS. PluginEffectLoader looks in
+#    "kwin/effects/plugins"; one level up KWin does not see it, and silently.
+echo "2. Installing $ID in $DEST"
 sudo install -Dm755 "$SO" "$DEST/$ID.so"
 
-# 3. Restos de intentos anteriores. El id 'macosglass' rompia el render, y los
-#    plugins de prueba de la biseccion ya no hacen falta.
-echo "3. Quitando restos (ids viejos y plugins de prueba)"
+# 3. Leftovers from previous attempts. The id 'macosglass' broke rendering, and the
+#    bisection test plugins are no longer needed.
+echo "3. Removing leftovers (old ids and test plugins)"
 for viejo in macosglass libmacosglass bisect testglass2; do
   sudo rm -f "$DEST/$viejo.so" 2>/dev/null || true
   kwriteconfig6 --file kwinrc --group Plugins --key "${viejo}Enabled" --delete 2>/dev/null || true
@@ -33,16 +33,16 @@ done
 sudo rm -f /usr/share/kwin/effects/macosglass/metadata.json 2>/dev/null || true
 sudo rmdir /usr/share/kwin/effects/macosglass 2>/dev/null || true
 
-echo "4. Activando en kwinrc"
+echo "4. Activating in kwinrc"
 kwriteconfig6 --file kwinrc --group Plugins --key "${ID}Enabled" true
 
 echo
-echo "Instalado y activado."
+echo "Installed and activated."
 echo
-echo "  Comprobar sin cerrar sesion (carga, mide y descarga solo):"
+echo "  Check without closing the session (loads, measures and unloads by itself):"
 echo "      ./test-installed.sh"
 echo
-echo "  Para que quede cargado de forma permanente, CIERRA SESION."
-echo "  NUNCA uses 'kwin_wayland --replace': en Wayland arranca un segundo"
-echo "  compositor que compite por el DRM/GL y deja la pantalla NEGRA."
-echo "  Ver INCIDENT.md."
+echo "  For it to stay loaded permanently, LOG OUT."
+echo "  NEVER use 'kwin_wayland --replace': on Wayland it starts a second"
+echo "  compositor that competes for the DRM/GL and leaves the screen BLACK."
+echo "  See INCIDENT.md."

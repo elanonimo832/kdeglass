@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 """
-generate-gtk-css.py — Genera el CSS de GTK desde los mismos tokens
+generate-gtk-css.py — Generates the GTK CSS from the same tokens
 
-POR QUE SE GENERA Y NO SE ESCRIBE
-    Un tema GTK escrito a mano se desincroniza de los tokens en la primera semana. Aqui
-    los valores salen de tokens-colors.toml y tokens-forma-efectos.toml, que a su vez
-    salieron de Figma y de las HIG. Un cambio de token -> CSS regenerado.
+WHY IT IS GENERATED AND NOT WRITTEN BY HAND
+    A hand-written GTK theme falls out of sync with the tokens within the first week.
+    Here the values come from tokens-colors.toml and tokens-forma-efectos.toml, which
+    in turn came from Figma and from the HIG. A token change -> regenerated CSS.
 
-QUE GENERA
+WHAT IT GENERATES
     output/gtk-3.0/kde-macos.css
     output/gtk-4.0/kde-macos.css
-    output/gtk-3.0/colors.css        (solo los colores, para reutilizar)
+    output/gtk-3.0/colors.css        (only the colors, for reuse)
     output/gtk-4.0/colors.css
 
-EXPECTATIVAS REALISTAS (lo dice el analisis, §3.3)
-    Esto es un TEMA GTK, no un QStyle. Cubre color, tipografia, radios y bordes: lo que
-    el CSS de GTK permite. NO cambia estructura, layout ni animaciones, porque GTK no lo
-    expone. Y hay apps que lo ignoran por completo:
-      - las que enlazan libadwaita sin opt-in
-      - las Flatpak que empaquetan su propio tema
-      - Electron/Chromium con CSS embebido
-    La lista de excepciones esta en ANALYSIS.md.
+REALISTIC EXPECTATIONS (the analysis says so, §3.3)
+    This is a GTK THEME, not a QStyle. It covers color, typography, radii and borders:
+    what GTK CSS allows. It does NOT change structure, layout or animations, because
+    GTK does not expose them. And there are apps that ignore it entirely:
+      - those that link libadwaita without opt-in
+      - Flatpak ones that bundle their own theme
+      - Electron/Chromium with embedded CSS
+    The list of exceptions is in ANALYSIS.md.
 
-USO
+USAGE
     python3 generate-gtk-css.py tokens/ output/
 """
 
@@ -62,7 +62,7 @@ def node(tok: dict, seccion: str, clave: str) -> dict:
 
 
 def val(tok: dict, seccion: str, clave: str, modo: str) -> tuple[str, float]:
-    """(hex, alfa) de un token para un modo, tolerando tokens sin subclaves."""
+    """(hex, alpha) of a token for a mode, tolerating tokens without subkeys."""
     t = node(tok, seccion, clave)
     if modo in t:
         t = t[modo]
@@ -70,7 +70,7 @@ def val(tok: dict, seccion: str, clave: str, modo: str) -> tuple[str, float]:
 
 
 def variables_color(tok: dict, modo: str) -> dict[str, str]:
-    """Las variables que usaran las reglas. Aqui esta la traduccion de conceptos."""
+    """The variables the rules will use. Here is the translation of concepts."""
     def v(sec, cl, m=None):
         return val(tok, sec, cl, m or modo)
 
@@ -89,8 +89,8 @@ def variables_color(tok: dict, modo: str) -> dict[str, str]:
     relleno2, a2 = v("fill", "secondary")
     relleno3, a3 = v("fill", "tertiary")
 
-    # GTK no compone velos: hay que darle rgba() y dejar que lo haga el. Es la
-    # traduccion directa del patron de Apple al modelo de CSS.
+    # GTK does not compose veils: we must give it rgba() and let it do so. It is the
+    # direct translation of Apple's pattern into the CSS model.
     return {
         "--km-bg": solido(fondo),
         "--km-fg": rgba(texto, a_texto),
@@ -102,11 +102,11 @@ def variables_color(tok: dict, modo: str) -> dict[str, str]:
         "--km-error": solido(rojo),
         "--km-success": solido(verde),
         "--km-warning": solido(naranja),
-        # Los velos: el corazon del lenguaje visual de macOS
+        # The veils: the heart of macOS's visual language
         "--km-veil-1": rgba(relleno1, a1),
         "--km-veil-2": rgba(relleno2, a2),
         "--km-veil-3": rgba(relleno3, a3),
-        # Estados derivados del velo, como en macOS (no colores propios)
+        # Derived states of the veil, as in macOS (not colors of their own)
         "--km-hover": rgba(relleno1, a1),
         "--km-active": rgba(relleno1, min(1.0, a1 * 1.8)),
         "--km-border": rgba(relleno2, a2),
@@ -117,7 +117,7 @@ def variables_color(tok: dict, modo: str) -> dict[str, str]:
 
 
 def variables_forma(forma: dict) -> dict[str, str]:
-    """Radios y bordes, medidos en el .fig."""
+    """Radii and borders, measured in the .fig."""
     r = forma["radio"]
     def cerca(*candidatos):
         for c in candidatos:
@@ -140,10 +140,10 @@ def variables_forma(forma: dict) -> dict[str, str]:
 
 
 def variables_tipografia(tipo: dict) -> dict[str, str]:
-    """Escala tipografica de macOS, de las HIG oficiales."""
+    """macOS type scale, from the official HIG."""
     e = tipo["estilos"]
-    # OJO: SF Pro no se puede redistribuir. Se usa Inter, y la familia se declara
-    # aqui para poder cambiarla en un solo sitio.
+    # NOTE: SF Pro cannot be redistributed. Inter is used, and the family is declared
+    # here so it can be changed in a single place.
     return {
         "--km-font": '"Inter", "SF Pro Text", "Noto Sans", sans-serif',
         "--km-font-mono": '"JetBrains Mono", "Roboto Mono", monospace',
@@ -163,7 +163,7 @@ def variables_tipografia(tipo: dict) -> dict[str, str]:
     }
 
 
-# El CSS de GTK no admite @media por tema, asi que se generan dos ficheros.
+# GTK CSS does not support @media per theme, so two files are generated.
 CUERPO = """
 /* ==========================================================================
    MACOS DESKTOP LAYER — {modo_nombre}
@@ -366,10 +366,10 @@ tooltip, tooltip.background {{
 
 
 def referencia(nombre: str, version: str) -> str:
-    """Como se invoca una variable en cada version de GTK.
+    """How a variable is invoked in each version of GTK.
 
-    GTK3 no tiene variables CSS: usa @define-color y se invocan con @nombre.
-    GTK4 usa variables CSS normales: var(--nombre).
+    GTK3 has no CSS variables: it uses @define-color and they are invoked as @name.
+    GTK4 uses normal CSS variables: var(--name).
     """
     if version == "gtk-3.0":
         return "@" + nombre[2:].replace("-", "_")
@@ -377,7 +377,7 @@ def referencia(nombre: str, version: str) -> str:
 
 
 def bloque_variables(vars_: dict[str, str], version: str) -> str:
-    """El bloque de declaracion, en el dialecto de cada version de GTK."""
+    """The declaration block, in each GTK version's dialect."""
     if version == "gtk-3.0":
         return "\n".join(
             f"@define-color {k[2:].replace('-', '_')} {v};" for k, v in vars_.items()
@@ -408,8 +408,8 @@ def main() -> int:
                 **variables_tipografia(tipo),
             }
 
-            # El cuerpo de las reglas esta escrito con var(--km-*). Se traduce al
-            # dialecto segun la version: sin reemplazos fragiles sobre el texto.
+            # The body of the rules is written with var(--km-*). It is translated to
+            # the dialect according to the version: no fragile replacements on the text.
             cuerpo = CUERPO
             for k in vars_:
                 cuerpo = cuerpo.replace(f"var({k})", referencia(k, version))
@@ -420,8 +420,8 @@ def main() -> int:
             with open(os.path.join(d, nombre_archivo), "w", encoding="utf-8") as f:
                 f.write(cuerpo)
 
-            # colors.css: solo las variables de color, para que otra hoja de estilos
-            # pueda importarlas sin arrastrar las reglas de widgets.
+            # colors.css: only the color variables, so that another style sheet
+            # can import them without dragging in the widget rules.
             SOLO_COLOR = (
                 "bg", "fg", "accent", "veil", "selection",
                 "border", "hover", "active", "error", "success", "warning",

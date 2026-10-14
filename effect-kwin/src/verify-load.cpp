@@ -1,5 +1,5 @@
-// Usa EXACTAMENTE la ruta que usa KWin::PluginEffectLoader (verificado en el
-// codigo fuente): m_pluginSubDirectory = "kwin/effects/plugins".
+// Uses EXACTLY the path used by KWin::PluginEffectLoader (verified in the
+// source code): m_pluginSubDirectory = "kwin/effects/plugins".
 #include <QCoreApplication>
 #include <QPluginLoader>
 #include <KPluginFactory>
@@ -22,10 +22,10 @@ int main(int argc, char **argv)
             auto *f = obj ? qobject_cast<KWin::EffectPluginFactory *>(obj) : nullptr;
             std::printf("   pluginId      : %s\n", md.pluginId().toLocal8Bit().constData());
             std::printf("   file          : %s\n", md.fileName().toLocal8Bit().constData());
-            std::printf("   fabrica       : %s\n", f ? "SI" : "NO");
+            std::printf("   factory       : %s\n", f ? "YES" : "NO");
             if (f)
-                std::printf("   isSupported() : %s  <-- lo que KWin comprueba\n",
-                            f->isSupported() ? "SI" : "NO");
+                std::printf("   isSupported() : %s  <-- what KWin checks\n",
+                            f->isSupported() ? "YES" : "NO");
         }
     }
     return 0;

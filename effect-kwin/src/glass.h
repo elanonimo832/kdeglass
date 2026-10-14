@@ -8,16 +8,16 @@ namespace KWin
 {
 
 /**
- * Material estilo macOS: borde oscurecido por dentro del marco de la ventana.
+ * macOS-style material: border darkened inside the window frame.
  *
- * El shader del material (difusion, refraccion, dispersion, realce especular) es
- * el paso siguiente. Ahora mismo el efecto solo se engancha a la cadena de pintado
- * y no dibuja nada.
+ * The material shader (diffusion, refraction, dispersion, specular highlight) is
+ * the next step. Right now the effect only hooks into the paint chain
+ * and draws nothing.
  *
- * HISTORIA IMPORTANTE (INCIDENT.md): este efecto dejo la pantalla negra dos veces.
- * La causa NO era el codigo, sino el identificador: el mismo codigo compilado como
- * `macosglass` rompia el render, y con un nombre nuevo (`testglass2`) funcionaba.
- * Por eso el plugin se instala ahora como `macosglass2`.
+ * IMPORTANT HISTORY (INCIDENT.md): this effect left the screen black twice.
+ * The cause was NOT the code, but the identifier: the same code compiled as
+ * `macosglass` broke rendering, and with a new name (`testglass2`) it worked.
+ * That is why the plugin is now installed as `macosglass2`.
  */
 class MacosGlassEffect : public Effect
 {
@@ -31,15 +31,15 @@ public:
 
     void reconfigure(ReconfigureFlags flags) override;
 
-    // CRITICO: si se sobreescribe, TIENE que continuar la cadena llamando a
-    // effects->paintWindow(). Ver el comentario en glass.cpp.
+    // CRITICAL: if it is overridden, it MUST continue the chain by calling
+    // effects->paintWindow(). See the comment in glass.cpp.
     void paintWindow(const RenderTarget &renderTarget, const RenderViewport &viewport,
                      EffectWindow *w, int mask, const Region &deviceRegion,
                      WindowPaintData &data) override;
 
 private:
-    // Del kit: el borde del material no es un gris propio, es el primitivo de velo.
-    // `Fills - Opaque / Secondary` = negro al 8 % en claro, blanco al 8 % en oscuro.
+    // From the kit: the material border is not a gray of its own, it is the veil primitive.
+    // `Fills - Opaque / Secondary` = black at 8% in light, white at 8% in dark.
     int m_borderAlpha = 20;
     qreal m_borderWidth = 1.0;
 };

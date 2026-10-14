@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Comprueba la causa raiz de la pantalla negra: MacosGlassEffect::paintWindow()
-# TIENE que continuar la cadena de KWin llamando a effects->paintWindow().
+# Checks the root cause of the black screen: MacosGlassEffect::paintWindow()
+# MUST continue the KWin chain by calling effects->paintWindow().
 #
-# EffectsHandler::paintWindow() llama a UN solo efecto; la cadena avanza porque
-# Effect::paintWindow() (la base) vuelve a entrar en effects->paintWindow(). Si un
-# efecto sobreescribe paintWindow() y no llama a la base, la cadena se corta,
-# finalPaintWindow() no se ejecuta y no se dibuja NINGUNA ventana (fondo negro).
+# EffectsHandler::paintWindow() calls ONE single effect; the chain advances because
+# Effect::paintWindow() (the base) re-enters effects->paintWindow(). If an
+# effect overrides paintWindow() and does not call the base, the chain is cut,
+# finalPaintWindow() is not run and NO window is drawn (black background).
 #
-# NOTA sobre el grep: se usa `grep -c ... >/dev/null` y NO `grep -q`. Con -q, grep
-# aborta en cuanto encuentra la coincidencia y cierra el pipe; sumado a `pipefail`
-# eso daba un resultado NO DETERMINISTA (a veces pasaba, a veces no). Con -c lee
-# toda la entrada y el resultado es estable. Ver INCIDENT.md.
+# NOTE on the grep: `grep -c ... >/dev/null` is used and NOT `grep -q`. With -q, grep
+# aborts as soon as it finds the match and closes the pipe; combined with `pipefail`
+# that gave a NON-DETERMINISTIC result (sometimes it passed, sometimes not). With -c it reads
+# the whole input and the result is stable. See INCIDENT.md.
 set -uo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FUENTE="$AQUI/src/glass.cpp"
@@ -19,43 +19,43 @@ SISTEMA=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
 
 fallo=0
 
-echo "=== 1. La fuente llama a effects->paintWindow() ==="
+echo "=== 1. The source calls effects->paintWindow() ==="
 if grep -cE 'effects->paintWindow\(' "$FUENTE" >/dev/null; then
-  echo "  OK: $FUENTE contiene la llamada de cadena"
+  echo "  OK: $FUENTE contains the chain call"
 else
-  echo "  FALLO: paintWindow() NO continua la cadena -> pantalla negra"
+  echo "  FAIL: paintWindow() does NOT continue the chain -> black screen"
   fallo=1
 fi
 
 echo
-echo "=== 2. El binario compilado llama a EffectsHandler::paintWindow ==="
+echo "=== 2. The compiled binary calls EffectsHandler::paintWindow ==="
 if [ ! -f "$SO" ]; then
-  echo "  (aun no compilado; ejecuta: cmake --build build)"
+  echo "  (not compiled yet; run: cmake --build build)"
   fallo=1
 elif objdump -d --demangle "$SO" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null; then
-  echo "  OK: $(basename "$SO") llama a la cadena"
+  echo "  OK: $(basename "$SO") calls the chain"
 else
-  echo "  FALLO: el binario compilado NO llama a la cadena"
+  echo "  FAIL: the compiled binary does NOT call the chain"
   fallo=1
 fi
 
 echo
-echo "=== 3. El .so instalado en el sistema ==="
+echo "=== 3. The .so installed on the system ==="
 if [ ! -f "$SISTEMA" ]; then
-  echo "  (no hay .so instalado en $SISTEMA)"
-  echo "  Instalalo con:  ./install.sh"
+  echo "  (no .so installed in $SISTEMA)"
+  echo "  Install it with:  ./install.sh"
 elif objdump -d --demangle "$SISTEMA" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null; then
-  echo "  OK: el .so instalado es el ARREGLADO"
+  echo "  OK: the installed .so is the FIXED one"
 else
-  echo "  AVISO: el .so instalado NO lleva la cadena. NO lo actives."
-  echo "         Reinstala:  ./install.sh"
+  echo "  WARN: the installed .so does NOT carry the chain. Do NOT activate it."
+  echo "         Reinstall:  ./install.sh"
   fallo=1
 fi
 
 echo
 if [ "$fallo" -eq 0 ]; then
-  echo "CADENA OK: el efecto no puede dejar la pantalla negra por este motivo."
+  echo "CHAIN OK: the effect cannot leave the screen black for this reason."
 else
-  echo "CADENA ROTA: NO actives este efecto hasta arreglarlo."
+  echo "CHAIN BROKEN: do NOT activate this effect until it is fixed."
 fi
 exit "$fallo"

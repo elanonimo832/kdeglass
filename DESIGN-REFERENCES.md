@@ -1,344 +1,344 @@
-# Referencias de diseño: de dónde salen los números
+# Design references: where the numbers come from
 
-Documento que responde a una pregunta concreta: **¿podemos empezar a definir el sistema
-visual sin ver macOS 27?** Respuesta corta: **sí, y no hace falta que nadie lo vea. Lo que
-hace falta son los números, y los números están publicados.**
+Document that answers a specific question: **can we start defining the visual
+system without seeing macOS 27?** Short answer: **yes, and nobody needs to see it. What
+is needed are the numbers, and the numbers are published.**
 
-- Documentos relacionados: [ANALYSIS.md](ANALYSIS.md) · [INSTALLATION.md](INSTALLATION.md) · [VERIFICATION-ANNEX.md](VERIFICATION-ANNEX.md)
-- Fecha: 13/10/2025
+- Related documents: [ANALYSIS.md](ANALYSIS.md) · [INSTALLATION.md](INSTALLATION.md) · [VERIFICATION-ANNEX.md](VERIFICATION-ANNEX.md)
+- Date: 13/10/2025
 
 ---
 
-## 1. La respuesta honesta sobre «ver» macOS 27
+## 1. The honest answer about "seeing" macOS 27
 
-Conviene separar dos cosas que se confunden:
+It helps to separate two things that get confused:
 
-| | ¿Lo tengo? |
+| | Do I have it? |
 |---|---|
-| **El lenguaje visual** de macOS (retención, bezel de 1 px, acento azul, vasos de material, escala tipográfica, jerarquía) | **Sí**, con detalle |
-| **Los valores numéricos exactos de macOS 27 Golden Gate** (radios, alfas, colores, opacidades) | **No** — y **nadie** los tiene por memoria |
+| **The visual language** of macOS (restraint, 1 px bezel, blue accent, material glass, type scale, hierarchy) | **Yes**, in detail |
+| **The exact numeric values of macOS 27 Golden Gate** (radii, alphas, colors, opacities) | **No** — and **nobody** has them from memory |
 
-Y aquí está el punto que importa: **para este proyecto, la segunda fila es la única que
-cuenta, y no requiere que yo vea nada.** Un QStyle no se construye mirando una foto: se
-construye escribiendo `6` en un `Tokens.h`. El diseño *es* el número.
+And here is the point that matters: **for this project, the second row is the only one that
+counts, and it does not require me to see anything.** A QStyle is not built by looking at a
+photo: it is built by writing `6` in a `Tokens.h`. The design *is* the number.
 
-> Conclusión: no necesito ver macOS 27. Necesito que el repositorio **cite la fuente de
-> cada número**, igual que cualquier otro dato del proyecto.
+> Conclusion: I do not need to see macOS 27. I need the repository to **cite the source of
+> every number**, just like any other piece of project data.
 
 ---
 
-## 2. La fuente autorizada existe
+## 2. The authorized source exists
 
-Apple publica los kits de diseño oficiales. Verificado en
+Apple publishes the official design kits. Verified at
 [developer.apple.com/design/resources](https://developer.apple.com/design/resources/):
 
-| Recurso | Enlace |
+| Resource | Link |
 |---|---|
-| **macOS 27 UI Kit — Figma (oficial)** | https://www.figma.com/community/file/1651309434229735362/macos-27 |
-| **macOS 27 UI Kit — Sketch (oficial)** | https://sketch.com/s/57153a31-3379-4737-8ac6-dbfd6525f052 |
+| **macOS 27 UI Kit — Figma (official)** | https://www.figma.com/community/file/1651309434229735362/macos-27 |
+| **macOS 27 UI Kit — Sketch (official)** | https://sketch.com/s/57153a31-3379-4737-8ac6-dbfd6525f052 |
 | iOS/iPadOS 27 UI Kit | https://www.figma.com/community/file/1651309003795292092/ios-and-ipados-27 |
-| Plantilla de iconos 27 (Figma/Sketch/PS/AI) | En el mismo índice |
+| Icon template 27 (Figma/Sketch/PS/AI) | In the same index |
 
-Esto es exactamente lo que el proyecto necesita: **la fuente de verdad de Apple, con los
-valores reales, publicada y citables.** Además, al ser el kit oficial, resuelve el aviso
-legal: se extraen **números**, no se redistribuyen recursos de Apple.
+This is exactly what the project needs: **Apple's source of truth, with the real
+values, published and citable.** Also, being the official kit, it resolves the legal
+notice: **numbers** are extracted, Apple assets are not redistributed.
 
-**Riesgo conocido:** los kits se actualizan entre betas. Todo token extraído debe llevar
-fecha de captura y versión (ya previsto en [ANALYSIS.md](ANALYSIS.md) §4.4).
+**Known risk:** the kits are updated between betas. Every extracted token must carry a
+capture date and version (already planned in [ANALYSIS.md](ANALYSIS.md) §4.4).
 
 ---
 
-## 3. Hallazgo que mejora el brief: hay tres «radios», no uno
+## 3. Finding that improves the brief: there are three "radii", not one
 
-Buscando material medible encontré una especificación de un kit de la comunidad para
-macOS 27 que **contradice una simplificación del brief**. El brief dice:
+Looking for measurable material, I found a specification from a community kit for
+macOS 27 that **contradicts a simplification in the brief**. The brief says:
 
 ```
-VENTANAS ..... un radio de esquina UNICO para todas
-ICONOS ....... squircle obligatorio, mas capas de vidrio
+WINDOWS ..... a SINGLE corner radius for all
+ICONS ....... mandatory squircle, plus glass layers
 ```
 
-Correcto en intención, pero **mezcla tres métricas que en macOS son distintas**:
+Correct in intention, but **it mixes three metrics that are distinct in macOS**:
 
-| Métrica | Qué es | Orden de magnitud |
+| Metric | What it is | Order of magnitude |
 |---|---|---|
-| **Radio de control** | Botones, campos de texto, checkbox, combo | **Pequeño**: ~4 a 10 pt según tamaño del control |
-| **Radio de ventana** | La esquina de la ventana entera | Otro valor, distinto del de control |
-| **Squircle de icono** | La superelipse de los iconos de app | No es un radio: es una curva continua |
+| **Control radius** | Buttons, text fields, checkbox, combo | **Small**: ~4 to 10 pt depending on control size |
+| **Window radius** | The corner of the whole window | Another value, different from the control one |
+| **Icon squircle** | The superellipse of app icons | It is not a radius: it is a continuous curve |
 
-Y la consecuencia práctica, que es dinero: **si el `tokens.toml` tiene una sola clave
-`radio`, el QStyle aplicará la misma a controles y ventanas y quedará mal.** El sistema de
-tokens necesita tres familias de forma desde el día uno:
+And the practical consequence, which is money: **if `tokens.toml` has a single
+`radio` key, the QStyle will apply the same one to controls and windows and it will look wrong.** The
+token system needs three shape families from day one:
 
 ```toml
 [forma.control]
 radio_mini     = 4      # provisional
 radio_pequeno  = 5      # provisional
-radio_regular  = 6      # provisional  <- el control estándar (13 pt de texto)
+radio_regular  = 6      # provisional  <- the standard control (13 pt text)
 radio_grande   = 8      # provisional
 
 [forma.ventana]
-radio          = ?      # PENDIENTE DE MEDIR en el kit oficial
+radio          = ?      # PENDING MEASUREMENT in the official kit
 
 [forma.icono]
-superelipse    = true   # "squircle": curva continua, no radio circular
-exponente      = ?      # PENDIENTE DE MEDIR
+superelipse    = true   # "squircle": continuous curve, not a circular radius
+exponente      = ?      # PENDING MEASUREMENT
 ```
 
-Los valores marcados como *provisionales* provienen de una medición de un kit **de la
-comunidad**, no del oficial: sirven para arrancar, **no como especificación**. Ver §5.
+The values marked as *provisional* come from a measurement of a **community** kit,
+not the official one: they serve to get started, **not as a specification**. See §5.
 
-### 3.1 La incoherencia de esquinas en Tahoe
+### 3.1 The corner inconsistency in Tahoe
 
-El brief dice que Golden Gate unifica el radio de las ventanas. Hay evidencia
-independiente de que en Tahoe (macOS 26) **las ventanas tenían radios distintos entre sí**
-— es literalmente una de las quejas recogidas en un hilo de Hacker News titulado
-[*«macOS Tahoe windows have different corner radiuses»*](https://hn.nuxt.dev/item/47279761).
+The brief says that Golden Gate unifies the window radius. There is independent
+evidence that in Tahoe (macOS 26) **windows had different radii from each other**
+— it is literally one of the complaints collected in a Hacker News thread titled
+[*"macOS Tahoe windows have different corner radiuses"*](https://hn.nuxt.dev/item/47279761).
 
-Esto **refuerza** la tesis del brief: Golden Gate es la corrección, y la lista de
-«correcciones» que el brief usa como lista de tokens tiene sentido. El brief acierta aquí
-y ahora hay una fuente que lo respalda.
+This **reinforces** the brief's thesis: Golden Gate is the correction, and the list of
+"corrections" that the brief uses as a token list makes sense. The brief is right here
+and now there is a source that backs it up.
 
 ---
 
-## 4. Valores medidos (VERIFICADOS contra tu propio export)
+## 4. Measured values (VERIFIED against your own export)
 
-> **Actualización:** los valores de este apartado, que eran provisionales procedentes de
-> un kit de la comunidad, han quedado **verificados** al recibir el export de Variables
-> del kit: coinciden exactamente (azul oscuro `#0091FF`, acentos, y las escalas de alfa
-> de `Fills` y `Labels`). Los valores definitivos, con claro y oscuro, están en
-> [`tokens/tokens-colors.toml`](tokens/tokens-colors.toml) y el detalle en
-> [`FIGMA-INVENTORY.md`](FIGMA-INVENTORY.md). El `#007AFF` clásico **no** aparece: el
-> acento de macOS 27 es `#0088FF` en claro y `#0091FF` en oscuro.
+> **Update:** the values in this section, which were provisional and came from
+> a community kit, have been **verified** on receiving the kit's Variables
+> export: they match exactly (dark blue `#0091FF`, accents, and the alpha
+> scales of `Fills` and `Labels`). The final values, with light and dark, are in
+> [`tokens/tokens-colors.toml`](tokens/tokens-colors.toml) and the detail in
+> [`FIGMA-INVENTORY.md`](FIGMA-INVENTORY.md). The classic `#007AFF` does **not** appear: the
+> accent of macOS 27 is `#0088FF` in light and `#0091FF` in dark.
 
-Extraídos de [`macos.md` de Fluent-Qt](https://raw.githubusercontent.com/calvinhxx/Fluent-Qt/6f0ef75996f0b2fcba92fdd276eff61dc2a6b0f0/docs/design-languages/macos.md),
-que documenta su método y los `nodeId` de Figma en
+Extracted from [Fluent-Qt's `macos.md`](https://raw.githubusercontent.com/calvinhxx/Fluent-Qt/6f0ef75996f0b2fcba92fdd276eff61dc2a6b0f0/docs/design-languages/macos.md),
+which documents its method and the Figma `nodeId`s in
 [`figma-sources.md`](https://raw.githubusercontent.com/calvinhxx/Fluent-Qt/6f0ef75996f0b2fcba92fdd276eff61dc2a6b0f0/docs/design-languages/figma-sources.md).
-**Método reproducible y auditable**, que es lo valioso.
+**Reproducible and auditable method**, which is the valuable part.
 
-### Colores de acento
+### Accent colors
 
-| Tinte | Opaco | Vibrante |
+| Tint | Opaque | Vibrant |
 |---|---|---|
-| **Azul** (acento por defecto) | `#0091FF` | `#0A99FF` |
-| Verde | `#30D158` | `#3BDB63` |
-| Rojo | `#FF4245` | `#FF4747` |
-| Naranja | `#FF9230` | `#FF9E33` |
-| Amarillo | `#FFD600` | `#FFE014` |
-| Rosa | `#FF375F` | `#FF4169` |
-| Mentagua | `#00DAC3` | `#2DE0CD` |
-| Índigo | `#6D7CFF` | `#7163FF` |
-| Púrpura | `#DB34F2` | `#E647FC` |
-| Marrón | `#B78A66` | `#C29672` |
-| Gris | `#98989F` | — |
+| **Blue** (default accent) | `#0091FF` | `#0A99FF` |
+| Green | `#30D158` | `#3BDB63` |
+| Red | `#FF4245` | `#FF4747` |
+| Orange | `#FF9230` | `#FF9E33` |
+| Yellow | `#FFD600` | `#FFE014` |
+| Pink | `#FF375F` | `#FF4169` |
+| Teal | `#00DAC3` | `#2DE0CD` |
+| Indigo | `#6D7CFF` | `#7163FF` |
+| Purple | `#DB34F2` | `#E647FC` |
+| Brown | `#B78A66` | `#C29672` |
+| Gray | `#98989F` | — |
 
-### Etiquetas y rellenos: el patrón de «velo»
+### Labels and fills: the "veil" pattern
 
-Apple no define grises para texto: define **blanco con alfa decreciente** (y negro sobre
-claro). Este patrón es la clave arquitectónica del material:
+Apple does not define grays for text: it defines **white with decreasing alpha** (and black on
+light). This pattern is the architectural key of the material:
 
-| | Etiqueta | Relleno |
+| | Label | Fill |
 |---|---|---|
-| Primario | `#FFFFFF` @ 85 % | `#FFFFFF` @ 10 % |
-| Secundario | @ 55 % | @ 8 % |
-| Terciario | @ 25 % | @ 5 % |
-| Cuaternario | @ 10 % | @ 3 % |
+| Primary | `#FFFFFF` @ 85 % | `#FFFFFF` @ 10 % |
+| Secondary | @ 55 % | @ 8 % |
+| Tertiary | @ 25 % | @ 5 % |
+| Quaternary | @ 10 % | @ 3 % |
 
-Esto se traduce **directamente** a un QStyle y a CSS de GTK sin ambigüedad, y es más
-importante que cualquier radio: es lo que hace que un control se vea «de macOS» en
-cualquier fondo.
+This translates **directly** to a QStyle and to GTK CSS without ambiguity, and it is more
+important than any radius: it is what makes a control look "macOS" on
+any background.
 
-### Tipografía
+### Typography
 
-- Fuente de sistema: **SF Pro** (Text/Display). **No redistribuible** → se sustituye por
-  Inter u otra con métricas calibradas (§9 de [INSTALLATION.md](INSTALLATION.md)).
-- Texto de control estándar: **13 pt**. (Confirmado por las HIG oficiales: macOS, por
-  defecto 13 pt, mínimo 10 pt.)
-- Escala: large title 26, title-1 22, **headline 13 en Bold** (no semibold), title-3 15,
-  body 13, callout 12, subheadline 11, footnote y captions 10.
+- System font: **SF Pro** (Text/Display). **Not redistributable** → it is replaced by
+  Inter or another one with calibrated metrics (§9 of [INSTALLATION.md](INSTALLATION.md)).
+- Standard control text: **13 pt**. (Confirmed by the official HIG: macOS, by
+  default 13 pt, minimum 10 pt.)
+- Scale: large title 26, title-1 22, **headline 13 in Bold** (not semibold), title-3 15,
+  body 13, callout 12, subheadline 11, footnote and captions 10.
 
-> **RESUELTO.** Este apartado quedó cerrado con las Human Interface Guidelines oficiales:
-> la tabla completa de «macOS built-in text styles» y los valores de tracking están en
-> [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml), extraídos
-> de la fuente autorizada con `tools/figma/hig-typography.py`. Ver §8.
-- **Color de texto por alfa**, no por valor absoluto (ver tabla del velo).
+> **RESOLVED.** This section was closed with the official Human Interface Guidelines:
+> the full table of "macOS built-in text styles" and the tracking values are in
+> [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml), extracted
+> from the authorized source with `tools/figma/hig-typography.py`. See §8.
+- **Text color by alpha**, not by absolute value (see the veil table).
 
-### Controles (formas y medidas mencionadas)
+### Controls (shapes and measurements mentioned)
 
-| Control | Medida |
+| Control | Measurement |
 |---|---|
-| Checkbox | cuadrado ~14, radio ~3.5 |
-| Radio button | círculo ~16 |
-| Switch (pista) | píldora completa; **ON = acento azul, no verde** (diferencia con iOS) |
-| Slider: pista | ~3–4 px |
-| Slider: pulgar | círculo blanco ~16–20 |
-| Barra de progreso | ~6 pt, totalmente redondeada |
-| Anillo de progreso | ~3 pt |
-| Campo de texto | radio ~5–6 + borde de 1 px; **foco = anillo de acento**, no borde más grueso |
-| Semáforos de ventana | ~12 px: cierre `#FF5F57`, minimizar `#FFBD2E`, zoom `#28C840`; los glifos **solo al pasar el ratón**; inactiva = gris |
+| Checkbox | square ~14, radius ~3.5 |
+| Radio button | circle ~16 |
+| Switch (track) | full pill; **ON = blue accent, not green** (difference from iOS) |
+| Slider: track | ~3–4 px |
+| Slider: thumb | white circle ~16–20 |
+| Progress bar | ~6 pt, fully rounded |
+| Progress ring | ~3 pt |
+| Text field | radius ~5–6 + 1 px border; **focus = accent ring**, not a thicker border |
+| Window traffic lights | ~12 px: close `#FF5F57`, minimize `#FFBD2E`, zoom `#28C840`; the glyphs **only on mouse hover**; inactive = gray |
 
-### Las dos reglas de oro del idioma macOS
+### The two golden rules of the macOS idiom
 
-1. **Retención, no espectáculo.** Relleno sutil + **borde capilar de 1 px** + sombra muy
-   suave (el *bezel*). Nunca contornos gruesos ni radios grandes.
-2. **El acento es el único color con voz.** El resto es neutro con velo. El texto sobre
-   acento es **blanco**.
-
----
-
-## 5. Advertencias sobre estos valores (importante)
-
-1. **La fuente no es Apple.** Son mediciones de un kit de la **comunidad** de Figma. La
-   verificación de §2 reveló que el **kit oficial de macOS 27 tiene otro `fileKey`**
-   (`1651309434229735362`) distinto del que midió ese proyecto. Por tanto estos valores
-   pueden corresponder a una revisión distinta del kit. **Tratar como provisionales.**
-2. **Se capturaron en apariencia oscura.** El método de extracción resuelve **una sola
-   apariencia** por consulta; los alfas de las etiquetas y los rellenos de arriba son de
-   **modo oscuro**. El claro debe extraerse por separado.
-3. **La tipografía tiene un punto de duda útil**: en la misma página se dice que el texto
-   de control es «13 pt» y, un poco antes, que en macOS el cuerpo es «13» en un contexto
-   donde el 13 aparece junto a un interlineado. **El tamaño va a estar bien; el
-   interlineado es lo que hay que confirmar** — y es justo el token que el brief no tenía.
-4. **El azul `#0091FF` no coincide con el `systemBlue` clásico** (`#007AFF` claro /
-   `#0A84FF` oscuro). Puede ser el refresco de la beta 27 o el efecto de la apariencia
-   oscura. No fijar el acento sin comprobarlo en el kit oficial.
+1. **Restraint, not spectacle.** Subtle fill + **1 px hairline border** + very
+   soft shadow (the *bezel*). Never thick outlines or large radii.
+2. **The accent is the only color with a voice.** Everything else is neutral with a veil. Text on
+   accent is **white**.
 
 ---
 
-## 6. Dos caminos para obtener los números buenos
+## 5. Warnings about these values (important)
 
-### Camino A · El kit oficial de Figma (recomendado)
+1. **The source is not Apple.** They are measurements of a **community** Figma kit. The
+   verification in §2 revealed that the **official macOS 27 kit has a different `fileKey`**
+   (`1651309434229735362`) than the one that project measured. Therefore these values
+   may correspond to a different revision of the kit. **Treat as provisional.**
+2. **They were captured in dark appearance.** The extraction method resolves **a single
+   appearance** per query; the label alphas and the fills above are from
+   **dark mode**. The light one must be extracted separately.
+3. **The typography has a useful point of doubt**: on the same page it is said that the control
+   text is "13 pt" and, a little earlier, that in macOS the body is "13" in a context
+   where the 13 appears next to a line height. **The size will be fine; the
+   line height is what has to be confirmed** — and it is precisely the token the brief did not have.
+4. **The blue `#0091FF` does not match the classic `systemBlue`** (`#007AFF` light /
+   `#0A84FF` dark). It may be the beta 27 refresh or the effect of the dark
+   appearance. Do not fix the accent without checking it in the official kit.
 
-El kit oficial es un fichero **público y gratuito** de la comunidad de Figma. Con una
-cuenta gratuita se puede:
+---
 
-1. Abrir el kit: https://www.figma.com/community/file/1651309434229735362/macos-27
-2. «Duplicate» a un borrador propio (gratis, sin equipo de pago).
-3. Exportar los valores. El camino más productivo encontrado en la investigación es
-   **extraer las variables del fichero** en lugar de leerlas a ojo — así el resultado es
-   una tabla, no una impresión.
+## 6. Two paths to get the good numbers
 
-Salida esperada: un `tokens-captura-<fecha>.toml` con **valores y procedencia**, listo para
-ser la fuente de `tokens.toml`. Y como se extrae del kit oficial, queda cubierto el aviso
-legal del brief: números sí, recursos de Apple no.
+### Path A · The official Figma kit (recommended)
 
-### Camino B · Medir capturas de pantalla (complementario, y automatizable)
+The official kit is a **public and free** file from the Figma community. With a
+free account you can:
 
-Sirve para **verificar** lo del camino A y para capturar cosas que un kit no muestra: el
-material real compuesto sobre un fondo real, el HDR, las animaciones.
+1. Open the kit: https://www.figma.com/community/file/1651309434229735362/macos-27
+2. "Duplicate" it to your own draft (free, no paid team).
+3. Export the values. The most productive path found in the research is
+   **extracting the file's variables** instead of reading them by eye — that way the result is
+   a table, not an impression.
 
-**En este equipo ya están las herramientas** (verificado):
+Expected output: a `tokens-captura-<fecha>.toml` with **values and provenance**, ready to
+be the source of `tokens.toml`. And since it is extracted from the official kit, the legal
+notice in the brief is covered: numbers yes, Apple assets no.
+
+### Path B · Measure screenshots (complementary, and automatable)
+
+It serves to **verify** what path A gives and to capture things a kit does not show: the
+real material composited over a real background, HDR, animations.
+
+**This machine already has the tools** (verified):
 
 ```
-magick / convert / identify        -> ImageMagick, presente
-python3 + PIL 12.3.0 + numpy 2.5.4 -> presente
-spectacle                          -> presente (capturas en Wayland/KDE)
+magick / convert / identify        -> ImageMagick, present
+python3 + PIL 12.3.0 + numpy 2.5.4 -> present
+spectacle                          -> present (screenshots on Wayland/KDE)
 ```
 
-Lo que se puede medir automáticamente con eso:
+What can be measured automatically with that:
 
-| Token | Cómo se mide |
+| Token | How it is measured |
 |---|---|
-| Radio de esquina | Por canal alfa: recuento de píxeles transparentes en la esquina, ajuste a un cuarto de círculo |
-| Colores exactos | Muestreo puntual y cálculo de histograma dominante |
-| Alfa / translucidez del material | **Matemática de composición inversa**: con el mismo material sobre dos fondos conocidos, se despeja el alfa |
-| Grosor del borde capilar | Perfil de intensidad en un corte transversal |
-| Contraste / legibilidad | Cálculo de ratio de contraste WCAG (útil contra la crítica de Tahoe) |
-| Espaciado | Detección de bordes y medición de separaciones entre controles |
+| Corner radius | By alpha channel: count of transparent pixels in the corner, fit to a quarter circle |
+| Exact colors | Point sampling and dominant histogram calculation |
+| Material alpha / translucency | **Inverse compositing math**: with the same material over two known backgrounds, the alpha is solved for |
+| Hairline border thickness | Intensity profile in a cross-section |
+| Contrast / legibility | WCAG contrast ratio calculation (useful against the Tahoe criticism) |
+| Spacing | Edge detection and measurement of separations between controls |
 
-**Requisito para que sirva:** capturas de **un solo píxel lógico por píxel físico**
-(escala 1×). Con escala 2× hay que dividir, y ahí se pierden los valores impares.
+**Requirement for it to work:** screenshots at **one logical pixel per physical pixel**
+(1× scale). At 2× scale you have to divide, and there the odd values are lost.
 
-En este equipo hay un monitor a **escala 1**, que es lo correcto para medir, pero **no hay
-macOS**: las capturas tienen que venir de fuera.
+This machine has a monitor at **1× scale**, which is the right thing for measuring, but **there is no
+macOS**: the screenshots have to come from outside.
 
-### Lo que NO se puede medir de una captura
+### What CANNOT be measured from a screenshot
 
-- El **HDR** (necesita metadatos y monitor compatible) — otra razón para dejarlo a v3.
-- El **comportamiento**: animaciones, gestos, curvas de tiempo. Eso solo se describe.
+- **HDR** (needs metadata and a compatible monitor) — another reason to leave it for v3.
+- **Behavior**: animations, gestures, timing curves. That can only be described.
 
 ---
 
-## 7. Qué necesito, en concreto
+## 7. What I need, specifically
 
-Si eliges el **camino A**: nada mío. Tú o yo con una cuenta de Figma, extracción de
-variables, y yo convierto la salida en `tokens.toml` con los tres ejes de forma y el eje
-tipográfico.
+If you choose **path A**: nothing from me. You or I with a Figma account, extraction of
+variables, and I turn the output into `tokens.toml` with the three shape axes and the typographic
+axis.
 
-Si eliges el **camino B**, necesito capturas con estos nombres. El nombre importa porque
-el script de medición automatiza el procesamiento por lote:
+If you choose **path B**, I need screenshots with these names. The name matters because
+the measurement script automates batch processing:
 
 ```
 capturas/
-├── 01-ventana-activa-claro.png      <- esquina de ventana sobre fondo liso
+├── 01-ventana-activa-claro.png      <- window corner over a flat background
 ├── 02-ventana-activa-oscuro.png
 ├── 03-ventana-inactiva-oscuro.png
-├── 04-botones-claro.png             <- botón normal, prominente, deshabilitado
+├── 04-botones-claro.png             <- normal, prominent, disabled button
 ├── 05-botones-oscuro.png
-├── 06-campo-texto-foco-oscuro.png   <- el anillo de foco
+├── 06-campo-texto-foco-oscuro.png   <- the focus ring
 ├── 07-controles-claro.png           <- checkbox, radio, switch ON/OFF, slider
 ├── 08-segmentado-oscuro.png
-├── 09-menu-abierto-oscuro.png       <- el resalte de acento
-├── 10-barralateral-oscuro.png       <- a ras, no flotante (token del brief)
-├── 11-material-sobre-fondo-1.png    <- MISMO material sobre fondo claro
-├── 12-material-sobre-fondo-2.png    <- MISMO material sobre fondo oscuro
-│                                       (el par 11+12 permite despejar el alfa)
-└── 13-iconos.png                    <- para medir el squircle
+├── 09-menu-abierto-oscuro.png       <- the accent highlight
+├── 10-barralateral-oscuro.png       <- flush, not floating (brief token)
+├── 11-material-sobre-fondo-1.png    <- SAME material over a light background
+├── 12-material-sobre-fondo-2.png    <- SAME material over a dark background
+│                                       (the 11+12 pair allows solving for the alpha)
+└── 13-iconos.png                    <- to measure the squircle
 ```
 
-Reglas de captura: escala **1×**, PNG sin comprimir con pérdida, **una ventana por
-captura** con fondo liso detrás, y las dos capturas de material (11 y 12) con **el mismo
-contenido** detrás para que el despeje del alfa sea válido.
+Capture rules: **1×** scale, lossless PNG, **one window per
+screenshot** with a flat background behind, and the two material screenshots (11 and 12) with **the same
+content** behind so that solving for the alpha is valid.
 
-**Nota legal:** estas capturas son material de Apple. Van **fuera del repositorio
-público** (ya previsto en [ANALYSIS.md](ANALYSIS.md) §6). El repositorio guarda los
-**números** y el **script de medición**, no las imágenes.
+**Legal note:** these screenshots are Apple material. They go **outside the public
+repository** (already planned in [ANALYSIS.md](ANALYSIS.md) §6). The repository keeps the
+**numbers** and the **measurement script**, not the images.
 
 ---
 
-## 8. Plan de arranque propuesto
+## 8. Proposed startup plan
 
-> **Actualización:** los pasos 1 y 3 ya no son necesarios para la tipografía. Las HIG
-> oficiales de Apple publican la tabla completa de estilos de macOS (tamaños, interlineados,
-> pesos y tracking), así que el eje tipográfico está **cerrado sin medir capturas**. Ver
+> **Update:** steps 1 and 3 are no longer necessary for typography. Apple's official
+> HIG publishes the full table of macOS styles (sizes, line heights,
+> weights and tracking), so the typographic axis is **closed without measuring screenshots**. See
 > [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml).
 
 ```
-PASO 1 · Obtener el kit oficial (camino A)         <- desbloquea todo lo demás
-         y/o capturas 1x (camino B)
+STEP 1 · Get the official kit (path A)             <- unblocks everything else
+         and/or 1x screenshots (path B)
 
-PASO 2 · tokens.toml con los TRES ejes de forma    <- corrige la mezcla de §3
-         + eje tipográfico (familia, tamanos, interlineado, espaciado)
-         + el patron de velo (blanco @ alfa) como base del material
+STEP 2 · tokens.toml with the THREE shape axes     <- fixes the mix-up of §3
+         + typographic axis (family, sizes, line height, spacing)
+         + the veil pattern (white @ alpha) as the material base
 
-PASO 3 · Script de medicion                        <- convierte capturas en TOML
-         (probado con las capturas reales, no con ejemplos)
+STEP 3 · Measurement script                        <- turns screenshots into TOML
+         (tested with the real screenshots, not with examples)
 
-PASO 4 · Generador de esquemas + CSS GTK           <- entregable visible sin QStyle
-         (paso 2 del plan de ANALYSIS.md)
+STEP 4 · Scheme generator + GTK CSS                <- visible deliverable without QStyle
+         (step 2 of the ANALYSIS.md plan)
 
-PASO 5 · Ya con numeros verificados: empezar el QStyle
+STEP 5 · With verified numbers: start the QStyle
 ```
 
-El paso 3 es opcional si el camino A da todo lo necesario — y probablemente lo dé para
-controles y colores. Se mantiene para el material y para verificar, porque **una captura
-mide el resultado real**, mientras que un kit mide la intención de Apple.
+Step 3 is optional if path A gives everything needed — and it probably will for
+controls and colors. It is kept for the material and for verification, because **a screenshot
+measures the real result**, whereas a kit measures Apple's intention.
 
 ---
 
-## 9. Resumen
+## 9. Summary
 
-- **No hace falta que yo vea macOS 27.** Un QStyle se define con números, y los números
-  son el diseño.
-- **Apple publica el kit oficial de macOS 27** (Figma y Sketch). Esa es la fuente de
-  verdad, es pública y es lo que resuelve el problema. Verificado hoy en el índice oficial
-  de Apple Design Resources.
-- **Los valores provisionales de §4 son utilizables pero de un kit de la comunidad**, con
-  `fileKey` distinto del oficial. Sirven para arrancar el `tokens.toml`; no como
-  especificación final.
-- **El brief tiene una simplificación a corregir:** hay **tres** familias de forma
-  (control, ventana, icono), no un radio único. Un solo `radio` en los tokens producirá un
-  QStyle incorrecto.
-- **Lo que sí sé con solidez es el lenguaje, no las cifras**: retención, bezel capilar de
-  1 px, acento único, velo por alfa, escala tipográfica de 13 pt. Eso basta para diseñar
-  la arquitectura de tokens; las cifras se extraen.
+- **I do not need to see macOS 27.** A QStyle is defined with numbers, and the numbers
+  are the design.
+- **Apple publishes the official macOS 27 kit** (Figma and Sketch). That is the source of
+  truth, it is public and it is what solves the problem. Verified today in Apple's official
+  Design Resources index.
+- **The provisional values in §4 are usable but from a community kit**, with a
+  `fileKey` different from the official one. They serve to bootstrap `tokens.toml`; not as
+  a final specification.
+- **The brief has a simplification to correct:** there are **three** shape families
+  (control, window, icon), not a single radius. A single `radio` in the tokens will produce an
+  incorrect QStyle.
+- **What I do know solidly is the language, not the figures**: restraint, 1 px hairline bezel,
+  single accent, alpha veil, 13 pt type scale. That is enough to design
+  the token architecture; the figures are extracted.

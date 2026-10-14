@@ -1,103 +1,103 @@
-# Entrega del paso 2: lo que ya se puede instalar
+# Step 2 delivery: what can already be installed
 
-Esta carpeta contiene el **paso 2 del plan terminado**: el sistema de tokens y sus
-artefactos generados. No incluye el QStyle ni el efecto KWin (pasos 4 y 5).
+This folder contains **step 2 of the plan, finished**: the token system and its
+generated artifacts. It does not include the QStyle or the KWin effect (steps 4 and 5).
 
-- Plan completo: [ANALYSIS.md](ANALYSIS.md) · Instalación: [INSTALLATION.md](INSTALLATION.md)
-- Tokens de origen: [tokens/](tokens/) · Sistema consolidado: [tokens.toml](tokens.toml)
+- Full plan: [ANALYSIS.md](ANALYSIS.md) · Installation: [INSTALLATION.md](INSTALLATION.md)
+- Source tokens: [tokens/](tokens/) · Consolidated system: [tokens.toml](tokens.toml)
 
 ---
 
-## 1. Qué se ha generado
+## 1. What has been generated
 
 ```
-tokens.toml                     EL SISTEMA DE DISENO (1814 lineas, 5 ejes)
+tokens.toml                     THE DESIGN SYSTEM (1814 lines, 5 axes)
 output/
 ├── color-schemes/
-│   ├── KdeMacosLight.colors    Esquema de color claro de KDE
-│   └── KdeMacosDark.colors     Esquema de color oscuro de KDE
+│   ├── KdeMacosLight.colors    KDE light color scheme
+│   └── KdeMacosDark.colors     KDE dark color scheme
 ├── gtk-3.0/
-│   ├── kde-macos.css           Tema GTK3 claro
-│   ├── kde-macos-dark.css      Tema GTK3 oscuro
-│   └── colors.css              Solo las variables de color
+│   ├── kde-macos.css           Light GTK3 theme
+│   ├── kde-macos-dark.css      Dark GTK3 theme
+│   └── colors.css              Only the color variables
 └── gtk-4.0/
-    ├── kde-macos.css           Tema GTK4 claro
-    ├── kde-macos-dark.css      Tema GTK4 oscuro
+    ├── kde-macos.css           Light GTK4 theme
+    ├── kde-macos-dark.css      Dark GTK4 theme
     └── colors.css
-install.sh                     Instalador: preflight / plan / estado / aplicar / rollback / verificar
-install-decoration.sh          Instalador aparte para la decoracion de ventana
+install.sh                     Installer: preflight / plan / estado / aplicar / rollback / verificar
+install-decoration.sh          Separate installer for the window decoration
 ```
 
-Todo generado desde los tokens. **Nada escrito a mano que pueda desincronizarse.**
+All generated from the tokens. **Nothing written by hand that can fall out of sync.**
 
 ---
 
-## 2. Los cinco ejes del sistema de diseno
+## 2. The five axes of the design system
 
-| Eje | Tokens | Origen | Verificado |
+| Axis | Tokens | Origin | Verified |
 |---|---|---|---|
-| **color** | 61 | Export de Variables de Figma | Alfa exacto, claro y oscuro |
-| **forma** | 150 | Propiedades de nodo del `.fig` (19.011 nodos) | Radios, squircle, sombras, borde |
-| **métricas** | 65 | Export de Variables (Sizes) | 5 tamaños de control |
-| **tipografía** | 80 | **HIG oficiales de Apple** | 11 estilos + tracking |
-| **material** | 11 | Efecto `GLASS` del `.fig` | 7 parámetros |
+| **color** | 61 | Figma Variables export | Exact alpha, light and dark |
+| **shape** | 150 | `.fig` node properties (19.011 nodes) | Radii, squircle, shadows, border |
+| **metrics** | 65 | Variables export (Sizes) | 5 control sizes |
+| **typography** | 80 | **Apple's official HIG** | 11 styles + tracking |
+| **material** | 11 | `GLASS` effect in the `.fig` | 7 parameters |
 
-Los cinco son **medidos o publicados**. Ninguno inventado. Y `[_procedencia]` dentro de
-`tokens.toml` dice de dónde sale cada uno.
+All five are **measured or published**. None invented. And `[_procedencia]` inside
+`tokens.toml` says where each one comes from.
 
 ---
 
-## 3. Qué se puede hacer ya, y qué no
+## 3. What can be done now, and what cannot
 
 | | |
 |---|---|
-| **Se puede aplicar hoy** | Los esquemas de color de KDE |
-| **Requiere un paso manual** | El tema GTK: hay que seleccionarlo en Ajustes del sistema |
-| **Todavía no** | El QStyle (paso 4) y el efecto KWin (paso 5) |
+| **Can be applied today** | KDE color schemes |
+| **Requires a manual step** | The GTK theme: it has to be selected in System Settings |
+| **Not yet** | The QStyle (step 4) and the KWin effect (step 5) |
 
-El instalador **no toca los ficheros de `kde-gtk-config`** a propósito. Se engancha a su
-mecanismo para que la próxima vez que abras los ajustes de GTK no se pierda el trabajo.
+The installer **does not touch the `kde-gtk-config` files** on purpose. It hooks into its
+mechanism so that the next time you open the GTK settings the work is not lost.
 
 ---
 
-## 4. Cómo usarlo
+## 4. How to use it
 
 ```bash
 cd analisis-kde-macos
 
-./install.sh preflight      # comprueba el entorno. No toca nada.
-./install.sh plan           # muestra QUE haria, fichero por fichero. No toca nada.
-./install.sh aplicar --si   # aplica. Backup con fecha antes de cada cambio.
-./install.sh estado         # que hay instalado y en que se diferencia
-./install.sh rollback       # revierte todo con un comando
+./install.sh preflight      # checks the environment. Touches nothing.
+./install.sh plan           # shows WHAT it would do, file by file. Touches nothing.
+./install.sh aplicar --si   # applies. Dated backup before each change.
+./install.sh estado         # what is installed and how it differs
+./install.sh rollback       # reverts everything with one command
 ```
 
-**Regla de oro del instalador:** por defecto no escribe nada. Todos los subcomandos son de
-lectura o de ensayo salvo `aplicar`, que además exige `--si`. No se puede romper el
-escritorio por invocarlo sin querer.
+**Golden rule of the installer:** by default it writes nothing. All the subcommands are
+read-only or dry-run except `aplicar`, which also requires `--si`. You cannot break the
+desktop by invoking it unintentionally.
 
-Tras aplicar, el tema GTK se selecciona a mano en:
-*Configuración del sistema → Apariencia → Estilo GNOME/GTK → kde-macos*
+After applying, the GTK theme is selected by hand in:
+*System Settings → Appearance → GNOME/GTK Style → kde-macos*
 
 ---
 
-## 5. Verificaciones que se han hecho
+## 5. Verifications that have been done
 
-| Comprobación | Resultado |
+| Check | Result |
 |---|---|
-| Los 16 TOML parciales parsean | **16/16** |
-| `tokens.toml` consolidado parsea | **Sí**, 5 ejes |
-| Los 2 `.colors` parsean como INI | **Sí**, 13 grupos, ninguna clave obligatoria ausente |
-| Valores RGB en rango 0-255 | **Todos** |
-| CSS: referencias a variables sin definir | **0** de 91 por fichero |
-| GTK3 usa `@define-color`, GTK4 usa `var()` | **Correcto en cada versión** |
-| Sintaxis de `install.sh` | **OK** |
-| `plan` / `estado` / `verificar` / `rollback` | **Funcionan** |
+| The 16 partial TOMLs parse | **16/16** |
+| `tokens.toml` consolidated parses | **Yes**, 5 axes |
+| The 2 `.colors` parse as INI | **Yes**, 13 groups, no mandatory key missing |
+| RGB values in the 0-255 range | **All** |
+| CSS: references to undefined variables | **0** out of 91 per file |
+| GTK3 uses `@define-color`, GTK4 uses `var()` | **Correct in each version** |
+| `install.sh` syntax | **OK** |
+| `plan` / `estado` / `verificar` / `rollback` | **They work** |
 
-### Contraste WCAG (el problema que se criticó de Tahoe)
+### WCAG contrast (the problem criticized in Tahoe)
 
 ```
-                    CLARO    OSCURO
+                    LIGHT    DARK
 Colors:Window       15.13    12.27
 Colors:View         15.13    12.82
 Colors:Button       13.18    10.00
@@ -105,354 +105,354 @@ Colors:Selection     5.30     6.31
 Colors:Tooltip      13.87    10.92
 ```
 
-Todo por encima de 4.5 (AA). No es casualidad: los colores de texto del kit son negro o
-blanco con alfa alto sobre el fondo, así que el contraste sale alto **por construcción**.
-La queja principal de Tahoe —legibilidad— no puede reproducirse con estos tokens.
+Everything above 4.5 (AA). It is not a coincidence: the kit's text colors are black or
+white with high alpha over the background, so the contrast comes out high **by construction**.
+Tahoe's main complaint —legibility— cannot be reproduced with these tokens.
 
 ---
 
-## 6. Tres cosas que aparecieron al hacer esto, y que corrigen lo anterior
+## 6. Three things that came up while doing this, and that correct the above
 
-**1. `widgetStyle` no vive en `[General]`, vive en `[KDE]`.** Lo di por supuesto al
-analizar y era falso. Verificado en el `kdeglobals` real: `widgetStyle=kvantum` está en la
-sección `[KDE]`. Corregido en [ANALYSIS.md](ANALYSIS.md),
-[INSTALLATION.md](INSTALLATION.md) y [VERIFICATION-ANNEX.md](VERIFICATION-ANNEX.md).
+**1. `widgetStyle` does not live in `[General]`, it lives in `[KDE]`.** I took it for granted while
+analyzing and it was false. Verified in the real `kdeglobals`: `widgetStyle=kvantum` is in the
+`[KDE]` section. Corrected in [ANALYSIS.md](ANALYSIS.md),
+[INSTALLATION.md](INSTALLATION.md) and [VERIFICATION-ANNEX.md](VERIFICATION-ANNEX.md).
 
-**2. `kreadconfig6` se cuelga si no hay bus de sesión.** No falla: se queda colgado
-indefinidamente. El instalador lo sondea con `timeout` y, si no responde, lee el INI
-directamente. Un instalador no puede quedarse colgado.
+**2. `kreadconfig6` hangs if there is no session bus.** It does not fail: it hangs
+indefinitely. The installer probes it with `timeout` and, if it does not respond, reads the INI
+directly. An installer cannot hang.
 
-**3. Los `kdeglobals` pueden tener finales de línea CRLF.** El `\r` pegado rompe cualquier
-comparación de texto, y `gsub(/[][]/)` tampoco es portable para quitar corchetes. Ambas
-cosas están resueltas en el lector.
+**3. `kdeglobals` files can have CRLF line endings.** The trailing `\r` breaks any
+text comparison, and `gsub(/[][]/)` is not portable for stripping brackets either. Both
+things are solved in the reader.
 
-Ninguna de las tres se habría visto sin ejecutar el instalador contra tu sistema real.
+None of the three would have been seen without running the installer against your real system.
 
 ---
 
-## 7. Lo que falta, y por qué no bloquea
+## 7. What is missing, and why it does not block
 
-| Falta | Fase |
+| Missing | Phase |
 |---|---|
-| QStyle en C++ | Paso 4 del plan. Necesita `cmake` y `ninja`, que no están instalados |
-| Efecto KWin (material + esquinas) | Paso 5. Depende del anterior, aunque el material ya está medido |
-| Iconos | Fuera del alcance actual. No se usan los de Apple por licencia |
-| Fuente Inter | Hay que instalarla en `~/.local/share/fonts` (SIL OFL, redistribuible) |
+| QStyle in C++ | Step 4 of the plan. It needs `cmake` and `ninja`, which are not installed |
+| KWin effect (material + corners) | Step 5. It depends on the previous one, although the material is already measured |
+| Icons | Outside the current scope. Apple's are not used for license reasons |
+| Inter font | It has to be installed in `~/.local/share/fonts` (SIL OFL, redistributable) |
 
-Los tokens que necesitan esos pasos **ya están medidos y en `tokens.toml`**, así que
-cuando se escriba el QStyle no habrá que volver a Figma.
+The tokens those steps need **are already measured and in `tokens.toml`**, so
+when the QStyle is written there will be no need to go back to Figma.
 
 
 ---
 
-## 10. Paso 5 (efecto KWin): estado real
+## 10. Step 5 (KWin effect): real status
 
-Se ha empezado el efecto del material. Estado honesto, con lo verificado y lo que falta.
+The material effect has been started. Honest status, with what was verified and what is missing.
 
-### Lo que se ha demostrado
+### What has been demonstrated
 
-**1. Un efecto KWin se puede construir en este sistema sin `cmake`.** Verificado:
-compila y enlaza.
+**1. A KWin effect can be built on this system without `cmake`.** Verified:
+it compiles and links.
 
 ```
 g++ -c -fPIC -std=c++20 -I/usr/include/kwin -I/usr/include/kwin/effect <rutas KF6> glass.cpp
 g++ -shared -fPIC -o macosglass.so glass.o moc_glass.o $(pkg-config --libs Qt6Core Qt6Gui) -lkwin
--> plugin de 53 KB, sin errores
+-> plugin of 53 KB, no errors
 ```
 
-Los **headers de KWin y de KF6 ya están instalados** (`/usr/include/kwin/effect/`,
-`/usr/include/KF6/`), y `libkwin.so` existe. `moc` también.
+The **KWin and KF6 headers are already installed** (`/usr/include/kwin/effect/`,
+`/usr/include/KF6/`), and `libkwin.so` exists. `moc` too.
 
-**2. La API de KWin 6 es distinta de la de KWin 5, y ahora está identificada:**
+**2. The KWin 6 API is different from KWin 5's, and it is now identified:**
 
-| KWin 5 (lo que asumí) | KWin 6.7 (real) |
+| KWin 5 (what I assumed) | KWin 6.7 (real) |
 |---|---|
 | `paintWindow(..., QRegion, ...)` | `paintWindow(..., const Region &, ...)` |
-| `WindowPaintData::painter` (QPainter) | **No existe**: el dibujado es con OpenGL sobre `GLFramebuffer` |
+| `WindowPaintData::painter` (QPainter) | **It does not exist**: drawing is done with OpenGL over `GLFramebuffer` |
 | — | `RenderTarget::framebuffer()` / `texture()` |
-| — | `GLShader` (constructor público) y `ShaderManager` |
-| — | `BackgroundEffectItem`, para efectos de fondo como el difuminado |
+| — | `GLShader` (public constructor) and `ShaderManager` |
+| — | `BackgroundEffectItem`, for background effects such as blur |
 
-**3. Las rutas de instalación son las correctas:**
-`~/.local/lib/qt6/plugins/kwin/effects/` (binario) y
+**3. The installation paths are the correct ones:**
+`~/.local/lib/qt6/plugins/kwin/effects/` (binary) and
 `~/.local/share/kwin/effects/<id>/metadata.json`.
 
-### RESUELTO: el efecto compila y es un plugin valido
+### RESOLVED: the effect compiles and is a valid plugin
 
-Con `cmake` y `ninja` instalados, y tras averiguar cuatro cosas que costaron:
+With `cmake` and `ninja` installed, and after figuring out four things that cost dearly:
 
-| Descubrimiento | Consecuencia |
+| Discovery | Consequence |
 |---|---|
-| `KWinConfig.cmake` exige **ECM** | Hay que instalar `extra-cmake-modules` |
-| `KWinConfig.cmake` exige **Vulkan** | Solo para satisfacer el `find_package`: el efecto no lo usa. Se resuelve con un stub de 20 lineas en vez de 42 MiB de headers |
-| `kcoreaddons_add_plugin` construye un **`.a`** si `BUILD_SHARED_LIBS` es falso | Un plugin tiene que ser modulo compartido: hay que activarlo |
-| El macro del codigo define una clase con `Q_OBJECT` **en el `.cpp`** | Hace falta `#include "glass.moc"` o no se genera el punto de entrada |
+| `KWinConfig.cmake` requires **ECM** | `extra-cmake-modules` has to be installed |
+| `KWinConfig.cmake` requires **Vulkan** | Only to satisfy `find_package`: the effect does not use it. It is solved with a 20-line stub instead of 42 MiB of headers |
+| `kcoreaddons_add_plugin` builds an **`.a`** if `BUILD_SHARED_LIBS` is false | A plugin has to be a shared module: it has to be enabled |
+| The code macro defines a class with `Q_OBJECT` **in the `.cpp`** | `#include "glass.moc"` is needed or the entry point is not generated |
 
-Resultado:
+Result:
 
 ```
 [6/6] Linking CXX shared module plugins/kwin/effects/libmacosglass.so
 ```
 
-Y las comprobaciones que fallaban antes, ahora pasan:
+And the checks that failed before now pass:
 
 ```
-exports qt_plugin_instance      : SI
-exports qt_plugin_query_metadata_v2 : SI
-metadata embebida               : SI (IID org.kde.kwin.EffectPluginFactory)
+exports qt_plugin_instance      : YES
+exports qt_plugin_query_metadata_v2 : YES
+metadata embedded               : YES (IID org.kde.kwin.EffectPluginFactory)
 ```
 
-**Esto era el bloqueo del paso anterior y esta resuelto.**
+**This was the blocker of the previous step and it is resolved.**
 
-### El bloqueo que queda: donde lo busca KWin
+### The remaining blocker: where KWin looks for it
 
-`KPluginMetaData::findPlugins("kwin/effects/")` busca en las **rutas de plugins de Qt**.
-`~/.local/lib/qt6/plugins` **no esta entre ellas** en la sesion, asi que KWin no ve el
-efecto aunque este instalado ahi.
+`KPluginMetaData::findPlugins("kwin/effects/")` searches the **Qt plugin paths**.
+`~/.local/lib/qt6/plugins` **is not among them** in the session, so KWin does not see the
+effect even if it is installed there.
 
-Dos salidas, las dos documentadas:
+Two ways out, both documented:
 
-1. **Sin sudo:** `~/.config/environment.d/90-kde-macos.conf` con `QT_PLUGIN_PATH`.
-   Requiere reiniciar la sesion para que KWin lo lea al arrancar.
-2. **Inmediata:** un script, `effect-kwin/install.sh`, que copia el `.so` a
-   `/usr/lib/qt6/plugins/kwin/effects/` (necesita sudo).
+1. **Without sudo:** `~/.config/environment.d/90-kde-macos.conf` with `QT_PLUGIN_PATH`.
+   It requires restarting the session for KWin to read it on startup.
+2. **Immediate:** a script, `effect-kwin/install.sh`, that copies the `.so` to
+   `/usr/lib/qt6/plugins/kwin/effects/` (needs sudo).
 
-### Lo que el efecto hace hoy
+### What the effect does today
 
-**Nada visible todavia.** El esqueleto esta: el gancho `paintWindow`, los valores del kit
-en `reconfigure()`, y **carga sin dibujar**. Falta el shader del material.
+**Nothing visible yet.** The skeleton is there: the `paintWindow` hook, the kit values
+in `reconfigure()`, and **it loads without drawing**. The material shader is missing.
 
-### El bloqueo anterior, ya resuelto
+### The previous blocker, already resolved
 
 ```
 QPluginLoader: "is not a Qt plugin (metadata not found)"
 ```
 
-El `.so` está bien formado — el verificador carga sin problema plugins reales del
-sistema, pero rechaza el nuestro. **La metadata del plugin no queda correctamente
-embebida.** Es justo lo que hace `qt6_add_plugin()` de CMake, y hacerlo a mano es
-frágil y depende de la versión de Qt (la 6.12 cambió el mecanismo).
+The `.so` is well formed — the verifier loads real system plugins without a problem,
+but it rejects ours. **The plugin metadata is not correctly
+embedded.** It is exactly what CMake's `qt6_add_plugin()` does, and doing it by hand is
+fragile and depends on the Qt version (6.12 changed the mechanism).
 
-Se probaron las dos vías documentadas sin éxito: el recurso `:/qtmetadata` y el
-recurso `:/metadata.json`.
+Both documented ways were tried without success: the `:/qtmetadata` resource and the
+`:/metadata.json` resource.
 
-### Lo que hay que instalar, y por qué
+### What has to be installed, and why
 
 ```
 sudo pacman -S --needed cmake ninja
 ```
 
-**Solo la herramienta.** No hace falta ningún paquete de desarrollo adicional: los
-headers ya están. Son ~102 MiB de `cmake` más medio de `ninja`.
+**Only the tool.** No additional development package is needed: the
+headers are already there. It is ~102 MiB for `cmake` plus half that for `ninja`.
 
-Con eso, `effect-kwin/build.sh` compila e instala el efecto, y el
-`CMakeLists.txt` ya está escrito usando `kcoreaddons_add_plugin`, que se encarga de
-la metadata, del `moc` y de la ruta de instalación.
+With that, `effect-kwin/build.sh` compiles and installs the effect, and the
+`CMakeLists.txt` is already written using `kcoreaddons_add_plugin`, which takes care of
+the metadata, the `moc` and the installation path.
 
-### Lo que el efecto hace hoy, y lo que le falta
+### What the effect does today, and what it is missing
 
-Implementado: el esqueleto del efecto, con el gancho `paintWindow` y los valores del
-kit en `reconfigure()` (alfa del borde 20 = negro al 8 %, que es
+Implemented: the effect skeleton, with the `paintWindow` hook and the kit values
+in `reconfigure()` (border alpha 20 = black at 8 %, which is
 `Fills - Opaque / Secondary`).
 
-**Falta el dibujado**, que es la parte con miga: el material necesita una pasada de
-shader sobre el fondo para hacer **difusión, refracción (`70`), dispersión (`20`)** y
-el **realce especular**. Los siete parámetros están medidos y en `tokens.toml`; lo que
-falta es el shader y su integración con `RenderTarget`.
+**Drawing is missing**, which is the meaty part: the material needs a shader
+pass over the background to do **diffusion, refraction (`70`), dispersion (`20`)** and
+the **specular highlight**. The seven parameters are measured and in `tokens.toml`; what is
+missing is the shader and its integration with `RenderTarget`.
 
-### La sombra de ventana de dos capas
+### The two-layer window shadow
 
-También del paso 5. Las dos capas medidas (difusa radio 54 + contacto radio 1) las
-podría dibujar un efecto, porque **Aurorae no admite dos sombras**. Pero depende del
-mismo desbloqueo.
+Also from step 5. The two measured layers (diffuse radius 54 + contact radius 1) could
+be drawn by an effect, because **Aurorae does not support two shadows**. But it depends on the
+same unblocking.
 
 
 ---
 
-## 11. El efecto, paso a paso hasta que carga
+## 11. The effect, step by step until it loads
 
-Cinco obstaculos reales, cada uno descubierto con el journal de KWin. Quedan anotados
-porque ninguno es obvio y los cinco cuestan lo mismo si se repiten.
+Five real obstacles, each one discovered with the KWin journal. They are noted down
+because none is obvious and all five cost the same if they are repeated.
 
-| # | Obstaculo | Sintoma | Solucion |
+| # | Obstacle | Symptom | Solution |
 |---|---|---|---|
-| 1 | `KWinConfig.cmake` exige **ECM** | `Could not find a package configuration file provided by "ECM"` | `extra-cmake-modules` |
-| 2 | `KWinConfig.cmake` exige **Vulkan** | `Could NOT find Vulkan (missing: Vulkan_INCLUDE_DIR)` | Stub de 20 lineas en `_stub/`, en vez de 42 MiB de headers. El efecto **no usa Vulkan** |
-| 3 | `kcoreaddons_add_plugin` genera un **`.a`** | `Linking CXX static library` | `set(BUILD_SHARED_LIBS ON)`. Un plugin tiene que ser modulo |
-| 4 | El macro define una clase con `Q_OBJECT` en el `.cpp` | `is not a Qt plugin (metadata not found)`, sin `qt_plugin_instance` | `#include "glass.moc"` al final del `.cpp` |
-| 5 | Faltaba `KPackageStructure` | `does not match requested format "KWin/Effect"` | `"KPackageStructure": "KWin/Effect"` en el metadata |
+| 1 | `KWinConfig.cmake` requires **ECM** | `Could not find a package configuration file provided by "ECM"` | `extra-cmake-modules` |
+| 2 | `KWinConfig.cmake` requires **Vulkan** | `Could NOT find Vulkan (missing: Vulkan_INCLUDE_DIR)` | 20-line stub in `_stub/`, instead of 42 MiB of headers. The effect **does not use Vulkan** |
+| 3 | `kcoreaddons_add_plugin` generates an **`.a`** | `Linking CXX static library` | `set(BUILD_SHARED_LIBS ON)`. A plugin has to be a module |
+| 4 | The macro defines a class with `Q_OBJECT` in the `.cpp` | `is not a Qt plugin (metadata not found)`, without `qt_plugin_instance` | `#include "glass.moc"` at the end of the `.cpp` |
+| 5 | `KPackageStructure` was missing | `does not match requested format "KWin/Effect"` | `"KPackageStructure": "KWin/Effect"` in the metadata |
 
-### Y el error que casi me lleva por mal camino
+### And the error that almost led me astray
 
-Puse un `metadata.json` suelto en `/usr/share/kwin/effects/macosglass/`. KWin respondio:
+I put a loose `metadata.json` in `/usr/share/kwin/effects/macosglass/`. KWin answered:
 
 ```
 Failed to load macosglass effect: invalid X-Plasma-API field: .
 ```
 
-**La documentacion oficial de KDE lo aclara**: `X-Plasma-API` es lo que marca un efecto
-**QML** (`"declarativescript"`). Todos los efectos de `/usr/share/kwin/effects/` son
-javascript o declarativescript. Un plugin **C++** no lleva ese campo: su metadata va
-**embebida en el `.so`**, y con eso basta para que KWin lo descubra. El `metadata.json`
-suelto hacia que KWin lo tratara como script.
+**KDE's official documentation clarifies it**: `X-Plasma-API` is what marks a
+**QML** effect (`"declarativescript"`). All the effects in `/usr/share/kwin/effects/` are
+javascript or declarativescript. A **C++** plugin does not carry that field: its metadata goes
+**embedded in the `.so`**, and that is enough for KWin to discover it. The loose `metadata.json`
+made KWin treat it as a script.
 
-### El ultimo obstaculo: KWin no re-escanea
+### The last obstacle: KWin does not rescan
 
-`isEffectSupported` paso de `true` a `false` al quitar el metadata suelto, y ya no volvio.
-La causa: **KWin construye la lista de efectos al arrancar y no la re-escanea.**
-`reconfigure` recarga los efectos ya cargados, pero no busca plugins nuevos.
+`isEffectSupported` went from `true` to `false` when the loose metadata was removed, and it never came back.
+The cause: **KWin builds the effect list on startup and does not rescan it.**
+`reconfigure` reloads the effects already loaded, but it does not look for new plugins.
 
-Comprobado:
+Verified:
 
 ```
-KWin en ejecucion desde : 21:14
-.so instalado           : 22:04   <- 50 minutos despues
-reconfigure             : no lo ve
-kbuildsycoca6           : no basta (reconstruido, sigue sin verlo)
+KWin running since       : 21:14
+.so installed            : 22:04   <- 50 minutes later
+reconfigure              : does not see it
+kbuildsycoca6            : not enough (rebuilt, still does not see it)
 ```
 
-**Solucion: reiniciar la sesion** (cerrar sesion y volver a entrar). Entonces KWin
-arranca, encuentra el `.so` y lo carga.
+**Solution: restart the session** (log out and back in). Then KWin
+starts, finds the `.so` and loads it.
 
-Para verificarlo sin adivinar, hay un script: **`effect-kwin/verificar-efecto.sh`**.
+To verify it without guessing, there is a script: **`effect-kwin/verificar-efecto.sh`**.
 
 
 ---
 
-## 12. Estado del efecto KWin: lo que está verificado y lo que no
+## 12. KWin effect status: what is verified and what is not
 
-### Verificado: el plugin cumple el contrato de KWin
+### Verified: the plugin fulfills the KWin contract
 
-Hay una herramienta en `effect-kwin/src/verify-load.cpp` que hace **exactamente** lo
-que hace KWin al arrancar: descubrir el plugin, instanciar la fábrica y preguntarle
-`isSupported()`. Su salida:
+There is a tool in `effect-kwin/src/verify-load.cpp` that does **exactly** what
+KWin does on startup: discover the plugin, instantiate the factory and ask it
+`isSupported()`. Its output:
 
 ```
 pluginId      : macosglass
-isSupported() : SI -> KWin lo aceptaria
-enabledByDef  : SI
-resumen: 1 plugins con fabrica, 1 soportados
+isSupported() : YES -> KWin would accept it
+enabledByDef  : YES
+summary: 1 plugins with factory, 1 supported
 ```
 
-Y `KPluginMetaData::findPlugins("kwin/effects/")` —la API que usa KWin para buscar
-efectos— lo encuentra en `/usr/lib/qt6/plugins/kwin/effects/macosglass.so` con el
-`pluginId` correcto.
+And `KPluginMetaData::findPlugins("kwin/effects/")` —the API KWin uses to search for
+effects— finds it in `/usr/lib/qt6/plugins/kwin/effects/macosglass.so` with the
+correct `pluginId`.
 
-### Y sin embargo KWin responde `false`
+### And yet KWin answers `false`
 
 ```
 isEffectSupported : false
 isEffectLoaded    : false
-en listOfEffects  : 0
+in listOfEffects  : 0
 ```
 
-Comprobado también que **no es un problema de momento**: KWin se reinició a las 22:19 y
-el `.so` es de las 22:17, así que lo tenía delante al arrancar.
+Also verified that **it is not a timing problem**: KWin was restarted at 22:19 and
+the `.so` is from 22:17, so it had it in front of it on startup.
 
-Y no es la caché de ksycoca: se reconstruyó y no cambió nada.
+And it is not the ksycoca cache: it was rebuilt and nothing changed.
 
-### Lo que se descartó, con pruebas
+### What was ruled out, with tests
 
-| Hipótesis | Cómo se descartó |
+| Hypothesis | How it was ruled out |
 |---|---|
-| El plugin no carga | `QPluginLoader::load()` → **SI** |
-| La metadata está mal | `strings` muestra `KPackageStructure: "KWin/Effect"` |
-| El `pluginId` no coincide | `findPlugins` devuelve `macosglass`, igual que el `kwinrc` |
-| Falta el punto de entrada Qt | exporta `qt_plugin_instance` y `qt_plugin_query_metadata_v2` |
-| `isSupported()` devuelve NO | **corregido**: ahora devuelve SI (medido) |
-| KWin no re-escanea al arrancar | KWin reiniciado con el `.so` ya instalado |
-| Caché de plugins obsoleta | `kbuildsycoca6` reconstruido, sin efecto |
-| Lo toma por un efecto QML | se quitó el `metadata.json` suelto |
-| El prefijo `lib` del fichero | `PREFIX ""` en CMake; el pluginId ya es correcto |
+| The plugin does not load | `QPluginLoader::load()` → **YES** |
+| The metadata is wrong | `strings` shows `KPackageStructure: "KWin/Effect"` |
+| The `pluginId` does not match | `findPlugins` returns `macosglass`, same as the `kwinrc` |
+| The Qt entry point is missing | it exports `qt_plugin_instance` and `qt_plugin_query_metadata_v2` |
+| `isSupported()` returns NO | **corrected**: now it returns YES (measured) |
+| KWin does not rescan on startup | KWin restarted with the `.so` already installed |
+| Stale plugin cache | `kbuildsycoca6` rebuilt, no effect |
+| It takes it for a QML effect | the loose `metadata.json` was removed |
+| The file's `lib` prefix | `PREFIX ""` in CMake; the pluginId is already correct |
 
-### El siguiente paso concreto
+### The next concrete step
 
-El desensamblado de `KWin::EffectLoader::isEffectSupported` muestra que recorre una lista
-de sub-cargadores y delega en `PluginEffectLoader` y `ScriptedEffectLoader`. El plugin
-cumple el contrato, así que queda por ver **qué comprobación adicional** hace
-`PluginEffectLoader`. La vía para verlo es el journal de KWin con depuración de plugins
-activada al arrancar el compositor.
+The disassembly of `KWin::EffectLoader::isEffectSupported` shows that it walks a list
+of sub-loaders and delegates to `PluginEffectLoader` and `ScriptedEffectLoader`. The plugin
+fulfills the contract, so it remains to be seen **what additional check**
+`PluginEffectLoader` performs. The way to see it is the KWin journal with plugin debugging
+enabled when the compositor starts.
 
-### Lo que NO está hecho
+### What is NOT done
 
-**El shader del material.** El efecto, cuando cargue, solo escribe un mensaje en el log:
-el `paintWindow` está enganchado pero no dibuja. Falta implementar difusión, refracción
-(70), dispersión (20) y el realce especular sobre `GLFramebuffer`. Los siete parámetros
-están medidos y en `tokens.toml`.
+**The material shader.** The effect, when it loads, only writes a message to the log:
+`paintWindow` is hooked but it does not draw. Diffusion, refraction
+(70), dispersion (20) and the specular highlight over `GLFramebuffer` remain to be implemented. The seven parameters
+are measured and in `tokens.toml`.
 
-### Lo que sí quedó terminado y funcionando
+### What did get finished and working
 
-- Los **226 tokens** de macOS, con procedencia por token
-- Los **dos esquemas de color** de KDE, con contraste WCAG AA
-- El **CSS de GTK 3 y 4**
-- La **decoración de ventana estilo macOS**: semáforos a la izquierda, con aro, y grises
-  al perder el foco — **funcionando en la sesión real**
-- El **instalador** idempotente y reversible
+- The **226 macOS tokens**, with provenance per token
+- The **two KDE color schemes**, with WCAG AA contrast
+- The **GTK 3 and 4 CSS**
+- The **macOS-style window decoration**: traffic lights on the left, with a ring, and gray
+  when losing focus — **working in the real session**
+- The **installer**, idempotent and reversible
 
 
 ---
 
-## 13. INCIDENTE 2026-10-13: pantalla negra por `kwin_wayland --replace`
+## 13. INCIDENT 2026-10-13: black screen from `kwin_wayland --replace`
 
-**Esto es una correccion a mi propio asesoramiento.** Recomende `kwin_wayland --replace`
-como alternativa "segura" para reiniciar KWin sin cerrar sesion. **No lo es.**
+**This is a correction to my own advice.** I recommended `kwin_wayland --replace`
+as a "safe" alternative to restart KWin without logging out. **It is not.**
 
-En Wayland `--replace` arranca un **segundo compositor** que compite por el DRM/GL con el
-que ya esta corriendo. El KWin vivo pierde el contexto OpenGL y se queda componiendo un
-lienzo vacio: **pantalla negra con el cursor visible**. KWin y plasmashell siguen vivos y
-responden por D-Bus, lo que hace el diagnostico confuso.
+In Wayland `--replace` starts a **second compositor** that competes for the DRM/GL with the
+one already running. The live KWin loses the OpenGL context and ends up compositing an
+empty canvas: **black screen with the cursor visible**. KWin and plasmashell are still alive and
+they respond over D-Bus, which makes the diagnosis confusing.
 
-Evidencia del journal:
+Evidence from the journal:
 
 ```
 kwin_wayland: No QSGTexture provided from updateSampledImage(). This is wrong.
 kwin_wayland: Could not delete render time query because no context is current
 ```
 
-**El efecto `macosglass` NO fue la causa.** Se probo en caliente: su `paintWindow` es un
-no-op que solo escribe un log, y desactivarlo no cambio nada. El disparador fue el
+**The `macosglass` effect was NOT the cause.** It was tested live: its `paintWindow` is a
+no-op that only writes a log, and disabling it changed nothing. The trigger was
 `--replace`.
 
-### Lo correcto, siempre
+### The correct thing, always
 
 ```bash
-sudo systemctl restart plasmalogin   # reinicia el gestor de sesion
-# o cerrar sesion y volver a entrar
+sudo systemctl restart plasmalogin   # restarts the session manager
+# or log out and back in
 ```
 
-**Nunca `kwin_wayland --replace`** en Wayland.
+**Never `kwin_wayland --replace`** on Wayland.
 
-### Detalle de metodo que me habria avisado
+### Method detail that would have warned me
 
-Antes en esta misma sesion intente arrancar un **KWin anidado** para probar la decoracion,
-y el proceso murio sin log porque el sandbox no le dejaba crear el socket. **Ya tenia la
-senal de que lanzar otro compositor en Wayland es problematico**, y aun asi recomende
-`--replace` como atajo. La senal estaba delante y no la lei.
+Earlier in this same session I tried to start a **nested KWin** to test the decoration,
+and the process died without a log because the sandbox would not let it create the socket. **I already had the
+signal that launching another compositor on Wayland is problematic**, and even so I recommended
+`--replace` as a shortcut. The signal was right there and I did not read it.
 
-### Documentos
+### Documents
 
-- [INCIDENT.md](INCIDENT.md) — informe completo, sintomas y diagnostico
-- [RECOVER-KDE.sh](RECOVER-KDE.sh) — script de recuperacion (idempotente y reversible)
-- `effect-kwin/install.sh` — aviso corregido; ya no menciona `--replace` como opcion
+- [INCIDENT.md](INCIDENT.md) — full report, symptoms and diagnosis
+- [RECOVER-KDE.sh](RECOVER-KDE.sh) — recovery script (idempotent and reversible)
+- `effect-kwin/install.sh` — corrected warning; it no longer mentions `--replace` as an option
 
 ---
 
-## 14. SEGUNDO INCIDENTE 2026-10-13 23:04: el efecto SI era la causa (correccion del §13)
+## 14. SECOND INCIDENT 2026-10-13 23:04: the effect WAS the cause (correction to §13)
 
-El §13 concluyo, con la build antigua, que `macosglass` no era la causa. **Era falso.** A las
-23:03:42 se reinstalo el `.so` nuevo y se activo (`macosglassEnabled=true`); a las 23:04:22
-el usuario cerro sesion y volvio a entrar; el KWin nuevo (PID 3458) cargo el efecto
-(`[macos-glass] cargado` 23:04:23, `paintWindow` 23:04:24) y a las 23:04:42 empezo a escupir
-`Could not delete render time query because no context is current` -> pantalla negra.
+§13 concluded, with the old build, that `macosglass` was not the cause. **That was false.** At
+23:03:42 the new `.so` was reinstalled and enabled (`macosglassEnabled=true`); at 23:04:22
+the user logged out and back in; the new KWin (PID 3458) loaded the effect
+(`[macos-glass] cargado` 23:04:23, `paintWindow` 23:04:24) and at 23:04:42 it started spewing
+`Could not delete render time query because no context is current` -> black screen.
 
-Comparacion que lo deja claro, dentro del mismo arranque:
+Comparison that makes it clear, within the same boot:
 
-| KWin | Sesion | macosglassEnabled | Errores de contexto |
+| KWin | Session | macosglassEnabled | Context errors |
 |---|---|---|---|
 | 1314 | 22:54–23:04 | false | 0 |
 | 3458 | 23:04–… | true | 5 (23:04:42–23:05:19) |
 
-### Recuperacion EN CALIENTE (funciono, sin cerrar sesion)
+### HOT recovery (it worked, without logging out)
 
 ```bash
 bash ~/RECOVER-KDE.sh recuperar --reset-output
@@ -462,92 +462,92 @@ qdbus6 org.kde.KWin /Effects    org.kde.kwin.Effects.unloadEffect macosglass
 qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize
 ```
 
-Ahora todo eso es `bash ~/RECOVER-KDE.sh reanimar`. **El orden importa:** `reinitialize()`
-recarga los efectos segun la config que KWin tiene EN MEMORIA; sin `reconfigure()` antes,
-vuelve a cargar `macosglass` (paso a las 23:10:07).
+Now all of that is `bash ~/RECOVER-KDE.sh reanimar`. **The order matters:** `reinitialize()`
+reloads the effects according to the config KWin has IN MEMORY; without `reconfigure()` before it,
+it loads `macosglass` again (it happened at 23:10:07).
 
-### Verificacion
+### Verification
 
-Capturas 23:10:58 y 23:12:20, con el reloj del panel avanzando 11:06 -> 11:12 PM:
-`evidence/2026-10-13-2314-pantalla-recuperada.png`. Escritorio vivo.
+Screenshots 23:10:58 and 23:12:20, with the panel clock advancing 11:06 -> 11:12 PM:
+`evidence/2026-10-13-2314-pantalla-recuperada.png`. Desktop alive.
 
-### Estado y proteccion
+### Status and protection
 
-- `macosglass` y `blur` desactivados; `.so` de usuario apartado como `.disabled`.
-- `.so` de sistema sigue en `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so` (borrarlo pide root).
-- `effect-kwin/install.sh` ahora **aborta** salvo que se pase `--force`.
-- Documento: [INCIDENT.md](INCIDENT.md) · script: [RECOVER-KDE.sh](RECOVER-KDE.sh)
+- `macosglass` and `blur` disabled; user `.so` set aside as `.disabled`.
+- The system `.so` is still in `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so` (deleting it requires root).
+- `effect-kwin/install.sh` now **aborts** unless `--force` is passed.
+- Document: [INCIDENT.md](INCIDENT.md) · script: [RECOVER-KDE.sh](RECOVER-KDE.sh)
 
 ---
 
-## 15. PRUEBA DECISIVA (2026-10-13 23:24): la causa queda confirmada al 100 %
+## 15. DECISIVE TEST (2026-10-13 23:24): the cause is confirmed 100 %
 
-Propuse esta prueba al cerrar el §14 y se ejecutó en vivo, con el escritorio estable y la
-sesión gráfica (tty3) activa. En vez de fiarme solo del log, medí **píxeles** de capturas
-`spectacle` (3840x2160) con PIL:
+I proposed this test when closing §14 and it was executed live, with the desktop stable and the
+graphical session (tty3) active. Instead of trusting only the log, I measured **pixels** from `spectacle`
+screenshots (3840x2160) with PIL:
 
-| Captura | `macosglass` | Contenido |
+| Screenshot | `macosglass` | Content |
 |---|---|---|
-| A (control) | descargado | 861 KB — escritorio real, 0,1 % negro |
-| B (+10 s) | cargado en caliente | 32 KB — **100 % `#000000`** |
-| B (+30 s) | cargado | 32 KB — **100 % `#000000`** |
-| C | descargado (sin `reinitialize`) | 856 KB — escritorio real |
-| D | tras `reinitialize` | 855 KB — escritorio real |
+| A (control) | unloaded | 861 KB — real desktop, 0,1 % black |
+| B (+10 s) | loaded live | 32 KB — **100 % `#000000`** |
+| B (+30 s) | loaded | 32 KB — **100 % `#000000`** |
+| C | unloaded (without `reinitialize`) | 856 KB — real desktop |
+| D | after `reinitialize` | 855 KB — real desktop |
 
-**Resultado:** el efecto deja la composición 100 % negra y **descargarlo la restaura al
-instante**. Causa zanjada.
+**Result:** the effect leaves the composition 100 % black and **unloading it restores it
+instantly**. Cause settled.
 
-Un matiz honesto: en carga en caliente el efecto **no** registra `paintWindow` (rompe el
-render antes de esa ruta); en el arranque del incidente sí llegaba a `paintWindow`. Y el
-error `no context is current` reapareció solo 1 vez (ligado al ciclo del efecto), no en
-oleada. La prueba concluyente fue la **imagen**, no el journal.
+An honest nuance: on live load the effect does **not** log `paintWindow` (it breaks the
+render before that path); on the incident boot it did reach `paintWindow`. And the
+error `no context is current` reappeared only 1 time (tied to the effect cycle), not in
+a wave. The conclusive test was the **image**, not the journal.
 
-Evidencia: `evidence/2026-10-13-2324-prueba-control-escritorio.png`,
+Evidence: `evidence/2026-10-13-2324-prueba-control-escritorio.png`,
 `evidence/2026-10-13-2324-prueba-efecto-cargado-negro.png`,
 `evidence/2026-10-13-2324-prueba-tras-descargar.png`.
-Detalle y comandos: [INCIDENT.md](INCIDENT.md) §"Prueba decisiva — EJECUTADA".
+Detail and commands: [INCIDENT.md](INCIDENT.md) §"Decisive test — EXECUTED".
 
 ---
 
-## 16. ARREGLADO (2026-10-13 23:32): faltaba la llamada de cadena en `paintWindow()`
+## 16. FIXED (2026-10-13 23:32): the chain call was missing in `paintWindow()`
 
-La causa de la pantalla negra no era el contexto OpenGL: era un **bug de
-contrato** de nuestro efecto.
+The cause of the black screen was not the OpenGL context: it was a **contract
+bug** in our effect.
 
-`EffectsHandler::paintWindow()` llama a **un solo** efecto; la cadena avanza
-porque la implementación base `Effect::paintWindow()` vuelve a entrar en
-`effects->paintWindow()`. Nuestro efecto sobreescribía `paintWindow()` y
-**devolvía sin llamar a la base**, así que la cadena se cortaba en `macosglass`:
-`WorkspaceScene::finalPaintWindow()` no se ejecutaba nunca y **ninguna ventana se
-pintaba**. El fondo/panel de Plasma es una ventana más → solo quedaba el negro de
-fondo.
+`EffectsHandler::paintWindow()` calls **a single** effect; the chain advances
+because the base implementation `Effect::paintWindow()` re-enters
+`effects->paintWindow()`. Our effect overrode `paintWindow()` and
+**returned without calling the base**, so the chain was cut at `macosglass`:
+`WorkspaceScene::finalPaintWindow()` never ran and **no window was
+painted**. The Plasma background/panel is one more window → only the black
+background was left.
 
-Corrección en `effect-kwin/src/glass.cpp`: todos los caminos terminan en
+Fix in `effect-kwin/src/glass.cpp`: all paths end in
 `effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);`.
 
-Verificación sin tocar la sesión (a nivel de binario):
+Verification without touching the session (at binary level):
 
 ```
-.so antiguo (sistema) : 0 referencias a EffectsHandler::paintWindow
-.so nuevo  (build)    : tail-call a EffectsHandler::paintWindow   ✅
+old .so (system) : 0 references to EffectsHandler::paintWindow
+new .so (build)  : tail-call to EffectsHandler::paintWindow   ✅
 ```
 
-Herramientas nuevas:
+New tools:
 
-| Fichero | Qué hace |
+| File | What it does |
 |---|---|
-| `effect-kwin/verify-chain.sh` | Comprueba fuente + binario y avisa si el `.so` instalado es el viejo |
-| `effect-kwin/probar-en-vivo.sh` | Carga, captura, mide % de negro y **descarga siempre** (`trap EXIT`); aborta si el `.so` instalado no lleva el arreglo |
+| `effect-kwin/verify-chain.sh` | Checks source + binary and warns if the installed `.so` is the old one |
+| `effect-kwin/probar-en-vivo.sh` | Loads, captures, measures % black and **always unloads** (`trap EXIT`); it aborts if the installed `.so` does not carry the fix |
 
-`build.sh` e `install.sh` ahora **abortan** si la cadena no está, y
-`build.sh` **ya no activa** el efecto (antes podía cargar el `.so` viejo del
-sistema y repetir el incidente).
+`build.sh` and `install.sh` now **abort** if the chain is not there, and
+`build.sh` **no longer activates** the effect (before it could load the old system
+`.so` and repeat the incident).
 
-El efecto sigue **sin dibujar** (el shader del material es el paso siguiente),
-pero es seguro: se comporta como si no estuviera cargado.
+The effect still **does not draw** (the material shader is the next step),
+but it is safe: it behaves as if it were not loaded.
 
-> El agente no pudo instalar el binario (el sandbox no puede `sudo`), así que el
-> `.so` del sistema sigue siendo el antiguo. Instalación y prueba:
+> The agent could not install the binary (the sandbox cannot `sudo`), so the
+> system `.so` is still the old one. Installation and test:
 > ```
 > cd effect-kwin && ./verify-chain.sh
 > sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
@@ -557,21 +557,21 @@ pero es seguro: se comporta como si no estuviera cargado.
 
 ---
 
-## 17. CORRECCIÓN FINAL (2026-10-14): leer INCIDENT.md
+## 17. FINAL CORRECTION (2026-10-14): read INCIDENT.md
 
-Las secciones §13, §14, §15 y §16 de este documento registran **cuatro
-conclusiones sucesivas** sobre la pantalla negra, y **todas menos la última son
-superadas**. Se conservan como registro de la depuración.
+Sections §13, §14, §15 and §16 of this document record **four
+successive conclusions** about the black screen, and **all but the last are
+superseded**. They are kept as a record of the debugging.
 
-**La causa final, verificada por bisección: el IDENTIFICADOR del efecto.**
-El mismo código compilado como `macosglass` deja la composición al 100 % de negro;
-con `macosglass2` funciona. El efecto se llama ahora `macosglass2`.
+**The final cause, verified by bisection: the effect's IDENTIFIER.**
+The same code compiled as `macosglass` leaves the composition 100 % black;
+with `macosglass2` it works. The effect is now called `macosglass2`.
 
-**Estado del efecto (2026-10-14):**
-- Instalado en la ruta correcta (`kwin/effects/plugins/`) y carga sin romper nada
-- **No dibuja todavía**: el shader del material es el paso siguiente
-- El proyecto está bajo git, con un arnés de **55 comprobaciones** (`tests/run.sh`)
-- De los 9 scripts de depuración quedan 4, y los borrados apuntaban al id viejo
+**Effect status (2026-10-14):**
+- Installed in the correct path (`kwin/effects/plugins/`) and it loads without breaking anything
+- **It does not draw yet**: the material shader is the next step
+- The project is under git, with a harness of **55 checks** (`tests/run.sh`)
+- Of the 9 debugging scripts, 4 remain, and the deleted ones pointed to the old id
 
-> Para el relato completo y ordenado, ver **`INCIDENT.md`**, que además lleva
-> arriba un resumen autoritativo.
+> For the complete, ordered account, see **`INCIDENT.md`**, which also carries
+> an authoritative summary at the top.

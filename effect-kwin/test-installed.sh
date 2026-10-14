@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Prueba EN VIVO del efecto YA INSTALADO. No instala nada (no necesita sudo).
-# Carga, mide y DESCARGA SIEMPRE (trap EXIT).
+# LIVE test of the ALREADY INSTALLED effect. Installs nothing (does not need sudo).
+# Loads, measures and ALWAYS unloads (trap EXIT).
 set -uo pipefail
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
@@ -19,24 +19,24 @@ from PIL import Image
 try:
     im = Image.open(sys.argv[1]).convert("RGB"); px=list(im.getdata()); n=len(px)
     negro=sum(1 for r,g,b in px if r<8 and g<8 and b<8)
-    print(f"    {sys.argv[2]:14s} negro={100*negro/n:5.1f}%")
+    print(f"    {sys.argv[2]:14s} black={100*negro/n:5.1f}%")
 except Exception as e:
-    print(f"    {sys.argv[2]}: no se pudo medir ({e})")
+    print(f"    {sys.argv[2]}: could not measure ({e})")
 PY
 }
 
-echo "Efecto: $ID (ya instalado). No se instala nada."
+echo "Effect: $ID (already installed). Nothing is installed."
 medir control
-echo "Cargando $ID ..."
+echo "Loading $ID ..."
 timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect "$ID" >/dev/null 2>&1
 sleep 5; medir cargado
-echo "Descargando..."; descargar; sleep 3; medir tras-descargar
+echo "Unloading..."; descargar; sleep 3; medir tras-descargar
 python3 - "$SAL/instalado-cargado.png" <<'PY'
 import sys
 from PIL import Image
 try:
     im=Image.open(sys.argv[1]).convert("RGB"); px=list(im.getdata()); n=len(px)
     negro=100*sum(1 for r,g,b in px if r<8 and g<8 and b<8)/n
-    print(); print("VEREDICTO:", "ROMPE el render" if negro>90 else f"NO lo rompe (negro={negro:.1f}%) -> EL EFECTO FUNCIONA")
-except Exception as e: print("no se pudo medir:", e)
+    print(); print("VERDICT:", "BREAKS rendering" if negro>90 else f"does NOT break it (black={negro:.1f}%) -> THE EFFECT WORKS")
+except Exception as e: print("could not measure:", e)
 PY

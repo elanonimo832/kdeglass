@@ -19,15 +19,15 @@ MacosGlassEffect::~MacosGlassEffect() = default;
 
 bool MacosGlassEffect::supported()
 {
-    // PRUEBA: se declara soportado siempre. Ver INCIDENT.md para el porque
-    // (una comprobacion tipo `effects != nullptr` daba false y KWin lo descartaba).
+    // TEST: it is always declared supported. See INCIDENT.md for why
+    // (a check like `effects != nullptr` returned false and KWin discarded it).
     return true;
 }
 
 void MacosGlassEffect::reconfigure(ReconfigureFlags)
 {
-    // Valores del kit (tokens.toml). El shader del material es el paso siguiente.
-    m_borderAlpha = 20;   // negro al 8 %: Fills - Opaque / Secondary
+    // Values from the kit (tokens.toml). The material shader is the next step.
+    m_borderAlpha = 20;   // black at 8%: Fills - Opaque / Secondary
     m_borderWidth = 1.0;
 }
 
@@ -37,20 +37,20 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
                                    const Region &deviceRegion, WindowPaintData &data)
 {
     // ---------------------------------------------------------------------
-    // REGLA DE ORO DE LA CADENA DE PINTADO (INCIDENT.md, 2026-10-13).
+    // GOLDEN RULE OF THE PAINT CHAIN (INCIDENT.md, 2026-10-13).
     //
-    // EffectsHandler::paintWindow() llama a UN solo efecto por invocacion; la
-    // cadena avanza porque Effect::paintWindow() —la base— vuelve a entrar en
-    // effects->paintWindow(). Si un efecto sobreescribe paintWindow() y NO llama
-    // a la base, la cadena se corta, finalPaintWindow() no se ejecuta y no se
-    // dibuja NINGUNA ventana (el escritorio de Plasma es una ventana mas).
+    // EffectsHandler::paintWindow() calls ONE single effect per invocation; the
+    // chain advances because Effect::paintWindow() —the base— re-enters
+    // effects->paintWindow(). If an effect overrides paintWindow() and does NOT call
+    // the base, the chain is cut, finalPaintWindow() is not run and NO
+    // window is drawn (the Plasma desktop is just another window).
     //
-    // Por eso TODOS los caminos terminan llamando a effects->paintWindow().
+    // That is why ALL paths end up calling effects->paintWindow().
     // ---------------------------------------------------------------------
     if (w && w->isNormalWindow() && !w->isFullScreen()
         && !(mask & PAINT_WINDOW_TRANSFORMED)) {
-        // Aqui ira el dibujado del borde con GL. El shader del material es el
-        // paso siguiente; ahora solo se deja el enganche marcado.
+        // The border will be drawn with GL here. The material shader is the
+        // next step; for now only the hook is left marked.
     }
 
     effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
@@ -58,6 +58,6 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
 
 } // namespace KWin
 
-// IMPRESCINDIBLE: el macro define una clase con Q_OBJECT en este .cpp; sin este
-// include no se genera su moc y el plugin no exporta qt_plugin_instance.
+// ESSENTIAL: the macro defines a class with Q_OBJECT in this .cpp; without this
+// include its moc is not generated and the plugin does not export qt_plugin_instance.
 #include "glass.moc"

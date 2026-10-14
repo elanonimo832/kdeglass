@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """
-generate-kde-schemes.py — Genera los esquemas de color de KDE (.colors) desde los tokens
+generate-kde-schemes.py — Generates the KDE color schemes (.colors) from the tokens
 
-QUE HACE
-    Coge los tokens de color medidos del kit de macOS 27 y construye dos esquemas de
-    color de KDE Plasma, claro y oscuro, en el formato INI que espera KDE en
+WHAT IT DOES
+    Takes the measured color tokens from the macOS 27 kit and builds two KDE Plasma
+    color schemes, light and dark, in the INI format KDE expects in
     ~/.local/share/color-schemes/.
 
-LA DECISION ARQUITECTONICA IMPORTANTE
-    Los tokens del kit NO son colores planos: son el patron de VELO de Apple. El texto
-    no es gris, es negro o blanco con alfa decreciente (0.85, 0.5, 0.25...). KDE, en
-    cambio, exige colores OPACOS en sus esquemas: no admite alfa.
+THE IMPORTANT ARCHITECTURAL DECISION
+    The kit tokens are NOT flat colors: they are Apple's VEIL pattern. Text is not
+    gray, it is black or white with decreasing alpha (0.85, 0.5, 0.25...). KDE, on the
+    other hand, demands OPAQUE colors in its schemes: it does not accept alpha.
 
-    Por eso hay que COMPONER: cada color de texto se calcula poniendo el velo sobre el
-    fondo concreto del grupo al que pertenece. Eso es lo que se hace aqui, y es lo que
-    mantiene la fidelidad: un texto secundario sobre la ventana no da el mismo resultado
-    que sobre un panel, igual que en macOS.
+    That is why we must COMPOSE: each text color is computed by putting the veil over
+    the specific background of the group it belongs to. That is what is done here, and
+    it is what keeps the fidelity: a secondary text over the window does not give the
+    same result as over a panel, just as in macOS.
 
-    El alfa se conserva en el TOML de origen, asi que la composicion es reproducible y
-    auditable; no se pierde informacion en el camino.
+    The alpha is kept in the source TOML, so the composition is reproducible and
+    auditable; no information is lost along the way.
 
-USO
+USAGE
     python3 generate-kde-schemes.py tokens/tokens-colors.toml output/
 """
 
@@ -31,12 +31,12 @@ import sys
 import tomllib
 from datetime import date
 
-# Los modos se llaman asi en tokens-colors.toml (vienen del export de Figma).
+# The modes are named this way in tokens-colors.toml (they come from the Figma export).
 CLARO, OSCURO = "light", "dark"
 
 
 # --------------------------------------------------------------------------
-# Utilidades de color
+# Color utilities
 # --------------------------------------------------------------------------
 def hex_a_rgb(h: str) -> tuple[int, int, int]:
     h = h.lstrip("#")
@@ -44,7 +44,7 @@ def hex_a_rgb(h: str) -> tuple[int, int, int]:
 
 
 def componer(velo_hex: str, alfa: float, fondo: tuple[int, int, int]) -> tuple[int, int, int]:
-    """Pone un velo (color + alfa) sobre un fondo opaco. Composicion 'source over'."""
+    """Puts a veil (color + alpha) over an opaque background. 'Source over' composition."""
     r, g, b = hex_a_rgb(velo_hex)
     return (
         round(r * alfa + fondo[0] * (1 - alfa)),
@@ -54,7 +54,7 @@ def componer(velo_hex: str, alfa: float, fondo: tuple[int, int, int]) -> tuple[i
 
 
 def rgb(c: tuple[int, int, int]) -> str:
-    """Formato de KDE: tres enteros separados por comas."""
+    """KDE format: three integers separated by commas."""
     return f"{c[0]},{c[1]},{c[2]}"
 
 
@@ -67,7 +67,7 @@ def aclarar(c: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
 
 
 # --------------------------------------------------------------------------
-# Lectura de tokens
+# Token reading
 # --------------------------------------------------------------------------
 def leer_tokens(ruta: str) -> dict:
     with open(ruta, "rb") as f:
@@ -75,7 +75,7 @@ def leer_tokens(ruta: str) -> dict:
 
 
 def nodo_token(tok: dict, seccion: str, clave: str) -> dict:
-    """Localiza el nodo de un token, admitiendo secciones con puntos."""
+    """Locates a token's node, allowing dotted sections."""
     nodo = tok
     for parte in seccion.split("."):
         nodo = nodo[parte]
@@ -83,14 +83,14 @@ def nodo_token(tok: dict, seccion: str, clave: str) -> dict:
 
 
 def color(tok: dict, seccion: str, clave: str, modo: str) -> tuple[tuple[int, int, int], float]:
-    """Devuelve ((r,g,b), alfa) de un token para un modo.
+    """Returns ((r,g,b), alpha) of a token for a mode.
 
-    `seccion` admite ruta con puntos (p. ej. "misc.table") porque en TOML las
-    tablas anidadas se leen como diccionarios anidados, no con la clave completa.
+    `seccion` allows a dotted path (e.g. "misc.table") because in TOML nested
+    tables are read as nested dictionaries, not with the full key.
     """
     t = nodo_token(tok, seccion, clave)
-    # Los tokens cuyo valor es IDENTICO en ambos modos se guardan sin subclaves
-    # (una sola pareja hex/alfa). Se detecta por la ausencia de la clave del modo.
+    # Tokens whose value is IDENTICAL in both modes are stored without subkeys
+    # (a single hex/alpha pair). It is detected by the absence of the mode key.
     if modo not in t:
         t = {"hex": t["hex"], "alfa": t["alfa"]}
     else:
@@ -99,33 +99,33 @@ def color(tok: dict, seccion: str, clave: str, modo: str) -> tuple[tuple[int, in
 
 
 # --------------------------------------------------------------------------
-# Construccion de un esquema
+# Building a scheme
 # --------------------------------------------------------------------------
 def construir_esquema(tok: dict, modo: str) -> dict[str, dict[str, str]]:
-    """Calcula todos los grupos del esquema para un modo (claro u oscuro)."""
+    """Computes all the scheme groups for a mode (light or dark)."""
 
     def velo(seccion: str, clave: str, fondo: tuple[int, int, int]) -> tuple[int, int, int]:
-        """Aplica el velo de un token (color + su alfa) sobre un fondo opaco."""
+        """Applies a token's veil (color + its alpha) over an opaque background."""
         t = nodo_token(tok, seccion, clave)
         if modo in t:
             t = t[modo]
         return componer(t["hex"], float(t["alfa"]), fondo)
 
-    # --- fondos base ---
+    # --- base backgrounds ---
     fondo_ventana, _ = color(tok, "window_bg", "window_bg", modo)
-    # El kit no define un "fondo de vista" distinto del de ventana: en macOS la
-    # jerarquia se hace con el material, no con otro blanco/negro. KDE si necesita
-    # distinguirlos, asi que la vista se separa un punto en la direccion del modo.
+    # The kit does not define a "view background" different from the window one: in
+    # macOS the hierarchy is made with material, not with another white/black. KDE does
+    # need to tell them apart, so the view is shifted one notch in the mode's direction.
     fondo_vista = fondo_ventana if modo == CLARO else oscurecer(fondo_ventana, 0.82)
-    # El boton lleva el relleno secundario del kit encima del fondo: es el "bezel".
+    # The button carries the kit's secondary fill over the background: it is the "bezel".
     fondo_boton = velo("fill", "secondary", fondo_ventana)
-    # La cabecera (barra de titulo) lleva la mitad del relleno primario.
+    # The header (title bar) carries half of the primary fill.
     fondo_cabecera = componer(
         tok["fill"]["primary"][modo]["hex"],
         float(tok["fill"]["primary"][modo]["alfa"]) * 0.5,
         fondo_ventana,
     )
-    # El grupo complementario es el panel de mas contraste (barras laterales oscuras).
+    # The complementary group is the highest-contrast panel (dark sidebars).
     fondo_complementario = (
         velo("fill", "primary", fondo_ventana) if modo == CLARO
         else aclarar(fondo_ventana, 0.04)
@@ -134,7 +134,7 @@ def construir_esquema(tok: dict, modo: str) -> dict[str, dict[str, str]]:
     def texto(fondo: tuple[int, int, int], nivel: str = "primary") -> tuple[int, int, int]:
         return velo("label", nivel, fondo)
 
-    # --- acentos ---
+    # --- accents ---
     acento, _ = color(tok, "accent", "blue", modo)
     acento_vibrante, _ = color(tok, "accent_vibrant", "blue", modo)
     rojo, _ = color(tok, "accent", "red", modo)
@@ -143,14 +143,14 @@ def construir_esquema(tok: dict, modo: str) -> dict[str, dict[str, str]]:
     morado, _ = color(tok, "accent", "purple", modo)
     enlace = aclarar(acento, 0.15) if modo == OSCURO else acento
 
-    # --- seleccion: fondo de acento con texto blanco, como en macOS ---
+    # --- selection: accent background with white text, as in macOS ---
     fondo_seleccion, _ = color(tok, "misc.table", "bg_selected_active", modo)
 
-    # --- alternos de lista ---
+    # --- list alternates ---
     alterno = velo("fill", "primary", fondo_vista)
 
-    # El texto sobre la seleccion es SIEMPRE blanco: el kit lo declara en
-    # `label / white` (#FFFFFF, alfa 1) en ambos modos.
+    # The text over the selection is ALWAYS white: the kit declares it in
+    # `label / white` (#FFFFFF, alpha 1) in both modes.
     texto_seleccion, _ = color(tok, "label", "white", modo)
 
     def grupo(fondo: tuple[int, int, int], alterno_fondo=None) -> dict[str, str]:
@@ -199,11 +199,11 @@ def construir_esquema(tok: dict, modo: str) -> dict[str, dict[str, str]]:
 
 
 # --------------------------------------------------------------------------
-# Efectos y secciones generales
+# Effects and general sections
 # --------------------------------------------------------------------------
 def efectos(modo: str) -> dict[str, dict[str, str]]:
-    """Los grupos ColorEffects. Valores de Breeze, que es la convencion de KDE:
-    no hay equivalente en el kit de macOS porque macOS no tiene este concepto."""
+    """The ColorEffects groups. Breeze values, which is the KDE convention:
+    there is no equivalent in the macOS kit because macOS has no such concept."""
     return {
         "ColorEffects:Disabled": {
             "Color": "56,56,56" if modo == OSCURO else "112,111,110",
@@ -229,12 +229,12 @@ def efectos(modo: str) -> dict[str, dict[str, str]]:
 
 
 def general(modo: str) -> dict[str, dict[str, str]]:
-    """ColorScheme y shadeSortColumn los pone el instalador; aqui van los fijos."""
+    """ColorScheme and shadeSortColumn are set by the installer; here go the fixed ones."""
     return {
         "General": {"shadeSortColumn": "true"},
         "KDE": {"contrast": "4"},
-        # El color de la sombra de ventana activa/inactiva. Usa la sombra medida en
-        # tokens-forma-efectos.toml (dos capas); aqui KDE solo acepta un color.
+        # The color of the active/inactive window shadow. Uses the shadow measured in
+        # tokens-forma-efectos.toml (two layers); here KDE only accepts one color.
         "WM": {
             "activeBackground": "0,0,0",
             "activeBlend": "0,0,0",
@@ -287,17 +287,17 @@ def main() -> int:
     os.makedirs(destino, exist_ok=True)
 
     tok = leer_tokens(origen)
-    print(f"Tokens leidos de {origen}")
+    print(f"Tokens read from {origen}")
 
     for modo, nombre in ((CLARO, "KdeMacosLight"), (OSCURO, "KdeMacosDark")):
         esq = construir_esquema(tok, modo)
         esq.update(efectos(modo))
         esq.update(general(modo))
-        # ColorScheme debe apuntar al nombre del fichero para que KDE lo reconozca
+        # ColorScheme must point to the file name so that KDE recognizes it
         esq.setdefault("General", {})["ColorScheme"] = nombre
         ruta = os.path.join(destino, f"{nombre}.colors")
         escribir(ruta, nombre, esq, modo)
-        print(f"  -> {ruta} ({len(esq)} grupos)")
+        print(f"  -> {ruta} ({len(esq)} groups)")
 
     return 0
 
