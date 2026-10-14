@@ -154,7 +154,7 @@ deliberately, so that a correct override is not another false alarm.
 | Step | Change | State at the end |
 | --- | --- | --- |
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
-| 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | 🟡 **written and compiled** (2026-10-14), **not yet seen on screen**: the desktop is captured frame-sized, clamped to the render target, and composited in the fragment shader (unit 1, `uHasBackground`). Needs `./install.sh` + a relogin to verify |
+| 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | 🟡 **written and compiled** (2026-10-14), **not yet seen on screen**: the desktop is captured across the window's expanded geometry (the region KWin redirects), clamped to the render target, and composited in the fragment shader (unit 1, `uHasBackground`). Needs `./install.sh` + a relogin to verify |
 | 3 | Blur the captured background, tune alpha, restore `frost 6` and the kit values. | not started |
 
 Each step must be committed before starting the next. If a session runs out of
