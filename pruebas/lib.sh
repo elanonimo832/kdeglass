@@ -26,3 +26,8 @@ afirmar_codigo() { # afirmar_codigo <desc> <fichero> <patron>
   if grep -vE '^\s*(//|\*|/\*)' "$2" 2>/dev/null | grep -qE "$3"; then ok "$1"
   else fallo "$1: '$3' no esta en el CODIGO de $(basename "$2") (solo en comentarios?)"; fi
 }
+
+# Como afirmar_contiene pero con busqueda LITERAL (grep -F). Necesario cuando el
+# patron lleva caracteres de regex: 'effects->paintWindow' tiene '->' y el '-' se
+# interpretaba como operador, dando un falso fallo.
+afirmar_literal() { if grep -qF -- "$3" "$2" 2>/dev/null; then ok "$1"; else fallo "$1: '$3' no esta en $(basename "$2")"; fi; }

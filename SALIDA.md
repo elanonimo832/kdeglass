@@ -554,3 +554,24 @@ pero es seguro: se comporta como si no estuviera cargado.
 >      /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
 > ./probar-en-vivo.sh
 > ```
+
+---
+
+## 17. CORRECCIÓN FINAL (2026-10-14): leer INCIDENTE.md
+
+Las secciones §13, §14, §15 y §16 de este documento registran **cuatro
+conclusiones sucesivas** sobre la pantalla negra, y **todas menos la última son
+superadas**. Se conservan como registro de la depuración.
+
+**La causa final, verificada por bisección: el IDENTIFICADOR del efecto.**
+El mismo código compilado como `macosglass` deja la composición al 100 % de negro;
+con `macosglass2` funciona. El efecto se llama ahora `macosglass2`.
+
+**Estado del efecto (2026-10-14):**
+- Instalado en la ruta correcta (`kwin/effects/plugins/`) y carga sin romper nada
+- **No dibuja todavía**: el shader del material es el paso siguiente
+- El proyecto está bajo git, con un arnés de **55 comprobaciones** (`pruebas/ejecutar.sh`)
+- De los 9 scripts de depuración quedan 4, y los borrados apuntaban al id viejo
+
+> Para el relato completo y ordenado, ver **`INCIDENTE.md`**, que además lleva
+> arriba un resumen autoritativo.

@@ -1,16 +1,50 @@
-# INCIDENTE: pantalla negra en KDE Plasma (CachyOS) — 2026-10-13
+# INCIDENTE: pantalla negra en KDE Plasma (CachyOS) — 2026-10-13 / 14
 
-> **Lee esto primero si vuelve a pasar.** El usuario no debería tener que reexplicar
-> el problema. Este archivo está en el home para que el agente lo encuentre con `ls ~`.
+> ## ⚠️ ESTE DOCUMENTO ES HISTÓRICO: contiene conclusiones SUPERADAS
 >
-> **Ha pasado DOS veces.** La primera se arregló reiniciando. La segunda (23:04–23:12)
-> **se recuperó EN CALIENTE, sin cerrar sesión**: ver "Recuperación en caliente".
+> Se escribió a lo largo de dos sesiones, y cada vez que encontrábamos una causa
+> nueva quedaba registrada sin borrar la anterior. Hay **cuatro conclusiones
+> sucesivas** y solo la última es correcta.
 >
-> **CAUSA CONFIRMADA al 100 % (23:24).** Prueba en caliente: cargar `macosglass` deja la
-> composición 100 % negra y descargarlo la restaura al instante. Ver "Prueba decisiva —
-> EJECUTADA".
+> ## La causa, en una línea
+>
+> **El identificador del efecto.** El mismo código, byte a byte, compilado como
+> `macosglass` dejaba la composición al **100 % de negro**, y con un id nuevo
+> (`macosglass2`) funciona. Medido con capturas y análisis de píxeles.
+> El efecto se llama ahora `macosglass2`.
+>
+> ## Lo que NO era la causa (aunque lo pareciera en su momento)
+>
+> | Conclusión que quedó escrita | Estado |
+> |---|---|
+> | «El efecto no era la causa» (build antigua) | **falso** |
+> | «El contexto OpenGL / scene-graph» | síntoma, no causa |
+> | «Faltaba la llamada de cadena en `paintWindow()`» | era **un fallo real**, pero no el que rompía |
+> | «El identificador `macosglass`» | **✅ correcto** (lo confirma la bisección) |
+>
+> ## Lo que sí quedó arreglado y sigue vigente
+>
+> 1. **La cadena de pintado.** `paintWindow()` TIENE que llamar a
+>    `effects->paintWindow()`. Es un fallo real y lo comprueba `verificar-cadena.sh`.
+> 2. **`supported()`** devolvía `false` (`effects != nullptr`, el ejemplo de la doc
+>    de KDE) y KWin descartaba el efecto EN SILENCIO.
+> 3. **La ruta** es `kwin/effects/plugins/`, no `kwin/effects/`. Un nivel. Dos horas.
+> 4. **El nombre del fichero define el pluginId**, sin prefijo `lib`.
+> 5. **Nunca `kwin_wayland --replace`** en Wayland: deja la pantalla negra.
+>
+> ## Cómo recuperarse
+>
+> ```bash
+> bash ~/RECUPERAR-KDE.sh reanimar     # en caliente, sin cerrar sesión
+> ```
+>
+> ---
+>
+> *Lo que sigue es el registro histórico, en orden cronológico inverso al final.
+> Las conclusiones antiguas se conservan a propósito: muestran cómo se llegó a la
+> buena, y qué señales se leyeron mal.*
 
----
+
 
 # ✅ ARREGLADO — 2026-10-13 23:32: causa raíz exacta y corrección
 
