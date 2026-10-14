@@ -40,6 +40,57 @@ HEADER="$HERE/src/glass.h"
 SO="$HERE/build/plugins/kwin/effects/macosglass2.so"
 SYSTEM_SO=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
 
+# --diagnose: prints what each check actually sees. Added after this script
+# reported "does not link OffscreenEffect" on a binary where the same nm command
+# printed 11 matching symbols. The failure could not be reproduced elsewhere, so
+# rather than guess again, the script now shows its own inputs.
+if [ "${1:-}" = "--diagnose" ] || [ "${2:-}" = "--diagnose" ]; then
+  echo "=== DIAGNOSE ==="
+  echo "  pwd            : $(pwd)"
+  echo "  BASH_SOURCE    : ${BASH_SOURCE[0]}"
+  echo "  HERE           : $HERE"
+  echo "  SO             : $SO"
+  echo "  exists         : $([ -f "$SO" ] && echo yes || echo NO)"
+  echo "  readable       : $([ -r "$SO" ] && echo yes || echo NO)"
+  echo "  size           : $([ -f "$SO" ] && stat -c%s "$SO" || echo -)"
+  echo "  bash version   : $BASH_VERSION"
+  echo "  shell options  : $-"
+  echo "  command -v nm  : $(command -v nm || echo 'NOT FOUND')"
+  echo "  command -v grep: $(command -v grep || echo 'NOT FOUND')"
+  echo
+  echo "  nm exit code   :"
+  nm -D --undefined-only "$SO" > /tmp/vc-nm.txt 2>/tmp/vc-nm.err
+  echo "    nm exit=$?"
+  echo "    nm stdout lines=$(wc -l < /tmp/vc-nm.txt)"
+  echo "    nm stderr: $(head -2 /tmp/vc-nm.err)"
+  echo "    OffscreenEffect matches=$(grep -c OffscreenEffect /tmp/vc-nm.txt)"
+  echo
+  echo "  pipeline result (the exact expression used at line 82):"
+  if nm -D --undefined-only "$SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+    echo "    -> PASA"
+  else
+    echo "    -> FALLA"
+  fi
+  echo
+  echo "  same pipeline WITHOUT pipefail:"
+  set +o pipefail
+  if nm -D --undefined-only "$SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+    echo "    -> PASA"
+  else
+    echo "    -> FALLA"
+  fi
+  set -o pipefail
+  echo
+  echo "  grep -c version (deterministic):"
+  if nm -D --undefined-only "$SO" 2>/dev/null | grep -c 'OffscreenEffect' >/dev/null; then
+    echo "    -> PASA"
+  else
+    echo "    -> FALLA"
+  fi
+  rm -f /tmp/vc-nm.txt /tmp/vc-nm.err
+  exit 0
+fi
+
 fallo=0
 
 echo "=== 1. The effect must not override the chain entry points ==="
