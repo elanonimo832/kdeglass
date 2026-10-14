@@ -101,7 +101,7 @@ to make:
 > The title bar buttons —the menu, minimize and close— **are not drawn by the GTK
 > theme**. They are drawn by **KWin**, with the active window decoration.
 
-That is why they are not fixed by touching `kde-macos.css`, however much you adjust it.
+That is why they are not fixed by touching `output/gtk-3.0/kde-macos-dark.css`, however much you adjust it.
 
 ### First response, and why it was wrong
 
@@ -118,7 +118,7 @@ the objective.
 | Element | Value | Origin |
 |---|---|---|
 | Traffic light size | 12 px | Measured in the `.fig` |
-| Close | `#FF5F57` | `tokens-forma-efectos.toml` |
+| Close | `#FF5F57` | `tokens/tokens-forma-efectos.toml` |
 | Minimize | `#FFBD2E` | Ditto |
 | Zoom | `#28C840` | Ditto |
 | Position | **Left**, close-minimize-zoom order | macOS convention |
@@ -150,7 +150,7 @@ install → revert cycle is tested with a fake `HOME`.
 
 The `.rc` declares `Shadow=true` and the frame is an approximation: the real macOS shadow is
 **two layers** (diffuse radius 54 + contact radius 1) that are already measured in
-`tokens-forma-efectos.toml`. Aurorae does not allow declaring two shadows, so the frame's
+`tokens/tokens-forma-efectos.toml`. Aurorae does not allow declaring two shadows, so the frame's
 one will have to be added by the KWin effect of step 5.
 
 ### The other piece of data that came out of this

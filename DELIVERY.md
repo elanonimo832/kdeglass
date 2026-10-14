@@ -314,7 +314,7 @@ kbuildsycoca6            : not enough (rebuilt, still does not see it)
 **Solution: restart the session** (log out and back in). Then KWin
 starts, finds the `.so` and loads it.
 
-To verify it without guessing, there is a script: **`effect-kwin/verificar-efecto.sh`**.
+To verify it without guessing, there is a script: **`effect-kwin/verify-chain.sh`**.
 
 
 ---
@@ -537,7 +537,7 @@ New tools:
 | File | What it does |
 |---|---|
 | `effect-kwin/verify-chain.sh` | Checks source + binary and warns if the installed `.so` is the old one |
-| `effect-kwin/probar-en-vivo.sh` | Loads, captures, measures % black and **always unloads** (`trap EXIT`); it aborts if the installed `.so` does not carry the fix |
+| `effect-kwin/test-installed.sh` | Loads, captures, measures % black and **always unloads** (`trap EXIT`); it aborts if the installed `.so` does not carry the fix |
 
 `build.sh` and `install.sh` now **abort** if the chain is not there, and
 `build.sh` **no longer activates** the effect (before it could load the old system

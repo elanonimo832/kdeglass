@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 """
-tokens-from-figma.py — Convierte exports de Variables de Figma en tokens TOML
+tokens-from-figma.py — Converts Figma Variables exports into tokens TOML
 
-ENTRADA
-    Uno o varios ZIP (o carpetas) con ficheros `<Modo>.tokens.json` en formato DTCG,
-    tal como los exporta Figma. Cada ZIP es una COLECCION con uno o varios modos.
+INPUT
+    One or more ZIPs (or folders) with `<Mode>.tokens.json` files in DTCG format,
+    as Figma exports them. Each ZIP is a COLLECTION with one or more modes.
 
-SALIDA
-    Un `tokens-<coleccion>.toml` por cada ZIP, con:
-      - valor por modo (`claro`/`oscuro`, o el nombre del modo tal cual)
-      - las REFERENCIAS `{Global.Radius}` ya resueltas, anotando a que apuntaban
-      - la procedencia (`variableId` de Figma) por token
+OUTPUT
+    One `tokens-<collection>.toml` per ZIP, with:
+      - value per mode (`claro`/`oscuro`, or the mode name as is)
+      - the `{Global.Radius}` REFERENCES already resolved, noting what they pointed to
+      - the provenance (Figma's `variableId`) per token
 
-TRES COSAS QUE UN CONVERSOR INGENUO NO HACE
-  1. RESOLVER REFERENCIAS. Muchos tokens no son valores sino alias:
-     `Checkboxes / Width = {Radio Button.Width}`. Hay que seguir la cadena.
-  2. SOPORTAR VARIOS TIPOS. No todo es color: hay `number` (radios, tamanos, margenes)
-     y `string`. Tratar solo colores tira la mitad del kit.
-  3. NO PERDER PRECISION. Los `number` vienen de float32 (9.3100004196167). Se
-     redondean a 4 decimales, que sobra para puntos y pixeles.
+THREE THINGS A NAIVE CONVERTER DOES NOT DO
+  1. RESOLVE REFERENCES. Many tokens are not values but aliases:
+     `Checkboxes / Width = {Radio Button.Width}`. The chain must be followed.
+  2. SUPPORT SEVERAL TYPES. Not everything is color: there are `number` (radii, sizes,
+     margins) and `string`. Handling only colors throws away half the kit.
+  3. NOT LOSE PRECISION. `number`s come from float32 (9.3100004196167). They are
+     rounded to 4 decimals, which is plenty for points and pixels.
 
-USO
-    python3 tokens-from-figma.py <output/> <origen1.zip|dir> [origen2 ...]
+USAGE
+    python3 tokens-from-figma.py <output/> <origin1.zip|dir> [origin2 ...]
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ import sys
 import zipfile
 from datetime import date
 
-# Nombres de grupo de Figma -> claves TOML. Los que no estan aqui se normalizan.
+# Figma group names -> TOML keys. Those not here are normalized.
 NORMALIZAR = {
     "Window Background": "window_bg",
     "Accents": "accent",
@@ -66,7 +66,7 @@ NORMALIZAR = {
     "Section Stroke": "section_stroke",
 }
 
-# Colecciones que son de iOS/iPadOS, no de macOS. Se avisa en la cabecera generada.
+# Collections that are iOS/iPadOS, not macOS. A warning goes in the generated header.
 PLATAFORMA = {
     "Dimensions": "iPhone/iPad (iOS) — NO son metricas de macOS",
     "Dynamic Type": "iOS Dynamic Type — el Body de iOS es 17 pt; el de macOS es 13 pt",
@@ -76,12 +76,12 @@ PLATAFORMA = {
 }
 
 # ---------------------------------------------------------------------------
-# CLASIFICADOR DE PROCEDENCIA
+# PROVENANCE CLASSIFIER
 #
-# El fichero de Figma es MULTI-SISTEMA: mezcla variables de Apple con colecciones de
-# Material 3, de Salesforce (SDS) y de una escala de color generica. Aplicar al tema de
-# macOS un token de Material 3 es un error silencioso y grave, asi que la procedencia se
-# DERIVA DE LOS DATOS, no se asume por el nombre del ZIP.
+# The Figma file is MULTI-SYSTEM: it mixes Apple variables with collections from
+# Material 3, from Salesforce (SDS) and from a generic color scale. Applying a
+# Material 3 token to the macOS theme is a silent and serious error, so provenance is
+# DERIVED FROM THE DATA, not assumed from the ZIP name.
 # ---------------------------------------------------------------------------
 
 MARCAS = {
@@ -104,12 +104,12 @@ MARCAS = {
     "Escala generica": ["Pink / 100", "Blue / 100"],
 }
 
-# Sistema al que pertenece el proyecto. Todo lo demas se marca como NO APLICABLE.
+# System the project belongs to. Everything else is marked as NOT APPLICABLE.
 SISTEMA_OBJETIVO = "Apple macOS"
 
 
 def clasificar(origen: str, modos: dict) -> tuple[str, str]:
-    """Devuelve (sistema, marcas_encontradas) deducido de los nombres de los tokens."""
+    """Returns (system, markers_found) inferred from the token names."""
     nombres = set()
     for m in modos.values():
         for r in m:
@@ -155,11 +155,11 @@ def hojas(obj, ruta=()):
 
 
 def valor_crudo(nodo):
-    """Devuelve (tipo, valor_normalizado) desde un nodo DTCG.
+    """Returns (type, normalized_value) from a DTCG node.
 
-    Si el valor es una REFERENCIA ({Global.Radius}) se devuelve tal cual: resolverla
-    es responsabilidad de `resolver()`. Si no, un `number` con valor textual reventaria
-    al convertirlo a float.
+    If the value is a REFERENCE ({Global.Radius}) it is returned as is: resolving it
+    is `resolver()`'s responsibility. Otherwise, a `number` with a textual value would
+    blow up when converted to float.
     """
     t = nodo.get("$type", "?")
     v = nodo["$value"]
@@ -185,13 +185,13 @@ def es_referencia(v) -> bool:
 
 
 def resolver(valor, indice, visto=None):
-    """Sigue la cadena de referencias {Grupo.Token} hasta un valor real."""
+    """Follows the chain of {Group.Token} references down to a real value."""
     visto = visto or set()
     if not es_referencia(valor):
         return valor, None
     destino = valor[1:-1]
     if destino in visto:
-        return valor, "referencia circular"
+        return valor, "circular reference"
     visto.add(destino)
 
     nodo = None
@@ -200,12 +200,12 @@ def resolver(valor, indice, visto=None):
             nodo = n
             break
     if nodo is None:
-        return valor, f"destino no encontrado: {destino}"
+        return valor, f"destination not found: {destino}"
     return resolver(nodo["$value"], indice, visto)
 
 
 def leer_zip(origen: str) -> dict:
-    """{modo: {ruta: nodo}}"""
+    """{mode: {path: node}}"""
     modos = {}
     with zipfile.ZipFile(origen) as z:
         for n in z.namelist():
@@ -217,10 +217,10 @@ def leer_zip(origen: str) -> dict:
 
 
 def fmt(v, tipo, ref=None) -> str:
-    """Formatea SOLO el valor como literal TOML.
+    """Formats ONLY the value as a TOML literal.
 
-    La procedencia de una referencia NO se pone aqui: los comentarios no son validos
-    dentro de una tabla inline de TOML, asi que se emiten en su propia linea aparte.
+    A reference's provenance is NOT put here: comments are not valid inside a TOML
+    inline table, so they are emitted on their own separate line.
     """
     if tipo == "color" and isinstance(v, tuple):
         h, a = v
@@ -239,7 +239,7 @@ def main() -> int:
 
     if len(args) < 2:
         print(__doc__)
-        print("Opciones:\n  --solo-macos   omite las colecciones que no son de Apple macOS")
+        print("Options:\n  --solo-macos   skips the collections that are not from Apple macOS")
         return 2
     destino, origenes = args[0], args[1:]
     os.makedirs(destino, exist_ok=True)
@@ -248,7 +248,7 @@ def main() -> int:
     saltadas = []
     for origen in origenes:
         if not zipfile.is_zipfile(origen):
-            print(f"AVISO: {origen} no es un ZIP, se omite")
+            print(f"WARNING: {origen} is not a ZIP, skipping")
             continue
         coleccion = os.path.basename(origen)
         if coleccion.endswith(".zip"):
@@ -256,17 +256,17 @@ def main() -> int:
 
         modos = leer_zip(origen)
         if not modos:
-            print(f"--- {coleccion}: sin ficheros .tokens.json, se omite")
+            print(f"--- {coleccion}: no .tokens.json files, skipping")
             continue
 
         sistema, marcas = clasificar(origen, modos)
         aplicable = sistema == SISTEMA_OBJETIVO
-        etiqueta = "APLICABLE" if aplicable else "NO APLICABLE"
-        print(f"--- {coleccion}: {sistema} [{etiqueta}]  (marcas: {marcas})")
+        etiqueta = "APPLICABLE" if aplicable else "NOT APPLICABLE"
+        print(f"--- {coleccion}: {sistema} [{etiqueta}]  (markers: {marcas})")
         if not aplicable:
             saltadas.append((coleccion, sistema))
             if solo_objetivo:
-                print("    -> omitida (--solo-macos)")
+                print("    -> skipped (--solo-macos)")
                 continue
 
         indice = next(iter(modos.values()))
@@ -293,7 +293,7 @@ def main() -> int:
             for m in modos_orden:
                 nodo_m = modos[m].get(ruta)
                 if nodo_m is None:
-                    avisos.append(f"{'/'.join(ruta)}: falta en {m}")
+                    avisos.append(f"{'/'.join(ruta)}: missing in {m}")
                     continue
                 tipo, v = valor_crudo(nodo_m)
                 ref = None
@@ -302,7 +302,7 @@ def main() -> int:
                     v, err = resolver(v, indice)
                     if err:
                         avisos.append(f"{'/'.join(ruta)}: {err}")
-                    # el valor resuelto trae su propio tipo real, que puede no ser el declarado
+                    # the resolved value brings its own real type, which may not be the declared one
                     if isinstance(v, bool):
                         tipo = "boolean"
                     elif isinstance(v, (int, float)):
@@ -378,18 +378,18 @@ def main() -> int:
 
         with open(archivo, "w", encoding="utf-8") as f:
             f.write("\n".join(cab + lineas))
-        print(f"    -> {archivo} ({n} tokens, {len(avisos)} avisos)")
+        print(f"    -> {archivo} ({n} tokens, {len(avisos)} warnings)")
         for a in avisos[:4]:
-            print(f"       aviso: {a}")
+            print(f"       warning: {a}")
         if len(avisos) > 4:
-            print(f"       ... y {len(avisos)-4} mas")
+            print(f"       ... and {len(avisos)-4} more")
 
     print(f"\nTOTAL: {total} tokens")
     if saltadas:
-        print("\nCOLECCIONES QUE NO SON DE macOS (conservadas solo como referencia):")
+        print("\nCOLLECTIONS THAT ARE NOT FROM macOS (kept only as a reference):")
         for c, s in saltadas:
             print(f"  - {c}: {s}")
-        print("\n  Para generar solo lo aplicable:  --solo-macos")
+        print("\n  To generate only the applicable ones:  --solo-macos")
     return 0
 
 

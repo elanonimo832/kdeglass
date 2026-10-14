@@ -132,7 +132,7 @@ assuming it.
 | Layer | What is installed | Destination | How it is activated |
 |---|---|---|---|
 | **QStyle** | `kdemacos.so` | `~/.local/lib/qt6/plugins/styles/` | `kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle kdemacos` |
-| **Colors** | `KdeMacos.colors` (or two: light/dark) | `~/.local/share/color-schemes/` | `--group General --key ColorScheme` + `ColorSchemeHash` |
+| **Colors** | `KdeMacosDark.colors` and `KdeMacosLight.colors` | `~/.local/share/color-schemes/` | `--group General --key ColorScheme` + `ColorSchemeHash` |
 | **Typography** | Font files (after license validation) | `~/.local/share/fonts/` | `--key font` (and `fixed`), + `fc-cache -f` |
 | **KWin: corners** | effect `.so` | `~/.local/lib/qt6/plugins/kwin/effects/` | `kwriteconfig6 --file kwinrc --group Plugins --key esquinasEnabled true` |
 | **KWin: material** | same effect | same | same |

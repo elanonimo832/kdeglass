@@ -91,9 +91,9 @@ headers; `_stub/vulkan` avoids the 42 MiB of `vulkan-headers`):
 
 | File | What for |
 |---|---|
-| `src/diagnostico.cpp` | reproduces KWin's plugin discovery |
-| `src/probar-fabrica.cpp` | instantiates the factory and asks `isSupported()` |
-| `src/verificar-carga.cpp` | does the same as KWin at startup |
+| `src/diagnose.cpp` | reproduces KWin's plugin discovery |
+| `src/probe-factory.cpp` | instantiates the factory and asks `isSupported()` |
+| `src/verify-load.cpp` | does the same as KWin at startup |
 
 These three answer «why does KWin not load my effect?» in seconds, which is what
 would have saved me half the incident.

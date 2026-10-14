@@ -120,7 +120,7 @@ sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
 ./probar-en-vivo.sh                        # loads, captures, measures and ONLY unloads
 ```
 
-`probar-en-vivo.sh` unloads the effect **always** (`trap EXIT`) even if the render
+`test-installed.sh` unloads the effect **always** (`trap EXIT`) even if the render
 broke, and it refuses to start if the installed `.so` does not carry the fix. If
 something went wrong anyway: `bash ~/RECOVER-KDE.sh reanimar`.
 
@@ -481,7 +481,7 @@ The safety check in `install.sh` (`objdump | grep -q`) gave a
 match and closes the pipe, and the pipe status varies. It even got to **abort the
 installation of a correct `.so`** (it happened twice).
 
-Fixed in `install.sh`, `verify-chain.sh` and `probar-en-vivo.sh`:
+Fixed in `install.sh`, `verify-chain.sh` and `test-installed.sh`:
 `grep -c ... >/dev/null` instead of `grep -q`. Reading all the input is deterministic.
 Verified 8/8 and 15/15.
 

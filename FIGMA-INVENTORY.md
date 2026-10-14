@@ -1,64 +1,64 @@
-# Inventario de los exports de Figma
+# Inventory of the Figma exports
 
-Qué se ha recibido, qué se ha extraído y **qué falta**. Con los avisos de procedencia,
-que aquí resultaron ser lo más importante.
+What has been received, what has been extracted and **what is missing**. With the provenance
+notices, which here turned out to be the most important thing.
 
-- Procedencia y método: [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md)
-- Herramienta: [tools/figma/](tools/figma/)
-- Fecha del export: 13/10/2026
+- Provenance and method: [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md)
+- Tool: [tools/figma/](tools/figma/)
+- Export date: 13/10/2026
 
-## Resultado
+## Result
 
 ```
-16 colecciones recibidas   ·   629 tokens convertidos   ·   16/16 TOML válidos
+16 collections received   ·   629 tokens converted   ·   16/16 valid TOML
 
-  APLICABLES A macOS ....  146 tokens en  3 colecciones  ->  tokens/
-  DE OTROS SISTEMAS .....  483 tokens en 13 colecciones  ->  tokens/reference/
+  APPLICABLE TO macOS ...  146 tokens in  3 collections  ->  tokens/
+  FROM OTHER SYSTEMS ....  483 tokens in 13 collections  ->  tokens/reference/
 ```
 
 ---
 
-## 1. AVISO PRINCIPAL: el fichero es multi-sistema de diseño
+## 1. MAIN NOTICE: the file is multi-design-system
 
-El fichero de Figma del que salieron estos exports **no contiene solo las variables de
-macOS**. Contiene también colecciones de **Material 3 (Google)**, de **Salesforce (SDS)**
-y una escala de color genérica. Extraer todo y aplicarlo habría metido en el tema de
-macOS colores y métricas que no son de Apple — un error silencioso y difícil de detectar
-después.
+The Figma file from which these exports came **does not contain only the macOS
+variables**. It also contains collections of **Material 3 (Google)**, of **Salesforce (SDS)**
+and a generic color scale. Extracting everything and applying it would have put into the macOS
+theme colors and metrics that are not Apple's — a silent error and hard to detect
+afterwards.
 
-Pruebas concretas:
+Concrete proofs:
 
-| Señal | Qué significa |
+| Signal | What it means |
 |---|---|
-| `Schemes/Primary = #6750A4` | Ese violeta es el **Primary de Material 3** por defecto. Apple no usa eso |
-| `Static/Display Large 57 / Line Height 64` | La escala tipográfica de Material 3 |
-| `Corner/Extra-small 4 · Small 8 · Medium 12 · Large 28` | La escala de forma de Material 3 |
-| `Family Sans = Inter`, `Family Mono = Roboto Mono` | Familias de otro sistema |
-| `Background/Utilities/Scrim`, `Blanket` | Nomenclatura de **Salesforce Lightning Design System** |
+| `Schemes/Primary = #6750A4` | That violet is Material 3's **default Primary**. Apple does not use that |
+| `Static/Display Large 57 / Line Height 64` | The Material 3 type scale |
+| `Corner/Extra-small 4 · Small 8 · Medium 12 · Large 28` | The Material 3 shape scale |
+| `Family Sans = Inter`, `Family Mono = Roboto Mono` | Families from another system |
+| `Background/Utilities/Scrim`, `Blanket` | **Salesforce Lightning Design System** naming |
 
-Por eso el conversor **clasifica la procedencia a partir de los propios datos**, no del
-nombre del fichero: cada TOML generado lleva en `[_meta]` su `sistema` y su
-`aplicable_macos`. Las 13 colecciones ajenas están en
-[`tokens/reference/`](tokens/reference/README.md), con el motivo de cada una.
+That is why the converter **classifies the provenance from the data itself**, not from the
+file name: each generated TOML carries in `[_meta]` its `sistema` and its
+`aplicable_macos`. The 13 foreign collections are in
+[`tokens/reference/`](tokens/reference/README.md), with the reason for each one.
 
 ---
 
-## 2. Colecciones aplicables a macOS (146 tokens)
+## 2. Collections applicable to macOS (146 tokens)
 
-| ZIP | Modos | Tokens | Contenido |
+| ZIP | Modes | Tokens | Content |
 |---|---|---|---|
-| `Colors.zip` | Light, Dark | 63 | Acentos, rellenos, etiquetas, grises, misceláneos |
-| `Kit.zip` | Mode 1 | 18 | Rellenos/bordes de componente + **material Liquid Glass** |
-| `Sizes.zip` | Mini→XL | 65 | **Métricas de todos los controles** |
+| `Colors.zip` | Light, Dark | 63 | Accents, fills, labels, grays, misc |
+| `Kit.zip` | Mode 1 | 18 | Component fills/borders + **Liquid Glass material** |
+| `Sizes.zip` | Mini→XL | 65 | **Metrics of all controls** |
 
-Estas tres son el núcleo del tema, y entre las tres cubren **color completo en claro y
-oscuro** y **métricas de control**. Es justo lo que faltaba en el brief.
+These three are the core of the theme, and among the three they cover **full color in light and
+dark** and **control metrics**. That is exactly what was missing from the brief.
 
 ---
 
-## 3. El material Liquid Glass, como números
+## 3. The Liquid Glass material, as numbers
 
-`Kit.zip` trae el material del brief parametrizado:
+`Kit.zip` brings the brief's material parameterized:
 
 ```
 [kit.liquid_glass]
@@ -75,28 +75,28 @@ splay_regular           = 20
 splay_medium_and_large  = 20
 ```
 
-Esto **corrige el brief**. El brief describía el material con tres conceptos («difusión,
-borde oscurecido, reflejos especulares»). El kit declara **siete parámetros**, y dos de
-ellos no aparecen en el brief en absoluto:
+This **corrects the brief**. The brief described the material with three concepts ("diffusion,
+darkened border, specular reflections"). The kit declares **seven parameters**, and two of
+them do not appear in the brief at all:
 
-- **`refraction` (70)** — el material *desvía* lo que hay detrás, no solo lo difumina. Es
-  la diferencia entre cristal esmerilado y vidrio.
-- **`dispersion` (20)** — separación cromática en los bordes. Es lo que da sensación de
-  grosor físico y lo que impide que el Liquid Glass parezca un blur corriente.
-- **`frost` con dos valores** (6 en Regular, 16 en Medium/Large) y `splay` aparte: el
-  material **no es el mismo en todos los tamaños de control**. Son dos ejes de difusión
-  distintos, no un único «deslizador de translucidez» como decía el brief.
+- **`refraction` (70)** — the material *bends* what is behind it, it does not merely blur it. It is
+  the difference between frosted glass and glass.
+- **`dispersion` (20)** — chromatic separation at the edges. It is what gives a sense of
+  physical thickness and what keeps Liquid Glass from looking like an ordinary blur.
+- **`frost` with two values** (6 in Regular, 16 in Medium/Large) and `splay` separately: the
+  material **is not the same at all control sizes**. They are two different diffusion axes,
+  not a single "translucency slider" as the brief said.
 
-**Consecuencia de arquitectura:** el efecto KWin necesitará el **tamaño del control** para
-elegir parámetros. No es un valor único. El modelo del brief es más pobre que el real;
-ahora hay números, y un shader con siete parámetros sigue siendo un shader.
+**Architecture consequence:** the KWin effect will need the **control size** to
+choose parameters. It is not a single value. The brief's model is poorer than the real one;
+now there are numbers, and a shader with seven parameters is still a shader.
 
 ---
 
-## 4. Las métricas de control (Sizes)
+## 4. The control metrics (Sizes)
 
-Resuelve el agujero de forma del brief, y confirma la corrección que señalé: **no hay un
-radio único, escala con el tamaño del control**.
+It solves the brief's shape hole, and confirms the correction I pointed out: **there is no single
+radius, it scales with the control size**.
 
 ```
 [global]     font_size = 13 (Mini 11) · height = 24
@@ -106,84 +106,84 @@ radio único, escala con el tamaño del control**.
 [checkbox]   radius = Mini 3.5 · Small 4.5 · Medium 5.5 · Large 6.5
 [radio]      width  = Mini 12 · Small 14 · Medium 16 · Large 18
 [toggle]     track_width = Mini 36 · Small 44 · Medium 54 · Large 64 · XL 80
-             knob_width  = 32 (Medium), 50 al pulsar
+             knob_width  = 32 (Medium), 50 when pressed
 [segmented]  margins 10 · separator_height 14
 [fields]     inset 8 · font_size 13
 [menu]       height 24 · font_size 13
-[slider]     knob 20×16 (25×20 al pulsar) · track_inset 1
+[slider]     knob 20×16 (25×20 when pressed) · track_inset 1
 [stepper]    width 20 · radius 6
 ```
 
-**`Button/Radius = 1000` en Large y XL** es la forma que tiene Figma de decir «píldora»
-(radio = altura/2). El botón de macOS **cambia de rectangular redondeado a píldora según
-el tamaño**: un `tokens.toml` con un solo radio de botón sería incorrecto.
+**`Button/Radius = 1000` in Large and XL** is Figma's way of saying "pill"
+(radius = height/2). The macOS button **changes from rounded rectangle to pill depending on
+the size**: a `tokens.toml` with a single button radius would be incorrect.
 
-**Y verifican los valores provisionales** de [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md) §4:
-`Global/Radius` Medium = **6**, exactamente lo citado desde la especificación de la
-comunidad. La cadena queda confirmada de punta a punta.
+**And they verify the provisional values** of [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md) §4:
+`Global/Radius` Medium = **6**, exactly what was cited from the community
+specification. The chain is confirmed end to end.
 
-Los alias (`Button/Radius = {Global.Radius}`) están **resueltos** en el TOML, anotando el
-destino original en la línea anterior para poder auditar la cadena.
+The aliases (`Button/Radius = {Global.Radius}`) are **resolved** in the TOML, noting the
+original target on the previous line so the chain can be audited.
 
 ---
 
-## 5. Lo recibido que NO es aplicable, y por qué
+## 5. What was received that is NOT applicable, and why
 
-| ZIP | Sistema | Motivo |
+| ZIP | System | Reason |
 |---|---|---|
-| `M3.zip` | Material 3 | El sistema de Google completo (196 tokens, 6 variantes de contraste) |
-| `Typescale.zip` | Material 3 | Escala Display/Headline/Title/Label/Body |
-| `Typography Primitives.zip` | Material 3 | Pesos 100-900, familias `Inter`/`Roboto Mono` |
+| `M3.zip` | Material 3 | The complete Google system (196 tokens, 6 contrast variants) |
+| `Typescale.zip` | Material 3 | Display/Headline/Title/Label/Body scale |
+| `Typography Primitives.zip` | Material 3 | Weights 100-900, `Inter`/`Roboto Mono` families |
 | `Shape.zip` | Material 3 | `Corner/None 0 · XS 4 · S 8 · M 12 · L 16 · XL 28 · Full 1000` |
 | `Color.zip` | Salesforce (SDS) | `Utilities/Scrim`, `Blanket`, `Border` |
-| `Color Primitives.zip` | Escala genérica | Paleta 100-1000 |
-| `Dimensions.zip` | **Apple iOS** | Radios de hoja, barra de estado, indicador de inicio |
-| `Dynamic Type.zip` | **Apple iOS** | El `Body` de iOS es 17 pt; el de macOS es **13 pt** |
-| `Text Leading.zip` | **Apple iOS** | Interlineados de iOS |
-| `Font theme.zip` | genérico | Fuente `Roboto` |
-| `Typography.zip` | genérico | Referencias a la escala de Material 3 |
-| `Context.zip`, `Icons.zip` | — | Solo el nombre del contexto, sin valores |
+| `Color Primitives.zip` | Generic scale | 100-1000 palette |
+| `Dimensions.zip` | **Apple iOS** | Sheet radii, status bar, home indicator |
+| `Dynamic Type.zip` | **Apple iOS** | iOS's `Body` is 17 pt; macOS's is **13 pt** |
+| `Text Leading.zip` | **Apple iOS** | iOS line heights |
+| `Font theme.zip` | generic | `Roboto` font |
+| `Typography.zip` | generic | References to the Material 3 scale |
+| `Context.zip`, `Icons.zip` | — | Only the context name, without values |
 
-**El error que esto evita:** `Dynamic Type` trae una escala tipográfica atractiva y
-completa (12 tamaños, con variantes de accesibilidad). Aplicarla al escritorio sería el
-fallo más fácil de cometer de todo el proyecto, porque *parece* exactamente lo que falta.
-Pero es la escala de **iOS**: en macOS el texto de control es de **13 pt**, no de 17.
+**The error this avoids:** `Dynamic Type` brings an attractive and complete type scale
+(12 sizes, with accessibility variants). Applying it to the desktop would be the
+easiest mistake to make in the whole project, because it *looks* exactly like what is missing.
+But it is the **iOS** scale: in macOS the control text is **13 pt**, not 17.
 
-**Lo único aprovechable de `Text Leading`:** la *relación* interlineado/tamaño. En
+**The only usable thing in `Text Leading`:** the *ratio* line height/size. In
 `Large (Default)`: Body 17/22 = **1.29**, Footnote 13/18 = 1.38, Caption 1 12/16 = 1.33.
-Eso permite parametrizar el token `interlineado_escala` que propuse en
-[INSTALLATION.md](INSTALLATION.md) §9 — ahora con una proporción medida, no inventada.
+That makes it possible to parameterize the `interlineado_escala` token I proposed in
+[INSTALLATION.md](INSTALLATION.md) §9 — now with a measured proportion, not an invented one.
 
 ---
 
-## 6. Qué falta todavía
+## 6. What is still missing
 
-| Falta | Por qué | Cómo se obtiene |
+| Missing | Why | How it is obtained |
 |---|---|---|
-| ~~**Escala tipográfica de macOS**~~ | **RESUELTO por otra vía**: las HIG oficiales la publican completa | [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) |
-| **Tamaño de fuente por control** | **RESUELTO** igual: los 11 estilos de macOS incluyen el tracking | Igual que el anterior |
-| **Radios de ventana, hoja y popover de macOS** | `Dimensions` es iOS; `Shape` es Material 3 | El `.fig`, en las propiedades de los nodos |
-| **Geometría del squircle de icono** | No es una variable, es un trazado | El `.fig`, o el App Icon Template oficial |
-| **Efectos: sombras y bordes capilares** | Son propiedades de nodo | El `.fig` |
-| **Espaciados de layout** | Principalmente en nodos | El `.fig` |
+| ~~**macOS type scale**~~ | **RESOLVED by another route**: the official HIG publishes it in full | [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) |
+| **Font size per control** | **RESOLVED** the same way: the 11 macOS styles include tracking | Same as the previous one |
+| **macOS window, sheet and popover radii** | `Dimensions` is iOS; `Shape` is Material 3 | The `.fig`, in the node properties |
+| **Icon squircle geometry** | It is not a variable, it is a path | The `.fig`, or the official App Icon Template |
+| **Effects: shadows and hairline borders** | They are node properties | The `.fig` |
+| **Layout spacings** | Mainly in nodes | The `.fig` |
 
-Ninguno de los exports resuelve la tipografía de macOS — pero **ya no hace falta que lo
-haga**: las Human Interface Guidelines oficiales publican la tabla completa de «macOS
-built-in text styles», con tamaños, interlineados, pesos y tracking. Está extraída en
-[`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml), y confirma
-el `Sizes/Global/Font Size = 13` del export. **Hace falta el `.fig` completo** (`File → Save local copy`, solo en la app de
-escritorio). El decodificador ya está escrito y validado para eso:
+None of the exports resolves the macOS typography — but **it no longer needs to**:
+the official Human Interface Guidelines publish the full table of "macOS
+built-in text styles", with sizes, line heights, weights and tracking. It is extracted in
+[`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml), and it confirms
+the `Sizes/Global/Font Size = 13` of the export. **The full `.fig` is needed** (`File → Save local copy`, only in the desktop
+app). The decoder is already written and validated for that:
 [tools/figma/README.md](tools/figma/README.md).
 
 ---
 
-## 7. Reproducir
+## 7. Reproduce
 
 ```bash
 cd tools/figma
 npm install
-# todo, clasificado por procedencia
+# everything, classified by provenance
 python3 tokens-from-figma.py ../../tokens ../../figma-export/*.zip
-# solo lo aplicable a macOS
+# only what is applicable to macOS
 python3 tokens-from-figma.py ../../tokens --solo-macos ../../figma-export/*.zip
 ```
