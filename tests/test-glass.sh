@@ -361,3 +361,15 @@ for frase in "capture: ok=" "refused=" "cannot allocate" "not valid" "failed to 
              "blit was refused" "frame=" "barHeight=" "reconfigure:"; do
   afirmar_codigo "the journal still carries '$frase'" "$FUENTE" "$frase"
 done
+
+echo "  -- one identifier: the plugin id is the file's name --"
+# KWin derives the effect id from the .so's FILE NAME. CMakeLists says so in a comment that
+# exists because a `lib` prefix once broke exactly this. So the output name, the file
+# install.sh copies and the ID it verifies have to be the same word: any disagreement means
+# the effect silently never loads, which is indistinguishable from "the effect does nothing".
+id_cmake=$(grep -oE 'OUTPUT_NAME "[A-Za-z0-9_]+"' "$EF/CMakeLists.txt" | sed 's/OUTPUT_NAME "//; s/"$//' | head -1)
+id_install=$(sed -n 's/^ID=\(.*\)$/\1/p' "$EF/install.sh" | head -1)
+id_copia=$(sed -n 's#^SO="\$AQUI/build/plugins/kwin/effects/\(.*\)\.so"$#\1#p' "$EF/install.sh" | head -1)
+[ -n "$id_cmake" ] || fallo "no OUTPUT_NAME found in CMakeLists.txt; the extraction broke"
+afirmar_igual "the CMake output name and install.sh's ID agree" "$id_cmake" "$id_install"
+afirmar_igual "and the file install.sh copies is that same name" "$id_cmake" "$id_copia"
