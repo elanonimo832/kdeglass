@@ -1,112 +1,112 @@
-# Análisis · capa de escritorio «estilo macOS» para Linux
+# Analysis · "macOS-style" desktop layer for Linux
 
-Carpeta de análisis del brief [`PROYECTO-KDE-MACOS.md`](PROYECTO-KDE-MACOS.md): un
-escritorio Linux con el aspecto de macOS **nativo** (QStyle + efecto KWin + tokens), no
-un tema.
+Analysis folder for the brief [`BRIEF-ORIGINAL.md`](BRIEF-ORIGINAL.md): a
+Linux desktop with the look of **native** macOS (QStyle + KWin effect + tokens), not
+a theme.
 
-## Contenido
+## Contents
 
-| Fichero | Qué es |
+| File | What it is |
 |---|---|
-| [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) | **Cómo está estructurado el proyecto** y por qué |
-| [`docs/METODOLOGIA.md`](docs/METODOLOGIA.md) | **Cómo trabajamos**: las cinco reglas, cada una salida de un fallo real |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | **Qué falta**, por hitos, con criterio de «hecho» |
-| [`PROYECTO-KDE-MACOS.md`](PROYECTO-KDE-MACOS.md) | El brief original, tal cual (3551 bytes, `sha256:1f95c523…`). Sin modificar |
-| [`ANALISIS.md`](ANALISIS.md) | El análisis: veredicto, correcciones técnicas, omisiones y plan reordenado |
-| [`INSTALACION.md`](INSTALACION.md) | Cómo se instala y cómo se aplica: repo, destinos reales, etapas de despliegue y reversión |
-| [`REFERENCIAS-DISENO.md`](REFERENCIAS-DISENO.md) | De dónde salen los números: kit oficial de Apple, valores provisionales y cómo medir capturas |
-| [`INVENTARIO-FIGMA.md`](INVENTARIO-FIGMA.md) | Qué traen los exports de Figma, qué se extrajo y qué falta |
-| [`HUELLAS-FALTANTES.md`](HUELLAS-FALTANTES.md) | Qué datos faltan, por qué no están en Figma y cómo conseguirlos |
-| [`fuentes/`](fuentes/) | Respuestas crudas de las fuentes oficiales (HIG de Apple) que respaldan los tokens |
-| [`tokens/`](tokens/) | Tokens de macOS extraídos, por eje |
-| [`tokens.toml`](tokens.toml) | **El sistema de diseño consolidado** (5 ejes) |
-| [`SALIDA.md`](SALIDA.md) | **Entrega del paso 2**: qué se genera, cómo se instala y qué se verificó |
-| [`VERIFICACION-PANTALLA.md`](VERIFICACION-PANTALLA.md) | Medición de la captura real: lo aplicado coincide con lo generado |
-| [`INCIDENTE.md`](INCIDENTE.md) | **Incidente de pantalla negra**: qué lo causó y cómo recuperarse |
-| [`RECUPERAR-KDE.sh`](RECUPERAR-KDE.sh) | Script de recuperación, idempotente y reversible |
-| `salida/` | Esquemas de color de KDE y CSS de GTK, generados |
-| `instalar.sh` | Instalador idempotente y reversible (no escribe nada sin `--si`) |
-| `instalar-decoracion.sh` | Instalador de la decoración de ventana ajustada |
-| [`ANEXO-VERIFICACION.md`](ANEXO-VERIFICACION.md) | Qué supuesto del brief se comprobó, con qué evidencia y con qué confianza |
-| `README.md` | Este índice |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | **How the project is structured** and why |
+| [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) | **How we work**: the five rules, each one born from a real failure |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | **What is missing**, by milestone, with a "done" criterion |
+| [`BRIEF-ORIGINAL.md`](BRIEF-ORIGINAL.md) | The original brief, as is (3551 bytes, `sha256:1f95c523…`). Unmodified |
+| [`ANALYSIS.md`](ANALYSIS.md) | The analysis: verdict, technical corrections, omissions and reordered plan |
+| [`INSTALLATION.md`](INSTALLATION.md) | How it is installed and how it is applied: repo, real destinations, deployment stages and rollback |
+| [`DESIGN-REFERENCES.md`](DESIGN-REFERENCES.md) | Where the numbers come from: Apple's official kit, provisional values and how to measure screenshots |
+| [`FIGMA-INVENTORY.md`](FIGMA-INVENTORY.md) | What the Figma exports contain, what was extracted and what is missing |
+| [`MISSING-TRACES.md`](MISSING-TRACES.md) | What data is missing, why it is not in Figma and how to get it |
+| [`fuentes/`](fuentes/) | Raw answers from the official sources (Apple HIG) that back the tokens |
+| [`tokens/`](tokens/) | Extracted macOS tokens, by axis |
+| [`tokens.toml`](tokens.toml) | **The consolidated design system** (5 axes) |
+| [`DELIVERY.md`](DELIVERY.md) | **Step 2 delivery**: what is generated, how it is installed and what was verified |
+| [`SCREEN-VERIFICATION.md`](SCREEN-VERIFICATION.md) | Measurement of the real screenshot: what was applied matches what was generated |
+| [`INCIDENT.md`](INCIDENT.md) | **Black-screen incident**: what caused it and how to recover |
+| [`RECOVER-KDE.sh`](RECOVER-KDE.sh) | Recovery script, idempotent and reversible |
+| `output/` | Generated KDE color schemes and GTK CSS |
+| `install.sh` | Idempotent and reversible installer (writes nothing without `--si`) |
+| `install-decoration.sh` | Installer for the adjusted window decoration |
+| [`VERIFICATION-ANNEX.md`](VERIFICATION-ANNEX.md) | Which assumption in the brief was checked, with what evidence and with what confidence |
+| `README.md` | This index |
 
-## Resumen del análisis
+## Analysis summary
 
-**El plan es sólido.** Acierta en el diagnóstico (un tema repinta, no re-arquitectura),
-descarta las soluciones equivocadas (temas, `LD_PRELOAD`, fork de Plasma) y el
-entregable portable del paso 2 tiene valor por sí solo aunque el QStyle nunca se
-termine.
+**The plan is solid.** It gets the diagnosis right (a theme repaints, it does not
+re-architect), it rules out the wrong solutions (themes, `LD_PRELOAD`, a fork of Plasma) and the
+portable deliverable from step 2 has value on its own even if the QStyle is never
+finished.
 
-**Cuatro supuestos operativos a corregir antes de escribir código:**
+**Four operational assumptions to correct before writing code:**
 
-1. **El QStyle no se genera desde tokens.** Se generan colores, CSS, assets y el
-   `Tokens.h`; el QStyle en C++ se escribe. Hay que separar generador e implementación.
-2. **El QStyle no se activa solo.** El requisito era real, pero al verificar el sistema se
-   resolvió **a mejor**: Plasma 6 selecciona el estilo con **una clave en `kdeglobals`**
-   (`[KDE] widgetStyle`), y este equipo ya lo demuestra con Kvantum activo. No hace
-   falta forzar el estilo por proceso. Ver [`INSTALACION.md`](INSTALACION.md) §1.
-3. **`libdecor` no es la vía para GTK4.** Es una biblioteca del cliente, y GTK4 no la usa.
-   El porcentaje irreducible de GTK4 es mayor del 10 % estimado.
-4. **Redondear esquinas ≠ recortarlas.** Redondear es viable y está respaldado por
-   precedentes (LightlyShaders); recortar elimina contenido dibujado en las esquinas.
+1. **The QStyle is not generated from tokens.** Colors, CSS, assets and
+   `Tokens.h` are generated; the C++ QStyle is written. Generator and implementation must be separated.
+2. **The QStyle does not activate on its own.** The requirement was real, but when verifying the system it
+   was resolved **for the better**: Plasma 6 selects the style with **one key in `kdeglobals`**
+   (`[KDE] widgetStyle`), and this machine already proves it with Kvantum active. There is no
+   need to force the style per process. See [`INSTALLATION.md`](INSTALLATION.md) §1.
+3. **`libdecor` is not the way for GTK4.** It is a client library, and GTK4 does not use it.
+   The irreducible percentage of GTK4 is higher than the estimated 10 %.
+4. **Rounding corners ≠ clipping them.** Rounding is viable and is backed by
+   precedents (LightlyShaders); clipping removes content drawn in the corners.
 
-**Dos omisiones que pesan más que cualquier decisión técnica:**
+**Two omissions that weigh more than any technical decision:**
 
-- **La tipografía.** El brief dedica todo el detalle al material y ninguno a la fuente,
-  y sin métricas tipográficas equivalentes el resultado no parecerá macOS.
-- **La medición.** No hay definición de «terminado» ni pruebas de regresión visual, que
-  en un proyecto puramente estético son el único test con sentido.
+- **Typography.** The brief devotes all its detail to the material and none to the font,
+  and without equivalent typographic metrics the result will not look like macOS.
+- **Measurement.** There is no definition of "done" nor visual regression tests, which
+  in a purely aesthetic project are the only test that makes sense.
 
-**Cambios de orden propuestos:** un paso 0 de infraestructura y medición, el efecto KWin
-de esquinas movido del paso 5 al 3 (es el mayor impacto visual por línea de código), y el
-HDR explícitamente a v3.
+**Proposed reordering:** a step 0 of infrastructure and measurement, the KWin
+corner effect moved from step 5 to 3 (it is the biggest visual impact per line of code), and
+HDR explicitly to v3.
 
-> Detalle completo y tabla de las 12 acciones sobre el brief: [`ANALISIS.md`](ANALISIS.md).
+> Full detail and table of the 12 actions on the brief: [`ANALYSIS.md`](ANALYSIS.md).
 
 ---
 
-## Cómo verificar que todo sigue bien
+## How to verify that everything is still fine
 
 ```bash
-pruebas/ejecutar.sh            # 68 comprobaciones (~30 s)
-pruebas/ejecutar.sh efecto     # solo un área: artefactos|efecto|scripts|documentacion
+tests/run.sh            # 68 checks (~30 s)
+tests/run.sh efecto     # only one area: artefactos|efecto|scripts|documentacion
 ```
 
-El arnés vigila los invariantes que han costado más caro, no el formato:
+The harness watches the invariants that have cost the most, not the formatting:
 
-- los **tokens** son TOML válido y regenerar un esquema da un fichero **idéntico**
-- el **efecto** llama a `effects->paintWindow()` (sin eso, pantalla negra)
-- la ruta del plugin es `kwin/effects/plugins` (**un nivel** de diferencia, 2 horas)
-- el id es `macosglass2`, **no** `macosglass` (con ese id el render se rompía)
-- ningún script **ejecuta** `kwin_wayland --replace` (deja la pantalla negra)
+- the **tokens** are valid TOML and regenerating a scheme yields an **identical** file
+- the **effect** calls `effects->paintWindow()` (without that, black screen)
+- the plugin path is `kwin/effects/plugins` (**one level** of difference, 2 hours)
+- the id is `macosglass2`, **not** `macosglass` (with that id the render broke)
+- no script **runs** `kwin_wayland --replace` (it leaves the screen black)
 
-> Las aserciones sobre código **ignoran los comentarios**, y ninguna prueba se da por
-> buena hasta comprobar que **falla** al romper el código. Ambas reglas salieron de
-> errores reales: una prueba que pasaba por un comentario, y otra que no detectaba
-> la rotura.
+> Assertions about code **ignore comments**, and no test is taken as
+> good until it is checked that it **fails** when the code is broken. Both rules came from
+> real errors: a test that passed because of a comment, and another that did not detect
+> the breakage.
 
 ---
 
-## Credenciales: este repositorio no guarda ninguna
+## Credentials: this repository stores none
 
-**Nunca metas un token, contraseña o clave en el repositorio.** `.env`, `.pem`, `.key`
-y similares están en `.gitignore`, pero eso es una red, no una garantía: **un secreto
-que entra en el historial de git es permanente** aunque se borre después, y GitHub
-revoca los que detecta filtrados —publicándolos en el proceso—.
+**Never put a token, password or key in the repository.** `.env`, `.pem`, `.key`
+and similar files are in `.gitignore`, but that is a net, not a guarantee: **a secret
+that enters the git history is permanent** even if it is deleted later, and GitHub
+revokes the ones it detects as leaked —publishing them in the process—.
 
-Para subir el proyecto, el token se queda en tu máquina:
+To upload the project, the token stays on your machine:
 
 ```bash
-# Opción A: GitHub CLI (hace el login una vez, guarda el token en el llavero)
+# Option A: GitHub CLI (logs in once, stores the token in the keyring)
 sudo pacman -S --needed github-cli
 gh auth login
 gh repo create <nombre> --public --source=. --push
 
-# Opción B: git con credential helper
+# Option B: git with credential helper
 git config --global credential.helper libsecret
 git remote add origin https://github.com/<usuario>/<repo>.git
 git push -u origin master
 ```
 
-Si algún día se filtra uno: **revócalo primero** en GitHub y después limpia el
-historial. Revocar es lo urgente; el historial puede esperar.
+If one is ever leaked: **revoke it first** on GitHub and then clean the
+history. Revoking is the urgent part; the history can wait.

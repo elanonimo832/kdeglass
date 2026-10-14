@@ -5,7 +5,7 @@
 # No son variables, por eso no salian en la exportacion de Variables de Figma.
 #
 # Fuente: macOS 27 (Community).fig, version de esquema 106, 19011 nodos.
-# Herramienta: herramientas/figma/extraer-fig.py
+# Herramienta: tools/figma/extraer-fig.py
 #
 # AVISO: los radios 100 y 1000 del kit son PROPORCIONES de Figma (circulo y
 # pildora), no puntos. Estan en [radio_proporcional].

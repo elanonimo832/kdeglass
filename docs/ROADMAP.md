@@ -1,126 +1,126 @@
 # Roadmap
 
-## El orden de trabajo del encargo original
+## The working order of the original brief
 
 ```
-1. Recoger los tokens de Golden Gate en un fichero   <- el primer paso
-2. La capa declarativa portable                       <- 1 dia, valor inmediato
-3. El generador: tokens -> QStyle + CSS GTK + KWin    <- 1-2 semanas
-4. El QStyle completo                                 <- 1-3 meses
-5. Efecto KWin (material + recorte de esquinas)       <- encima del 4
+1. Collect the Golden Gate tokens into a file         <- the first step
+2. The portable declarative layer                     <- 1 day, immediate value
+3. The generator: tokens -> QStyle + GTK CSS + KWin   <- 1-2 weeks
+4. The complete QStyle                                <- 1-3 months
+5. KWin effect (material + corner clipping)           <- on top of 4
 ```
 
-## Dónde estamos
+## Where we are
 
-| Paso del encargo | Estado |
+| Brief step | Status |
 |---|---|
-| 1. Tokens | ✅ **hecho** — 859 tokens, con procedencia |
-| 2. Capa declarativa portable | 🟡 **casi** — color, GTK y decoración; falta el tema global de Plasma |
-| 3. Generador | ✅ **hecho** — reproducible byte a byte |
-| 4. QStyle | ⬜ **no empezado** |
-| 5. Efecto KWin | 🟡 **a medias** — carga y se engancha; **falta el shader** |
+| 1. Tokens | ✅ **done** — 859 tokens, with provenance |
+| 2. Portable declarative layer | 🟡 **almost** — color, GTK and decoration; the Plasma global theme is missing |
+| 3. Generator | ✅ **done** — reproducible byte for byte |
+| 4. QStyle | ⬜ **not started** |
+| 5. KWin effect | 🟡 **halfway** — it loads and hooks in; **the shader is missing** |
 
-## Hitos
+## Milestones
 
-Cada hito tiene un **criterio de hecho** verificable. Un hito no está hecho porque
-parezca que funciona: está hecho cuando una prueba lo demuestra y **falla** al romperlo.
+Each milestone has a verifiable **done criterion**. A milestone is not done because
+it looks like it works: it is done when a test proves it and **fails** when it is broken.
 
 ---
 
-### M1 — El efecto dibuja el material ⬅ **el siguiente**
+### M1 — The effect draws the material ⬅ **the next one**
 
-El efecto carga y se engancha a la cadena de pintado, pero **no dibuja nada**.
-Es lo único grande que falta del paso 5.
+The effect loads and hooks into the paint chain, but **draws nothing**.
+It is the only big thing missing from step 5.
 
-Se hará en pasos pequeños, cada uno medido con `efecto-kwin/probar-ya-instalado.sh`:
+It will be done in small steps, each one measured with `effect-kwin/test-installed.sh`:
 
-| Sub-paso | Qué dibuja | Criterio |
+| Sub-step | What it draws | Criterion |
 |---|---|---|
-| M1.1 | Un color plano sobre la ventana | el efecto se ve, y `negro=0%` |
-| M1.2 | Difusión del fondo (frost) | el fondo se difumina, medible por contraste |
-| M1.3 | Refracción (70) | el borde desvía; medible con un patrón de rejilla |
-| M1.4 | Dispersión (20) | el borde se separa en canales; medible en el color |
-| M1.5 | Realce especular + borde oscurecido (alfa 20) | coincide con el kit |
+| M1.1 | A flat color over the window | the effect is visible, and `negro=0%` |
+| M1.2 | Background diffusion (frost) | the background blurs, measurable by contrast |
+| M1.3 | Refraction (70) | the edge bends; measurable with a grid pattern |
+| M1.4 | Dispersion (20) | the edge splits into channels; measurable in the color |
+| M1.5 | Specular highlight + darkened edge (alpha 20) | matches the kit |
 
-**Hecho cuando:** los cinco sub-pasos pasan, el arnés sigue en verde, y hay capturas
-en `evidencia/` que lo demuestran.
+**Done when:** the five sub-steps pass, the harness is still green, and there are
+screenshots in `evidence/` that prove it.
 
-**Riesgo:** es la parte más delicada (OpenGL sobre el framebuffer de KWin). Un error
-puede dejar la pantalla negra. Mitigación: `probar-ya-instalado.sh` descarga siempre,
-`verificar-cadena.sh` aborta antes de instalar, y `RECUPERAR-KDE.sh reanimar` recupera
-en caliente.
-
----
-
-### M2 — Recorte de esquinas (squircle)
-
-macOS no usa esquinas redondeadas: usa **squircle** (`cornerSmoothing = 0.6`, medido
-en 2244 nodos del kit). KWin tiene `Effect::setShape` y la API de formas.
-
-**Hecho cuando:** las ventanas se recortan con squircle y no con arco de círculo, con
-la geometría del kit, y hay comparación visual en `evidencia/`.
+**Risk:** this is the most delicate part (OpenGL over KWin's framebuffer). A mistake
+can leave a black screen. Mitigation: `test-installed.sh` always unloads,
+`verify-chain.sh` aborts before installing, and `RECOVER-KDE.sh reanimar` recovers
+on the fly.
 
 ---
 
-### M3 — Tema global de Plasma
+### M2 — Corner clipping (squircle)
 
-Falta la capa declarativa completa: `PlasmaStyle`, `LookAndFeel` y las
-colecciones que enlazan todo para aplicarlo de una vez.
+macOS does not use rounded corners: it uses a **squircle** (`cornerSmoothing = 0.6`,
+measured across 2244 nodes of the kit). KWin has `Effect::setShape` and the shape API.
 
-**Hecho cuando:** existe un paquete de tema global seleccionable en
-*Ajustes → Apariencia global*, y aplicarlo no rompe nada.
-
----
-
-### M4 — Tipografía
-
-Los 80 tokens de tipografía están extraídos (tamaños, pesos, *tracking*), pero
-**no aplicados**. Inter sustituye a SF Pro (SIL OFL: SF Pro no es redistribuible).
-
-**Hecho cuando:** las métricas de texto de KDE usan la escala de macOS y hay
-comparación de texto renderizado en `evidencia/`.
-
-**Nota:** macOS **no tiene Dynamic Type** (verificado en la HIG). La escala es fija.
+**Done when:** windows are clipped with a squircle and not with a circular arc, using
+the kit's geometry, and there is a visual comparison in `evidence/`.
 
 ---
 
-### M5 — Geometría de iconos
+### M3 — Plasma global theme
 
-Faltan los radios de squircle de los iconos de carpeta. Hay valores de iOS en el kit,
-pero los de macOS **no se han podido confirmar**.
+The full declarative layer is missing: `PlasmaStyle`, `LookAndFeel` and the
+collections that link everything together so it can be applied in one go.
 
-**Hecho cuando:** los iconos de carpeta llevan el squircle correcto, o está
-documentado que el valor no es verificable.
-
----
-
-### M6 — QStyle completo
-
-El paso más grande del encargo (1-3 meses). Un QStyle propio en C++ para que las
-aplicaciones Qt nativas se dibujen como macOS, sin depender de Kvantum.
-
-**Hecho cuando:** exista, esté instalado, y sea seleccionable sin romper aplicaciones.
-
-**Nota:** es el único hito que **no** está encima de nada de lo hecho: es trabajo
-independiente y grande. Los hitos M1-M5 dan valor sin él.
+**Done when:** there is a global theme package selectable in
+*System Settings → Global Theme*, and applying it breaks nothing.
 
 ---
 
-## Lo que falta por verificar (riesgos abiertos)
+### M4 — Typography
 
-| Riesgo | Estado |
+The 80 typography tokens are extracted (sizes, weights, *tracking*), but
+**not applied**. Inter replaces SF Pro (SIL OFL: SF Pro is not redistributable).
+
+**Done when:** KDE's text metrics use the macOS scale and there is a comparison of
+rendered text in `evidence/`.
+
+**Note:** macOS **does not have Dynamic Type** (verified in the HIG). The scale is fixed.
+
+---
+
+### M5 — Icon geometry
+
+The squircle radii of the folder icons are missing. There are iOS values in the kit,
+but the macOS ones **could not be confirmed**.
+
+**Done when:** the folder icons carry the correct squircle, or it is documented that
+the value is not verifiable.
+
+---
+
+### M6 — Complete QStyle
+
+The biggest step of the brief (1-3 months). A QStyle of our own in C++ so that native
+Qt applications are drawn like macOS, without depending on Kvantum.
+
+**Done when:** it exists, is installed, and is selectable without breaking applications.
+
+**Note:** it is the only milestone that is **not** on top of anything already done: it
+is independent, large work. Milestones M1-M5 provide value without it.
+
+---
+
+## What remains to be verified (open risks)
+
+| Risk | Status |
 |---|---|
-| El CSS de GTK en una aplicación real | **sin verificar** — es el mayor riesgo abierto de la capa declarativa |
-| El esquema `KdeMacosLight` en uso | solo se ha probado el oscuro |
-| La decoración con ventanas sin foco | los semáforos deben quedar grises (`#48484A`) |
-| Los siete valores numéricos de macOS 27 | **nunca confirmados** independientemente: macOS 27 es pre-release y solo se midió el kit de la comunidad |
+| GTK CSS in a real application | **unverified** — it is the biggest open risk of the declarative layer |
+| The `KdeMacosLight` scheme in use | only the dark one has been tested |
+| The decoration with unfocused windows | the traffic lights must stay gray (`#48484A`) |
+| The seven numeric values of macOS 27 | **never confirmed** independently: macOS 27 is pre-release and only the community kit was measured |
 
-## Estado del sistema (2026-10-14)
+## System status (2026-10-14)
 
-| Pieza | Estado |
+| Piece | Status |
 |---|---|
-| Decoración `KdeMacOS` | ✅ activa — semáforos a la izquierda, 12 px, 8 px de separación |
-| Efecto `macosglass2` | ✅ carga sin romper el render |
-| Esquema de color | `BreezeDark` (se cambia a `KdeMacosDark` desde Ajustes) |
-| Tokens | ✅ 859, con procedencia |
-| Arnés de pruebas | ✅ 68 comprobaciones |
+| `KdeMacOS` decoration | ✅ active — traffic lights on the left, 12 px, 8 px apart |
+| `macosglass2` effect | ✅ loads without breaking rendering |
+| Color scheme | `BreezeDark` (switched to `KdeMacosDark` from Settings) |
+| Tokens | ✅ 859, with provenance |
+| Test harness | ✅ 68 checks |

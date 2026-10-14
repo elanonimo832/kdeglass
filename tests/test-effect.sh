@@ -1,0 +1,70 @@
+# The KWin effect: invariants that MUST NOT break.
+# These are the tests that prevent the black screen from coming back.
+
+EF="$PROY/effect-kwin"
+SOURCE="$EF/src/glass.cpp"
+SO_BUILD="$EF/build/plugins/kwin/effects/macosglass2.so"
+SO_SYSTEM=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+
+echo "  -- the paint chain (cause of the black screen) --"
+afirmar_existe "src/glass.cpp exists" "$SOURCE"
+afirmar_codigo "paintWindow calls effects->paintWindow()" "$SOURCE" "^[[:space:]]*effects->paintWindow\("
+afirmar_contiene "includes glass.moc (required for the plugin)" "$SOURCE" 'include "glass\.moc"'
+
+echo "  -- the compiled plugin --"
+if [ -f "$SO_BUILD" ]; then
+  objdump -d --demangle "$SO_BUILD" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null \
+    && ok "the compiled .so continues the chain" || fallo "the compiled .so does NOT continue the chain"
+  nm -D "$SO_BUILD" 2>/dev/null | grep -q 'qt_plugin_instance' \
+    && ok "the .so exports qt_plugin_instance" || fallo "qt_plugin_instance is missing"
+  strings "$SO_BUILD" 2>/dev/null | grep -q 'KWin/Effect' \
+    && ok "the metadata declares KWin/Effect" || fallo "KPackageStructure KWin/Effect is missing"
+else
+  fallo "the .so is not compiled (run: ./build.sh)"
+fi
+
+echo "  -- the installed plugin --"
+if [ -f "$SO_SYSTEM" ]; then
+  objdump -d --demangle "$SO_SYSTEM" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null \
+    && ok "the installed .so continues the chain" || fallo "the INSTALLED .so does not continue the chain"
+else
+  fallo "macosglass2.so is not installed"
+fi
+
+echo "  -- the right path (kwin/effects/plugins, NOT kwin/effects) --"
+# KWin::PluginEffectLoader looks in kwin/effects/plugins. Installing one level up
+# means KWin never sees it, SILENTLY. This was one of the incident's failures.
+afirmar_contiene "the installer uses the /plugins path" "$EF/install.sh" 'kwin/effects/plugins'
+negar "no .so left in kwin/effects/ (wrong path)" \
+  test -f /usr/lib/qt6/plugins/kwin/effects/macosglass2.so
+
+echo "  -- the identifier --"
+# KWin derives the plugin id from the FILE NAME. If it does not match the kwinrc
+# key, KWin never finds it. And with the id 'macosglass' the render broke.
+afirmar_contiene "the installer installs macosglass2" "$EF/install.sh" 'macosglass2'
+negar "the .so with the id that broke the render is gone" \
+  test -f /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
+
+echo "  -- diagnostic scripts --"
+for s in "$EF/install.sh" "$EF/build.sh" \
+         "$PROY/install.sh" "$PROY/install-decoration.sh" \
+         "$PROY/RECOVER-KDE.sh"; do
+  [ -f "$s" ] && { bash -n "$s" 2>/dev/null && ok "$(basename "$s"): bash syntax OK" || fallo "$(basename "$s"): BAD bash syntax"; }
+done
+
+echo "  -- no script EXECUTES kwin_wayland --replace --"
+# It leaves the screen black: on Wayland it starts a second compositor that fights
+# for the DRM/GL and kills the live KWin's OpenGL context. We only look at COMMAND
+# lines: mentioning it in a comment to warn against it is correct and desirable.
+malos=0
+for s in "$EF"/*.sh "$PROY"/*.sh; do
+  [ -f "$s" ] || continue
+  # Only counts when the command is EXECUTED: at line start or after a shell
+  # separator. Inside an echo (warning against it) it does not count.
+  if grep -vE '^\s*#' "$s" 2>/dev/null \
+       | grep -qE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace'; then
+    malos=$((malos+1)); printf '      -> %s\n' "$(basename "$s")"
+    grep -nE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace' "$s" | sed 's/^/         /'
+  fi
+done
+afirmar_igual "no script executes --replace" "0" "$malos"

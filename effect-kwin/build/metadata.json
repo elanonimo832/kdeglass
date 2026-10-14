@@ -1,0 +1,11 @@
+{
+    "KPackageStructure": "KWin/Effect",
+    "KPlugin": {
+        "Name": "MacOS Glass",
+        "Description": "macOS-style material: darkened border and specular highlights",
+        "Version": "0.1.0",
+        "License": "GPL",
+        "EnabledByDefault": false
+    },
+    "X-KDE-Ordering": "60"
+}
