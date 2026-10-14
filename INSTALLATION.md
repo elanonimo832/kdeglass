@@ -7,6 +7,27 @@ facts verified on this machine (CachyOS, KDE Plasma 6, Wayland), not on assumpti
 - Analysis it derives from: [ANALYSIS.md](ANALYSIS.md) · Evidence: [VERIFICATION-ANNEX.md](VERIFICATION-ANNEX.md)
 - Brief: [BRIEF-ORIGINAL.md](BRIEF-ORIGINAL.md)
 
+
+> ## Status: this document mixes design with what exists
+>
+> It was written as the DESIGN of the installer, and the implementation landed
+> narrower. Rather than delete the plan, here is exactly which is which.
+>
+> | Documented as | Reality |
+> |---|---|
+> | `install.sh preflight` · `plan` · `estado` · `rollback` · `verificar` | **exist** |
+> | `install.sh aplicar --si` | **exists** — this is how changes are applied |
+> | `install.sh instalar` | **does not exist** (it is `aplicar --si`) |
+> | `install.sh desinstalar` | **does not exist** |
+> | `verificar` runs "regression captures" | **false** — it only compares the installed files with the repo |
+> | `tools/generar.py` (PLANNED, not built), `tools/capturar.sh` (PLANNED, not built) | **do not exist**; the real generators are `tools/generate-kde-schemes.py`, `tools/generate-gtk-css.py`, `tools/generate-macos-decoration.py` and `tools/consolidate-tokens.py`. There is no capture script. |
+> | `Tokens.h`, `tokens.json`, `gtk.css`, `kde-macos.css` per theme | **planned, not built** |
+> | `kwinrc` flag `esquinasEnabled` | **not used by any script**; the key in use is `macosglass2Enabled` |
+>
+> Everything else below — the destination paths, what each piece installs, the
+> backup and rollback model, the measured constraints — was verified on the
+> machine and still holds.
+
 ---
 
 ## 1. Main finding: your system already solved the hard problem
@@ -96,8 +117,11 @@ kde-macos/
 │   ├── tokens.toml              <- SINGLE source of truth (radii, material, color, typography)
 │   └── CHANGELOG.md             <- which token changed and when (key: Golden Gate is in beta)
 ├── tools/
-│   ├── generar.py               <- tokens -> color schemes, GTK CSS, Tokens.h, manifests
-│   └── capturar.sh              <- visual regression harness (analysis step 0)
+│   ├── generate-kde-schemes.py  <- tokens -> color schemes
+│   ├── generate-gtk-css.py      <- tokens -> GTK 3 and 4 CSS
+│   ├── generate-macos-decoration.py <- the Aurorae decoration
+│   └── consolidate-tokens.py    <- merges the collections into tokens.toml
+│       (no capture script exists; Tokens.h and manifests are PLANNED)
 ├── style/                       <- the QStyle in C++
 │   ├── CMakeLists.txt
 │   ├── kdemacosstyle.cpp
@@ -163,11 +187,11 @@ A single entry point with subcommands. No having to remember ten scripts.
 ```bash
 ./install.sh preflight     # is the environment as I expect? Does NOT touch anything
 ./install.sh plan          # --dry-run: lists operations and diffs. Does NOT touch anything
-./install.sh instalar      # applies (requires a clean plan)
-./install.sh verificar     # regression captures + functional checks
+./install.sh aplicar --si # applies for real (this is the one that exists)
+./install.sh verificar     # compares the installed files with the repo (no captures)
 ./install.sh estado        # what is installed, version, differences with the repo
 ./install.sh rollback      # restores the last backup (one command)
-./install.sh desinstalar   # reverts EVERYTHING and leaves the system as it was
+# ./install.sh desinstalar  -- PLANNED, NOT IMPLEMENTED
 ```
 
 ### `preflight` — what is validated before touching anything
