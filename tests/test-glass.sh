@@ -306,3 +306,19 @@ PYEOF
   fi
   rm -rf "${CAJA_AL:?}"
 fi
+
+echo "  -- every setting the effect reads is in its documented table --"
+# The README lists the keys and their defaults, and four keys were added in one session.
+# A table that drifts is worse than no table: it is read INSTEAD of the code. Both
+# directions are checked, because both are failures -- a key nobody documented, and a
+# documented key the effect no longer reads.
+claves_fuente=$(grep -oE 'readEntry\("[A-Za-z]+"' "$FUENTE" | sed 's/readEntry("//; s/"$//' | sort -u)
+# The row shape, not just the first cell: the README has another table whose rows also
+# start with a backticked word (`bisect`, `macosglass`), and the looser pattern counted the
+# identifiers as undocumented settings.
+claves_doc=$(grep -oE '^\| `[A-Za-z]+` \|' "$EF/README.md" | sed 's/^| `//; s/` |$//' | sort -u)
+sin_doc=$(comm -23 <(printf '%s\n' "$claves_fuente") <(printf '%s\n' "$claves_doc") | tr '\n' ' ')
+sin_codigo=$(comm -13 <(printf '%s\n' "$claves_fuente") <(printf '%s\n' "$claves_doc") | tr '\n' ' ')
+[ -n "$claves_fuente" ] || fallo "no settings found in glass.cpp; the extraction broke"
+afirmar_igual "every key the effect reads is documented" "" "${sin_doc% }"
+afirmar_igual "every documented key is still read by the effect" "" "${sin_codigo% }"

@@ -695,14 +695,24 @@ tool that produced the evidence had been verified.
   `qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass2`
 - Installation target: `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so`
   (note `plugins/` at the end; installing one level up makes KWin never see it).
-  **The installed file is currently the pre-capture build** (checked with `strings`:
-  the build in `effect-kwin/build/` carries the `capture: ok=` line and the installed
-  one does not), so the next step is `./install.sh` and a relogin, not a measurement.
-  The live test scripts refuse to measure a stale install for exactly this reason.
-- The effect's settings are all at their defaults in `~/.config/kwinrc`: there is no
-  `[Effect-macosglass2]` group, so `FrostRadius=6`, `BackgroundFlipV=false` and
-  `BackgroundRadius=0` (the sharp composite). That is the intended state for the first
-  relogin.
+  **The installed plugin is the 14:31 build, which is one step behind the tree**: it was
+  measured byte-for-byte against `effect-kwin/build/`, whose file is the 14:36 build with
+  the chroma term that stops the traffic lights coming out as bright rings with glass in
+  the middle. Whoever next sees the screen should `./install.sh`, relogin, and expect
+  SOLID buttons. The live test scripts refuse to measure a stale install for exactly this
+  reason; source and build diverge on purpose in the meantime (see the note below).
+- **The settings the user actually runs with** (read from `~/.config/kwinrc`, not assumed):
+  `BackgroundRadius=24`, `CornerRadius=20`, `GlassAlpha=0.4`, and nothing else. That is a
+  clear taste: a wider frost, rounder corners and LESS of the bar's own tone than the
+  defaults (16 / 16 / 0.55). They were tuned against the build whose frost SAMPLED the
+  backdrop; the reduced capture averages it, so the same numbers may read differently --
+  re-tune by eye before baking any of them as the default.
+- **The source is ahead of the built `.so` on purpose.** Vibrancy, the consistency pass and
+  this note are committed and validated OFFLINE (the shader validator reads the source, not
+  the binary), while a rebuild would have made the live tests abort mid-verification. The
+  next `./build.sh` folds them in, and then the freshness guard asks for a fresh install,
+  which is correct: the numbers a relogin has to produce are vibrancy's default (off) and
+  the same look, plus whatever the step-3d measurement says.
 - No Apple material in version control. SF Pro is not redistributable; the project
   uses Inter (SIL OFL). The original brief stays in Spanish as `BRIEF-ORIGINAL.md`,
   sha256 `1f95c5239a3af3ef99614ff1104363a6e2c7799b4e1929d5eeba1053497bf5e1`.
