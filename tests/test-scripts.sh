@@ -144,9 +144,13 @@ echo "  -- capture-pair.sh parses the geometry Qt actually streams --"
 # `frame= KWin::RectF(1226,476 1387x1138)`. This is the exact line from the user's journal:
 LINEA='[macos-glass] title bar band: "Unsaved* — Spectacle" frame= KWin::RectF(1226,476 1387x1138) client= KWin::RectF(1230,514 1379x1096) expanded= KWin::RectF(1212,474 1415x1142) shadowMargin= QPointF(14,2) barHeight= 38'
 leido=$("$EF/capture-pair.sh" --geometry "$LINEA" 2>/dev/null)
-afirmar_igual "it reads x, y, width, height and barHeight" "1226,476 1387x1138 38" "$leido"
+afirmar_igual "it reads x, y, width, height and barHeight" "1226 476 1387 1138 38" "$leido"
 # A window dragged partly off screen has negative coordinates, and an off-by-one there would crop
 # the wrong strip:
 LINEA2='[macos-glass] title bar band: "x" frame= KWin::RectF(-120,40 800x600) barHeight= 34'
-afirmar_igual "and negative coordinates survive" "-120,40 800x600 34" \
+afirmar_igual "and negative coordinates survive" "-120 40 800 600 34" \
   "$("$EF/capture-pair.sh" --geometry "$LINEA2" 2>/dev/null)"
+# Five FIELDS, because the caller does `set -- $leidos`: a value that merely looks right is the
+# exact way this broke once already.
+afirmar_igual "the parse yields five fields for set --" "5" \
+  "$("$EF/capture-pair.sh" --geometry "$LINEA" 2>/dev/null | wc -w)"

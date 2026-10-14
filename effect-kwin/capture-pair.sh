@@ -30,7 +30,17 @@ leer_geometria() { # leer_geometria "<journal line>" -> "x y w h bar" or nothing
     [ -n "$trozo" ] || return 1
     local bar
     bar=$(printf '%s' "$linea" | grep -oE 'barHeight= *[0-9]+' | grep -oE '[0-9]+' | head -1)
-    printf '%s %s\n' "$trozo" "$bar"
+    # FIVE NUMBERS OUT, not the raw "x,y wxh". The first version of this printed the rectangle as
+    # Qt writes it, which LOOKS right and is not usable: the caller does `set -- $leidos` and got
+    # "1226,476" for x and nothing at all for the height, so the run died with "could not read x,
+    # y, width, height and barHeight" while the --geometry test passed. The test checked the
+    # intermediate value; the path that consumed it was what broke.
+    local xy wh
+    xy=$(printf '%s' "$trozo" | cut -d' ' -f1)
+    wh=$(printf '%s' "$trozo" | cut -d' ' -f2)
+    printf '%s %s %s %s %s\n' \
+        "$(printf '%s' "$xy" | cut -d, -f1)" "$(printf '%s' "$xy" | cut -d, -f2)" \
+        "$(printf '%s' "$wh" | cut -dx -f1)" "$(printf '%s' "$wh" | cut -dx -f2)" "$bar"
 }
 
 # TEST MODE FIRST, before the trap is armed: this path must not touch the effect at all, and
@@ -80,6 +90,7 @@ set -- $leidos
 X=${1:-}; Y=${2:-}; ANCHO=${3:-}; ALTO=${4:-}
 if [ -z "${X:-}" ] || [ -z "${Y:-}" ] || [ -z "${ANCHO:-}" ] || [ -z "${ALTO:-}" ] || [ -z "${bar:-}" ]; then
     echo "could not read x, y, width, height and barHeight out of that line"
+    echo "  (parsed: x='${X:-}' y='${Y:-}' width='${ANCHO:-}' height='${ALTO:-}' bar='${bar:-}')"
     exit 2
 fi
 echo "  -> crop x=$X y=$Y w=$ANCHO title bar=${bar}px"
