@@ -37,7 +37,7 @@ import os
 import sys
 
 # --------------------------------------------------------------------------
-# Measured values from the macOS 27 kit (tokens-forma-efectos.toml and the .fig)
+# Measured values from the macOS 27 kit (tokens-shape-effects.toml and the .fig)
 # --------------------------------------------------------------------------
 ESCALA = 4.0            # the sprite is drawn at 4x and KWin shrinks it: no dirty edges
 DIAMETRO = 12.0         # px: traffic light size measured in the kit
@@ -167,7 +167,7 @@ def svg_marco(alto_titulo: float, radio: float) -> str:
 '''
 
 
-# The measurements. The bar height comes from tokens-forma-efectos.toml: window 28.
+# The measurements. The bar height comes from tokens-shape-effects.toml: window 28.
 ALTO_TITULO = 28.0
 RADIO_VENTANA = 12.0     # measured window radius, different from the control one
 

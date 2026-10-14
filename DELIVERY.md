@@ -478,7 +478,7 @@ it loads `macosglass` again (it happened at 23:10:07).
 ### Verification
 
 Screenshots 23:10:58 and 23:12:20, with the panel clock advancing 11:06 -> 11:12 PM:
-`evidence/2026-10-13-2314-pantalla-recuperada.png`. Desktop alive.
+`evidence/2026-10-13-2314-screen-recovered.png`. Desktop alive.
 
 ### Status and protection
 
@@ -511,9 +511,9 @@ render before that path); on the incident boot it did reach `paintWindow`. And t
 error `no context is current` reappeared only 1 time (tied to the effect cycle), not in
 a wave. The conclusive test was the **image**, not the journal.
 
-Evidence: `evidence/2026-10-13-2324-prueba-control-escritorio.png`,
+Evidence: `evidence/2026-10-13-2324-test-control-desktop.png`,
 `evidence/2026-10-13-2324-test-effect-loaded-black.png`,
-`evidence/2026-10-13-2324-prueba-tras-descargar.png`.
+`evidence/2026-10-13-2324-test-after-unload.png`.
 Detail and commands: [INCIDENT.md](INCIDENT.md) §"Decisive test — EXECUTED".
 
 ---

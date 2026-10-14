@@ -76,3 +76,38 @@ if [ -f "$SO" ]; then
 else
   ok "(plugin not installed; size claims not checked)"
 fi
+
+echo "  -- no tracked file may have a Spanish name --"
+# The whole repository is in English: file names, directories, documentation and
+# code comments. Only the CONVERSATION stays in Spanish, and BRIEF-ORIGINAL.md is
+# the user's untouched brief. This test stops a stray Spanish name creeping back.
+#
+# We check for Spanish WORDS, not accents: the original names were unaccented
+# (ANALISIS, SALIDA, efecto-kwin) so an accent check would have missed them all.
+malos=$(python3 - "$PROY" <<'PYEOF'
+import subprocess, sys, re
+root = sys.argv[1]
+salida = subprocess.run(['git', '-C', root, 'ls-files'],
+                        capture_output=True, text=True).stdout.split()
+# Palabras espanolas que aparecian en los nombres y no son terminos tecnicos
+PALABRAS = ('analisis','inventario','huellas','referencias','anexo','verificacion',
+            'incidente','instalacion','recuperar','instalar','efecto','pruebas',
+            'evidencia','herramientas','leeme','forma-efectos','tipografia',
+            'vista-previa','prueba','construir','probar','diagnostico','ejecutar',
+            'rutas','pantalla','salida','recuperada','descargar','escritorio')
+permitidos = ('BRIEF-ORIGINAL.md',)  # el encargo original, intacto a proposito
+malos = []
+for ruta in salida:
+    if any(ruta.endswith(p) or ruta == p for p in permitidos):
+        continue
+    # se comparan los COMPONENTES del nombre, no la ruta entera
+    for parte in ruta.lower().replace('_', '-').replace('.', '-').split('/'):
+        if parte in PALABRAS or any(parte.startswith(p + '-') or parte.endswith('-' + p) for p in PALABRAS):
+            malos.append(ruta); break
+for m in malos:
+    print(f"      -> Spanish name: {m}")
+print(len(malos))
+PYEOF
+)
+n="${malos##*$'\n'}"
+afirmar_igual "no tracked file has a Spanish name" "0" "$n"

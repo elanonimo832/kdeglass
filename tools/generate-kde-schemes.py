@@ -234,7 +234,7 @@ def general(modo: str) -> dict[str, dict[str, str]]:
         "General": {"shadeSortColumn": "true"},
         "KDE": {"contrast": "4"},
         # The color of the active/inactive window shadow. Uses the shadow measured in
-        # tokens-forma-efectos.toml (two layers); here KDE only accepts one color.
+        # tokens-shape-effects.toml (two layers); here KDE only accepts one color.
         "WM": {
             "activeBackground": "0,0,0",
             "activeBlend": "0,0,0",

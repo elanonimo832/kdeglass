@@ -160,7 +160,7 @@ That makes it possible to parameterize the `interlineado_escala` token I propose
 
 | Missing | Why | How it is obtained |
 |---|---|---|
-| ~~**macOS type scale**~~ | **RESOLVED by another route**: the official HIG publishes it in full | [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) |
+| ~~**macOS type scale**~~ | **RESOLVED by another route**: the official HIG publishes it in full | [`tokens/tokens-typography_macos.toml`](tokens/tokens-typography_macos.toml) |
 | **Font size per control** | **RESOLVED** the same way: the 11 macOS styles include tracking | Same as the previous one |
 | **macOS window, sheet and popover radii** | `Dimensions` is iOS; `Shape` is Material 3 | The `.fig`, in the node properties |
 | **Icon squircle geometry** | It is not a variable, it is a path | The `.fig`, or the official App Icon Template |
@@ -170,7 +170,7 @@ That makes it possible to parameterize the `interlineado_escala` token I propose
 None of the exports resolves the macOS typography — but **it no longer needs to**:
 the official Human Interface Guidelines publish the full table of "macOS
 built-in text styles", with sizes, line heights, weights and tracking. It is extracted in
-[`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml), and it confirms
+[`tokens/tokens-typography_macos.toml`](tokens/tokens-typography_macos.toml), and it confirms
 the `Sizes/Global/Font Size = 13` of the export. **The full `.fig` is needed** (`File → Save local copy`, only in the desktop
 app). The decoder is already written and validated for that:
 [tools/figma/README.md](tools/figma/README.md).

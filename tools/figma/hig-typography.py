@@ -52,7 +52,7 @@ def main() -> int:
         print(__doc__)
         return 2
     origen = sys.argv[1]
-    salida = sys.argv[2] if len(sys.argv) > 2 else "tokens-tipografia_macos.toml"
+    salida = sys.argv[2] if len(sys.argv) > 2 else "tokens-typography_macos.toml"
 
     d = json.load(open(origen))
     contenido = d["primaryContentSections"][0]["content"]
@@ -148,7 +148,7 @@ def main() -> int:
         lineas.append("")
 
     cabecera = [
-        "# tokens-tipografia_macos.toml — GENERADO. No editar a mano.",
+        "# tokens-typography_macos.toml — GENERADO. No editar a mano.",
         "#",
         "# TIPOGRAFIA DE macOS, extraida de las Human Interface Guidelines oficiales.",
         f"# Fuente: {FUENTE}",

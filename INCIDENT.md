@@ -209,9 +209,9 @@ cycle / `reinitialize`), not in a wave as on boot. That is why the acid test is 
 **screenshot**, not the log.
 
 Evidence in `analisis-kde-macos/evidence/`:
-`2026-10-13-2324-prueba-control-escritorio.png`,
+`2026-10-13-2324-test-control-desktop.png`,
 `2026-10-13-2324-test-effect-loaded-black.png`,
-`2026-10-13-2324-prueba-tras-descargar.png`.
+`2026-10-13-2324-test-after-unload.png`.
 
 ### Reproducing the test
 ```bash

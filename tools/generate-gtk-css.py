@@ -4,7 +4,7 @@ generate-gtk-css.py — Generates the GTK CSS from the same tokens
 
 WHY IT IS GENERATED AND NOT WRITTEN BY HAND
     A hand-written GTK theme falls out of sync with the tokens within the first week.
-    Here the values come from tokens-colors.toml and tokens-forma-efectos.toml, which
+    Here the values come from tokens-colors.toml and tokens-shape-effects.toml, which
     in turn came from Figma and from the HIG. A token change -> regenerated CSS.
 
 WHAT IT GENERATES
@@ -168,8 +168,8 @@ CUERPO = """
 /* ==========================================================================
    MACOS DESKTOP LAYER — {modo_nombre}
    GENERADO por tools/generate-gtk-css.py. NO EDITAR A MANO.
-   Fuente: tokens/tokens-colors.toml, tokens/tokens-forma-efectos.toml,
-           tokens/tokens-tipografia_macos.toml
+   Fuente: tokens/tokens-colors.toml, tokens/tokens-shape-effects.toml,
+           tokens/tokens-typography_macos.toml
    Fecha: {fecha}
    ========================================================================== */
 
@@ -392,8 +392,8 @@ def main() -> int:
     dir_tokens, destino = sys.argv[1], sys.argv[2]
 
     col = leer(os.path.join(dir_tokens, "tokens-colors.toml"))
-    forma = leer(os.path.join(dir_tokens, "tokens-forma-efectos.toml"))
-    tipo = leer(os.path.join(dir_tokens, "tokens-tipografia_macos.toml"))
+    forma = leer(os.path.join(dir_tokens, "tokens-shape-effects.toml"))
+    tipo = leer(os.path.join(dir_tokens, "tokens-typography_macos.toml"))
 
     from datetime import date
     hoy = date.today().isoformat()

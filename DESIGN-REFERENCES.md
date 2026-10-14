@@ -159,7 +159,7 @@ any background.
 
 > **RESOLVED.** This section was closed with the official Human Interface Guidelines:
 > the full table of "macOS built-in text styles" and the tracking values are in
-> [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml), extracted
+> [`tokens/tokens-typography_macos.toml`](tokens/tokens-typography_macos.toml), extracted
 > from the authorized source with `tools/figma/hig-typography.py`. See §8.
 - **Text color by alpha**, not by absolute value (see the veil table).
 
@@ -301,7 +301,7 @@ repository** (already planned in [ANALYSIS.md](ANALYSIS.md) §6). The repository
 > **Update:** steps 1 and 3 are no longer necessary for typography. Apple's official
 > HIG publishes the full table of macOS styles (sizes, line heights,
 > weights and tracking), so the typographic axis is **closed without measuring screenshots**. See
-> [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml).
+> [`tokens/tokens-typography_macos.toml`](tokens/tokens-typography_macos.toml).
 
 ```
 STEP 1 · Get the official kit (path A)             <- unblocks everything else

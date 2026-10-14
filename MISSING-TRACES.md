@@ -3,7 +3,7 @@
 > **UPDATE: gap #1 and #2 are CLOSED.** Apple publishes the full table of
 > "macOS built-in text styles" in the Human Interface Guidelines, with sizes, line heights,
 > weights and **tracking**. It is extracted in
-> [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) (80 tokens,
+> [`tokens/tokens-typography_macos.toml`](tokens/tokens-typography_macos.toml) (80 tokens,
 > authorized source). What is still true: **it was not in Figma** and still is not;
 > what changes is that it did not need to be there.
 
@@ -73,7 +73,7 @@ With this, most of the theme can already be built:
 
 | # | Missing | Why it is missing | How it is obtained |
 |---|---|---|---|
-| 1 | ~~**macOS type scale**~~ | **RESOLVED** with the official HIG | [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) |
+| 1 | ~~**macOS type scale**~~ | **RESOLVED** with the official HIG | [`tokens/tokens-typography_macos.toml`](tokens/tokens-typography_macos.toml) |
 | 2 | ~~**Font size per control**~~ | **RESOLVED**: the macOS scale includes the 11 styles and tracking | Same as the previous one |
 | 3 | **Window, sheet and popover radii** | They are node properties | Screenshots of windows over a flat background |
 | 4 | **Window and menu shadows** | They are node effects | Screenshots, measuring the fade |

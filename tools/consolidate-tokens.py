@@ -67,9 +67,9 @@ def main() -> int:
     dir_tokens, destino = sys.argv[1], sys.argv[2]
 
     color = leer(os.path.join(dir_tokens, "tokens-colors.toml"))
-    forma = leer(os.path.join(dir_tokens, "tokens-forma-efectos.toml"))
+    forma = leer(os.path.join(dir_tokens, "tokens-shape-effects.toml"))
     metricas = leer(os.path.join(dir_tokens, "tokens-sizes.toml"))
-    tipo = leer(os.path.join(dir_tokens, "tokens-tipografia_macos.toml"))
+    tipo = leer(os.path.join(dir_tokens, "tokens-typography_macos.toml"))
     kit = leer(os.path.join(dir_tokens, "tokens-kit.toml"))
 
     # We remove the meta from each partial: the consolidated one has its own.

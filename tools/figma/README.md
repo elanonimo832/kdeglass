@@ -143,4 +143,4 @@ python3 extract-fig.py ../../kit.json ../../fig-extraido
 # -> radii, squircle, effects, strokes, texts and spacings
 ```
 
-It turned the 5 remaining gaps into `tokens/tokens-forma-efectos.toml`.
+It turned the 5 remaining gaps into `tokens/tokens-shape-effects.toml`.
