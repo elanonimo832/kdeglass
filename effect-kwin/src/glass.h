@@ -135,6 +135,21 @@ private:
     static constexpr int kMaxCaptureSlots = 4;   // enough for a desktop, bounded on purpose
 
     QSize m_captureRegion;    // the region the CURRENT capture covers, in screen px
+
+    // THE ONE OPEN QUESTION OF M1.3a, as a live switch. The capture covers the window's
+    // EXPANDED geometry while every size the shader uses comes from the FRAME; if vTexCoord
+    // runs across the frame, the backdrop has to be sampled at the frame's sub-rectangle.
+    // Off = identity = the sampling that was verified before this existed.
+    //
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key CaptureSubRect true
+    //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
+    //
+    // Then run measure-alignment.py with BackgroundRadius=0: the setting that reports
+    // (0, 0) is the true one. Both are stable, so this is a measurement, not a guess.
+    static constexpr bool kCaptureSubRect = false;
+    bool m_captureSubRect = kCaptureSubRect;
+    QVector2D m_sampleOffset{0.0f, 0.0f};   // the frame inside the capture, normalized
+    QVector2D m_sampleScale{1.0f, 1.0f};
     bool m_hasBackground = false;
 
     // Whether the window's frame reaches the screen's edge, computed in drawWindow (the

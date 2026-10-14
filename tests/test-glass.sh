@@ -416,3 +416,18 @@ afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touches
 # from the glass and shift, which is exact, instead of mixing towards black or white.
 afirmar_codigo "vibrancy aims at the promised contrast" "$SOURCE" 'targetLuma = [(]backdropLuma <= 0[.]5[)]'
 afirmar_codigo "and shifts the chrome's luminance to it" "$SOURCE" 'chromeColour [+] vec3[(]targetLuma - chromeLuma[)]'
+
+echo "  -- the sampling sub-rectangle is a live switch, off by default --"
+# The last open question of M1.3a: the capture covers the window's EXPANDED geometry while
+# every size the shader uses comes from the FRAME. With the switch off the shader samples the
+# whole texture (what was verified before), with it on it samples the frame's sub-rectangle.
+# Both are stable, so this is a measurement rather than a guess -- and it is a switch so that
+# the measurement costs no extra build.
+afirmar_codigo "the sub-rectangle switch exists" "$HEADER" 'm_captureSubRect'
+afirmar_codigo "off by default" "$HEADER" 'kCaptureSubRect = false'
+afirmar_codigo "and off sends the identity, which is the verified sampling" "$SOURCE" \
+  'm_captureSubRect [?] m_sampleOffset : QVector2D[(]0[.]0f, 0[.]0f[)]'
+afirmar_codigo "the frame's place inside the capture is computed" "$SOURCE" \
+  'm_sampleOffset = QVector2D[(]float[(]frameRect[.]x[(][)] - region[.]x[(][)][)]'
+afirmar_codigo "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" \
+  'uBackgroundOffset [+] vTexCoord [*] uBackgroundScale'

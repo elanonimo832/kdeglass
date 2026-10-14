@@ -62,6 +62,8 @@ uniform float uHasBackground;
 uniform float uBackgroundFlipV;
 uniform float uBackgroundRadius;
 uniform vec2 uBackgroundTexel;
+uniform vec2 uBackgroundOffset;
+uniform vec2 uBackgroundScale;
 uniform float uChromeRadius;
 uniform float uChromeLow;
 uniform float uCornerRadius;
@@ -242,11 +244,23 @@ void main()
     // HANDOFF section 5: the band is drawn where the window is drawn, so there is no
     // second quad that could end up under the window.
     if (uHasBackground > 0.5) {
+        // WHERE IN THE CAPTURE THIS FRAGMENT SAMPLES, and it is a uniform because the
+        // answer is not settled: the capture covers KWin's offscreen texture, which is the
+        // window's EXPANDED geometry (frame plus shadow margins), while every size the
+        // shader uses comes from the FRAME. If vTexCoord runs across the frame -- which the
+        // rounded corners argue for, since arcs built from the frame's box landed on the
+        // window's corners -- then the backdrop must be sampled at the frame's
+        // sub-rectangle. With `CaptureSubRect` off this is the identity and the sampling is
+        // exactly what was verified before; with it on, the sub-rectangle. Measure both with
+        // measure-alignment.py: whichever reports (0, 0) is the truth, and the switch exists
+        // so that answer costs no extra build.
+        vec2 base = uBackgroundOffset + vTexCoord * uBackgroundScale;
         // uBackgroundFlipV is 1.0 when the capture's v axis disagrees with the window
-        // texture's. The default (0) is settled from KWin's own blit code -- both
-        // textures are bottom-up -- and the knob is kept for a rotated output, where the
-        // blit takes a different branch. See glass.h.
-        vec2 uvBackground = vec2(vTexCoord.x, mix(vTexCoord.y, 1.0 - vTexCoord.y, uBackgroundFlipV));
+        // texture's. The default (0) is settled from KWin's own blit code -- both textures
+        // are bottom-up -- and the knob is kept for a rotated output, where the blit takes a
+        // different branch. See glass.h. It flips the RESULT, so it composes with the
+        // sub-rectangle instead of fighting it.
+        vec2 uvBackground = vec2(base.x, mix(base.y, 1.0 - base.y, uBackgroundFlipV));
 
         // STEP 3a -- FROST. The offsets are in SCREEN pixels (uBackgroundTexel is the
         // texel of the full-size region, not of the reduced texture), and the capture is
@@ -391,6 +405,10 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // sample. Bigger = smoother and blurrier, and it costs nothing to try.
     m_backgroundDownsample = cfg.readEntry("FrostDownsample", 0);
 
+    // Sample the capture at the FRAME's sub-rectangle. Off until the alignment instrument
+    // says which of the two readings is true; see the uniform's comment in the shader.
+    m_captureSubRect = cfg.readEntry("CaptureSubRect", kCaptureSubRect);
+
     // How much of the bar's own colour stays. Not a readability knob any more -- the
     // chrome is drawn crisp on top -- so it is free to go lower for more glass.
     m_glassAlpha = float(cfg.readEntry("GlassAlpha", double(kGlassAlpha)));
@@ -410,6 +428,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "backgroundFlipV=" << m_backgroundFlipV
             << "backgroundRadius=" << m_backgroundRadius
             << "frostDownsample=" << m_backgroundDownsample
+            << "captureSubRect=" << m_captureSubRect
             << "glassAlpha=" << m_glassAlpha
             << "chromeRadius=" << m_chromeRadius
             << "chromeLow=" << m_chromeLow
@@ -679,6 +698,16 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
                 << "-- cached:" << int(m_captures.size());
     }
     m_currentCapture = slot->second.get();
+    // WHERE THE FRAME LIES INSIDE THE CAPTURE, as normalized coordinates of the texture.
+    // Computed from LOGICAL geometry: the device scale cancels in a ratio, and this is the
+    // only place with both rectangles in hand. The texture covers the UNCLAMPED region --
+    // the blit writes only the clamped part and the rest is cleared -- so the comparison is
+    // against `region`, not against `source`.
+    const Rect frameRect = w->frameGeometry().toRect();
+    m_sampleOffset = QVector2D(float(frameRect.x() - region.x()) / region.width(),
+                               float(frameRect.y() - region.y()) / region.height());
+    m_sampleScale = QVector2D(float(frameRect.width()) / region.width(),
+                              float(frameRect.height()) / region.height());
     m_lastUse[key] = ++m_useClock;
     m_captureRegion = size;
 
@@ -897,6 +926,12 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         // The kernel's spacing is expressed in SCREEN pixels, so this is the texel of
         // the full-size region -- not of the reduced texture, which is factor times
         // bigger per texel and would multiply every radius by that factor.
+        // OFF BY DEFAULT: with the switch off this sends the identity, which is exactly the
+        // sampling that was verified before this existed.
+        const QVector2D uvOffset = m_captureSubRect ? m_sampleOffset : QVector2D(0.0f, 0.0f);
+        const QVector2D uvScale = m_captureSubRect ? m_sampleScale : QVector2D(1.0f, 1.0f);
+        m_shader->setUniform("uBackgroundOffset", uvOffset);
+        m_shader->setUniform("uBackgroundScale", uvScale);
         if (m_captureRegion.width() > 0 && m_captureRegion.height() > 0) {
             m_shader->setUniform("uBackgroundTexel",
                                  QVector2D(1.0f / m_captureRegion.width(),

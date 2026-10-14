@@ -245,7 +245,13 @@ can see exactly where it stopped.
   that is invisible, and no measurement so far can see it. The test that would: with
   `BackgroundRadius=0`, put a window with TEXT behind the target and check whether the
   band's content lines up with the same text where it shows around the window. If it
-  does not, the fix is to pass the texture's own size and the margins as uniforms.
+  does not, the fix is to pass the texture's own size and the margins as uniforms -- **and
+  that fix is in the build now, behind a live switch**: `CaptureSubRect` (default FALSE). Off
+  sends the identity, which is exactly the sampling that was verified before it existed; on
+  samples the frame's sub-rectangle inside the capture. Both are stable, so the procedure is
+  an A/B rather than a guess: with `BackgroundRadius=0` and text behind the window, run
+  `measure-alignment.py` with the key false and then true, and the value that reports
+  `(0, 0)` is the true reading. The switch exists so that answer costs no extra build.
   **And the band's own measurement is NOT evidence that the sampling is fine**, which is
   worth writing down because it looks like it is: a review derived that the band test
   normalises `vTexCoord` through `uTextureSize`, so the margin cancels and the band lands
@@ -771,30 +777,22 @@ they name.
   defaults (16 / 16 / 0.55). They were tuned against the build whose frost SAMPLED the
   backdrop; the reduced capture averages it, so the same numbers may read differently --
   re-tune by eye before baking any of them as the default.
-- **The source is ahead of the built `.so` on purpose, and this is the complete list of
-  what the next `./build.sh` will fold in.** All of it is committed and validated OFFLINE
-  (the shader validator and the compiler read the source; see the note on `-fsyntax-only`
-  below), because a rebuild would make the live tests abort mid-verification:
-  1. **Vibrancy**, off by default (`Vibrancy = 0`), as a GLSL function called by BOTH the
-     capture path and the no-capture fallback.
-  2. **The consistency pass**: three comments that no longer matched the code, and the
-     fallback's alpha documented rather than "fixed" without being able to measure it.
-  3. **The journal-flood fix** in `prePaintWindow` (74,609 spam lines in one boot).
-  4. **The per-size capture cache** (one texture+framebuffer per distinct reduced size,
-     capped at four), replacing a single pair.
-  5. **The review fixes** (two independent reviews of items 1-4): the capture cache evicts
-     the least recently used size instead of the smallest, the capture pointer is cleared
-     before any early return, the reduced texture is cleared before the blit, the
-     no-capture fallback writes premultiplied like the main path, and windows whose frame
-     reaches the screen's edge are no longer rounded. Plus the vibrancy arithmetic, which
-     now delivers the contrast it promises instead of approaching it.
-  6. **Comment-only and documentation changes** that cannot affect the artifact: the
-     destructor's note about the context, the roadmap's closing criterion, the settings
-     table in the effect README, the sampling evidence in section 5, and the new checks in
-     `tests/`.
-  **Every one of those is behaviour-preserving with vibrancy off**, so the relogin that
-  installs them should show the band exactly as it is now: that is the thing to look at,
-  and only then is `Vibrancy` worth turning on.
+- **The built `.so` is current as of this commit** (the tree and `build/` agree, 2026-10-14
+  15:10, 123872 bytes), and it folds in everything this session produced while the user was
+  away. `./install.sh` + a relogin is what makes it real, and the freshness guard will refuse
+  to measure until that is done. What it contains, in the order it was written:
+  1. **Vibrancy**, off by default (`Vibrancy = 0`), a GLSL function called by BOTH the capture
+     path and the no-capture fallback.
+  2. **The capture cache**: one texture+framebuffer per distinct reduced size, LRU-evicted.
+  3. **The journal-flood fix** in `prePaintWindow`, plus the diagnostic contract pinned.
+  4. **The review fixes**: the pointer cleared before any early return, the reduced texture
+     cleared before the blit, the no-capture fallback premultiplied like the main path, and
+     corners no longer rounded on windows whose frame reaches the screen's edge.
+  5. **`CaptureSubRect`**, the live switch for the one open question of step 3d.
+  6. **The language pass**: the effect's identifiers and the harness's variables, labels and
+     comments are English (the archive and the user's quotations are not, on purpose).
+  Everything except vibrancy is behaviour-preserving with that key at its default, so the
+  first thing to look at is that the band is unchanged; then the four questions in section 7.
 - **Compiling without producing an artifact** is possible and is what these changes were
   checked with: `ninja -C build -t commands | grep glass.cpp` gives the exact compiler
   invocation, strip `-MD/-MT/-MF` and add `-fsyntax-only`. The compiler type-checks the

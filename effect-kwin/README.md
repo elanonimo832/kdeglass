@@ -15,7 +15,7 @@ verified working and unusable, because it blurred the text you were reading.
 | **Real glass** — the band shows the desktop behind it | ✅ **verified on screen** (M1.3a, 2026-10-14): the band moves with the background, 73.8 against a threshold of 12, where the alpha-only attempt scored 3.2 |
 | **Frost over the capture** | ✅ seen on screen (2026-10-14): the backdrop is blurred in two scales from the kit's `frost 6/16/16` (`BackgroundRadius`, default 16; 0 = sharp) |
 | **Chrome readable** | ✅ the title and the traffic lights are drawn crisp over the glass: the bar's blur is the blank that isolates them, and a tight baseline of its own keeps the halo off them |
-| **Vibrancy** (chrome adapts to the glass) | 🟡 implemented, **off by default** (`Vibrancy`, the minimum contrast; 0 disables). For dark backdrops, where the theme's dark title would otherwise disappear |
+| **Vibrancy** (chrome adapts to the glass) | 🟡 in the built plugin, **off by default** (`Vibrancy`, the minimum contrast; 0 disables). For dark backdrops, where the theme's dark title would otherwise disappear |
 | **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 16; only for normal, decorated, non-fullscreen windows -- a fullscreen window IS the screen). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
 | Refraction (70), dispersion (20), specular highlight | ❌ not started |
 
@@ -43,6 +43,7 @@ while the command reports success.
 | `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |
 | `Vibrancy` | 0 (off) | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
 | `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |
+| `CaptureSubRect` | false (off) | sample the capture at the FRAME's sub-rectangle instead of the whole texture. It exists because the capture covers the expanded geometry while the shader's sizes come from the frame; run `measure-alignment.py` with each value and keep the one that reports (0, 0) |
 | `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |
 
 
