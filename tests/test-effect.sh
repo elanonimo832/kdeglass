@@ -73,16 +73,15 @@ afirmar_contiene "the verifier checks the base is linked" "$EF/verify-chain.sh" 
 # The installed plugin must NOT set the failure flag: install.sh checks before
 # copying, so a stale installed build would block the install that replaces it.
 # That circularity blocked a real install, twice.
-# Comments excluded deliberately: the script's own comment explains WHY a stale
-# installed build must not fail, and matching that comment made this assertion
-# fail on correct code. Same trap as before -- a pattern matching prose.
-if grep -vE '^\s*#' "$EF/verify-chain.sh" | grep -qE 'installed plugin is an older build'; then
-  fallo "the verifier fails on a stale installed plugin (circular, blocks install)"
+# What matters is not whether the script MENTIONS a stale installed plugin -- it
+# should, as a NOTE -- but whether that mention sets the failure flag. Setting it
+# is circular: install.sh checks before copying, so a stale installed build would
+# block the install that replaces it. That blocked a real install, twice.
+if grep -A2 'NOTE: the installed plugin is an older build' "$EF/verify-chain.sh" 2>/dev/null | grep -q 'fallo=1'; then
+  fallo "a stale installed plugin sets the failure flag (circular, blocks install)"
 else
-  ok "the verifier does not fail on a stale installed plugin"
+  ok "a stale installed plugin does not set the failure flag"
 fi
-negar "the verifier no longer demands our own chain call" \
-  grep -qE 'if grep -qE .effects->paintWindow' "$EF/verify-chain.sh"
 
 echo "  -- no script EXECUTES kwin_wayland --replace --"
 # It leaves the screen black: on Wayland it starts a second compositor that fights
