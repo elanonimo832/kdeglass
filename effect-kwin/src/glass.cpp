@@ -64,7 +64,6 @@ uniform float uBackgroundRadius;
 uniform vec2 uBackgroundTexel;
 uniform vec2 uBackgroundOffset;
 uniform vec2 uBackgroundScale;
-uniform float uChromeRadius;
 uniform float uChromeLow;
 uniform float uCornerRadius;
 uniform float uVibrancy;
@@ -242,22 +241,22 @@ void main()
     // the 6-texel blur above: a wide average is dragged towards every glyph and every
     // button, so the bar pixels AROUND them deviate too, get classified as chrome, and
     // are drawn crisp -- a bright halo around each letter and each traffic light. The
-    // user saw exactly that ("los botones se ven algo extraños"). A 3x3 at
-    // uChromeRadius texels keeps the ring about a pixel wide.
-    // Clamped for the same reason as the tone above: a sample below the bar lands on the
-    // border or on the client, which deviates hugely from the bar, and would classify the
-    // bar's own last rows as chrome -- a thin crisp line along the bottom edge.
-    vec4 tightSum = vec4(0.0);
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            vec2 c = vTexCoord + vec2(float(x), float(y)) * uChromeRadius * uTexelSize;
-            tightSum += texture(sampler, vec2(c.x, clamp(c.y, vBandBottom, vBandTop)));
-        }
-    }
-    vec3 tight = (tightSum / 9.0).rgb;
-
+    // user saw exactly that ("los botones se ven algo extraños"). The first attempt shrank the
+    // baseline to a 3x3 at 3 texels, which narrowed the ring but never removed it: a tight
+    // average is still MIXED with the chrome. What removes it is measuring against the median
+    // tone, below -- see that comment, and the knob that retired with it.
+    // THE BASELINE IS THE MEDIAN TONE ITSELF, and that retired a knob and a kernel. A 3x3
+    // baseline close to the chrome gets MIXED with it, so the bar pixels beside a glyph or a
+    // button deviate from that mixture, get classified as chrome, and are drawn with the
+    // theme's white bar -- the halo the user saw as "un circulo debajo de ellos" and as a
+    // title that stayed unreadable. Measured on that screenshot: 1140 pixels brighter than
+    // the band around the buttons (maximum 255 against a band of 108) and 1812 around the
+    // glyphs. The median tone IS "the bar's own colour", which is precisely what the mask
+    // needs to measure against: a glyph deviates from it (chrome), a bar pixel beside the
+    // glyph does not (no halo), and a traffic light deviates from it (solid).
+    //
     // `high` is derived from `low` (3x) so there is ONE knob to turn on a screen.
-    float deviation = abs(dot(window.rgb - tight, vec3(0.2126, 0.7152, 0.0722)));
+    float deviation = abs(dot(window.rgb - baseline, vec3(0.2126, 0.7152, 0.0722)));
     float byDeviation = smoothstep(uChromeLow, uChromeLow * 3.0, deviation);
 
     // COLOUR IS CHROME TOO, and it is the term that keeps the traffic lights SOLID.
@@ -458,7 +457,6 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     m_glassAlpha = float(cfg.readEntry("GlassAlpha", double(kGlassAlpha)));
 
     // The chrome mask: how wide its baseline is, and how much deviation counts.
-    m_chromeRadius = cfg.readEntry("ChromeRadius", kChromeRadius);
     m_chromeLow = float(cfg.readEntry("ChromeLow", double(kChromeLow)));
 
     // The window's rounded corners. The theme's own arc does not survive aurorae's
@@ -474,7 +472,6 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "frostDownsample=" << m_backgroundDownsample
             << "captureSubRect=" << m_captureSubRect
             << "glassAlpha=" << m_glassAlpha
-            << "chromeRadius=" << m_chromeRadius
             << "chromeLow=" << m_chromeLow
             << "cornerRadius=" << m_cornerRadius
             << "vibrancy=" << m_vibrancy;
@@ -941,7 +938,6 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
                          QVector2D(float(size.width()), float(size.height())));
     m_shader->setUniform("uTitleBarHeight", float(barHeight));
     m_shader->setUniform("uGlassAlpha", m_glassAlpha);
-    m_shader->setUniform("uChromeRadius", float(m_chromeRadius));
     m_shader->setUniform("uChromeLow", m_chromeLow);
     // WHICH WINDOWS GET ROUNDED CORNERS, and it is not all of them. A fullscreen window
     // IS the screen: rounding its corners would carve arcs out of the screen itself and

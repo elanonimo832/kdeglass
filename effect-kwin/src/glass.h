@@ -265,18 +265,9 @@ private:
 
     float m_glassAlpha = kGlassAlpha;
 
-    // How wide the baseline is that separates the CHROME from the bar. Too wide and
-    // every glyph and button drags its neighbourhood with it, which is drawn crisp and
-    // shows as a bright halo around them; too narrow and the chrome's own interior
-    // starts to read as free background. 3 texels was the first value that behaved on
-    // screen, and it is a setting because this is exactly the sort of trade-off that is
-    // settled with the eye:
-    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key ChromeRadius 2
-    static constexpr int kChromeRadius = 3;   // texels of the window texture
-    int m_chromeRadius = kChromeRadius;
-
-    // How much deviation counts as chrome, in luminance (0..1). The upper threshold is
-    // three times this. Lower = more of the bar is drawn crisp.
+    // How much deviation from the bar's own (median) tone counts as chrome, in luminance.
+    // The upper threshold is three times this. Lower = more of the bar is drawn crisp. There
+    // is no width knob any more: the baseline is the median tone, which has no halo to tune.
     static constexpr float kChromeLow = 0.06f;
     float m_chromeLow = kChromeLow;
 

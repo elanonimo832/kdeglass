@@ -66,7 +66,7 @@ echo "  -- the chrome stays readable, and the corners stay round --"
 # were smeared into it. Now the blur is the BASELINE, and what deviates from it is the
 # chrome, which is drawn crisp over the glass -- the way macOS does it: the glass is
 # behind the chrome, not over it.
-afirmar_codigo "the chrome is found by its deviation from a baseline" "$SOURCE" 'abs[(]dot[(]window.rgb - tight'
+afirmar_codigo "the chrome is found by its deviation from the bar's median tone" "$SOURCE" 'abs[(]dot[(]window[.]rgb - baseline'
 # The glass carries the bar's TONE, so any chrome left in it is a ghost of the title
 # behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
 # bar's height keeps ~4, which cannot be seen.
@@ -88,7 +88,7 @@ afirmar_codigo "and the adapted chrome is the one composited" "$SOURCE" 'mix[(]g
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar
 # pixels AROUND them were classified as chrome and drawn crisp: a bright halo around
 # each letter and each traffic light, which is what the user saw.
-afirmar_codigo "the chrome baseline is its own, narrow radius" "$SOURCE" 'uChromeRadius'
+afirmar_codigo "the chrome is measured against the bar's own median tone" "$SOURCE" 'window[.]rgb - baseline'
 afirmar_codigo "and its threshold is one tunable knob" "$SOURCE" 'uChromeLow'
 # Colour is chrome too. Without this the traffic lights come out as bright rings with
 # glass in the middle, because a tight baseline sees the same colour in the centre of a
@@ -441,7 +441,6 @@ echo "  -- the bar's kernels do not look outside the bar --"
 # extends past the bar.
 afirmar_codigo "the band's v span is computed" "$SOURCE" 'vBandBottom = 1[.]0 - uTitleBarHeight [*] uTexelSize[.]y'
 afirmar_codigo "the tone can only sample inside the bar" "$SOURCE" 'clamp[(]vTexCoord[.]y - toneRadius [*] uTexelSize[.]y, vBandBottom, vBandTop[)]'
-afirmar_codigo "and so can the chrome baseline" "$SOURCE" 'clamp[(]c[.]y, vBandBottom, vBandTop[)]'
 afirmar_igual "the backdrop kernel is NOT clamped (the backdrop goes past the bar)" "2" \
   "$(grep -c 'uvBackground + dir' effect-kwin/src/glass.cpp)"
 

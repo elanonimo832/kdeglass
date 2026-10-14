@@ -41,7 +41,6 @@ while the command reports success.
 | `FrostDownsample` | 0 | factor the backdrop is captured at; 0 derives it (radius/4). The capture is what makes the frost an average instead of a sample |
 | `GlassAlpha` | 0.55 | how much of the bar's own tone the glass keeps |
 | `CornerRadius` | 16 | radius of the window's corners; 0 leaves whatever the decoration drew |
-| `ChromeRadius` | 3 | width, in texels, of the baseline that separates the chrome from the bar: too wide and every glyph drags a halo with it |
 | `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |
 | `Vibrancy` | 0 (off) | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
 | `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |

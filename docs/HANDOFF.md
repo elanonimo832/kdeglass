@@ -253,6 +253,28 @@ can see exactly where it stopped.
   `tokens/tokens-kit.toml` `[liquid_glass]`, `opacity = 25`. The user's `GlassAlpha` was 0.4
   and the default 0.55, so "el efecto es muy blanco" is the material keeping too much of the
   theme's near-white bar -- Apple's own number is a quarter.
+- **A white halo around the chrome: the third face of the same mechanism.** **FIXED
+  (2026-10-14) by retiring the mask's own baseline.** A 3x3 baseline close to the chrome gets
+  MIXED with it, so the bar pixels beside a glyph or a button deviate from that mixture, are
+  classified as chrome, and are drawn with the theme's white bar. Measured on the user's
+  screenshot after the median landed: **1140 pixels brighter than the band around the buttons**
+  (maximum 255 against a band of 108) and **1812 around the glyphs**, which is what "el titulo
+  sigue igual de mal" and "un circulo debajo de ellos" both were -- a halo, not a ghost.
+  The mask now measures the deviation against the **median tone itself**, which is by
+  construction "the bar's own colour": a glyph deviates from it, a bar pixel beside the glyph
+  does not, a traffic light does. One kernel and one knob fewer: `ChromeRadius` is GONE, and
+  the settings-table test made that impossible to forget.
+- **Transient lines inside the bar while a window moves.** **State: hypothesis, not fixed.**
+  The frost kernel reaches up to `BackgroundRadius` (16-24 px) beyond the fragment while the
+  capture extends only the decoration's shadow margin (7 px) beyond the frame, so the samples
+  above the capture's top edge are clamped by the sampler and repeat its last row -- a smear
+  that changes as the window moves, which is the shape the user described ("lineas que aparecen
+  y desaparecen con el movimiento"). The other candidate is the capture itself: it reads the
+  live framebuffer, so during a move it can contain the window's own previous pixels. The
+  decisive question is WHERE the lines are -- at the band's top edge points at the sampler
+  clamp; anywhere else points at the capture. Two fixes exist for the first (capture a region
+  enlarged by the frost radius, which needs the uv transform that `CaptureSubRect` already
+  builds, or make the frost kernel anisotropic) and neither is free.
 - **The window is drawn over the band.** **State: resolved by construction** -- the
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.
