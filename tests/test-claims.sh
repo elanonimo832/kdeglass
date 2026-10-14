@@ -113,3 +113,31 @@ PYEOF
 )
 n="${bad##*$'\n'}"
 afirmar_igual "no tracked file has a Spanish name" "0" "$n"
+
+echo "  -- what may be tracked: images have two homes, and nothing is huge --"
+# Measured, not theorised: a `git add -A` swept the user's new `muestras/` folder -- 4.2 MB
+# of screenshots -- into a commit. The repository has exactly two places for images: the
+# `evidence/` folder (screenshots that document an incident) and `output/` (what the theme
+# generates, including its small previews). A rule about WHERE they live catches all five of
+# those files; a size cap alone would have caught one. The cap is the second net, for a
+# future blob nobody anticipated.
+images_bad=$(python3 - "$PROJECT" <<'PYEOF'
+import os, subprocess, sys
+root = sys.argv[1]
+bad = []
+for rel in subprocess.run(['git', '-C', root, 'ls-files'], capture_output=True,
+                          text=True).stdout.split():
+    if not rel.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+        continue
+    if not (rel.startswith('evidence/') or rel.startswith('output/')):
+        bad.append(f"{rel} (images live in evidence/ or output/)")
+        continue
+    size = os.path.getsize(os.path.join(root, rel))
+    if size > 1024 * 1024:
+        bad.append(f"{rel} ({size // 1024} KiB; the cap is 1 MiB)")
+for m in bad:
+    print(f"      -> {m}")
+print(len(bad))
+PYEOF
+)
+afirmar_igual "every tracked image lives in evidence/ or output/, under 1 MiB" "0" "${images_bad##*$'\n'}"
