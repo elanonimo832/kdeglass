@@ -196,6 +196,15 @@ can see exactly where it stopped.
   happen inside the same `drawWindow()` call: `capture(A) -> draw(A) -> capture(B)`.
   If a band ever shows ANOTHER window's background, the capture must become per
   window. Written down here because it is the third time this shape has appeared.
+- **The capture is the whole frame, and it is not limited to the damaged region.**
+  Deliberate, and it is the one place where correctness was chosen over cost: a
+  frame-sized texture lines up with the window's own texture UV for UV, so the
+  composite cannot drift, and only the band is ever sampled. The price is one
+  framebuffer blit of the window's area per repaint. During a full-screen repaint
+  (video, dragging a window) that is every window. The fix, when it matters, is to
+  capture the BAND only and map its uv in the shader -- arithmetic that has to be
+  verified on screen, so it belongs with step 3 or later, not with the step that is
+  trying to prove the mechanism works.
 - **Every code change needs a session restart.** KWin keeps the `.so` it loaded at
   startup; it never re-reads a changed file. Never use `kwin_wayland --replace`.
   `./install.sh` needs sudo; verify by relogin, and keep
@@ -422,10 +431,12 @@ for it, so a future runner that goes back to one shared shell fails a test inste
 of losing a session.
 
 **The harness is deterministic now.** The count itself is deliberately not written
-in this document (see section 11); what is written is the property: 25 consecutive
-full runs, identical result. The rule that was broken was already in
-`docs/METHODOLOGY.md` and already enforced on `effect-kwin/*.sh` -- the file that
-runs every assertion was the one place it did not reach. Rule 6 exists for that.
+in this document (see section 11); what is written is the property: every full run
+since the fix -- more than fifty by now, including after each M1.3a commit, which is
+when a harness usually starts drifting again -- has produced **byte-identical**
+output, `fail: 0`. The rule that was broken was already in `docs/METHODOLOGY.md` and
+already enforced on `effect-kwin/*.sh` -- the file that runs every assertion was the
+one place it did not reach. Rule 6 exists for that.
 
 ### Superseded (kept for the record): the isolation hypothesis
 
