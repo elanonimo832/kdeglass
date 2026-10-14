@@ -34,10 +34,46 @@ Done in small steps, each measured before the next one starts:
 | Sub-step | What it draws | Criterion | State |
 |---|---|---|---|
 | M1.1 | A flat colour patch at the window's top-left | visible, anchored to the window, `black=0%` | ✅ **done** |
-| M1.2 | Diffusion over the window (frost 6/16/16) | the content softens; measurable as loss of local contrast | ⬅ **next** |
+| M1.2 | Diffusion (frost 6/16/16) | content softens, measurable as loss of local contrast | ✅ **done** |
+| M1.2b | The band covers the TITLE BAR only | bar blurred, content sharp, and it STAYS across window switches | ✅ **done** |
 | M1.3 | Refraction (70) | the edge bends; measurable with a grid pattern | |
 | M1.4 | Dispersion (20) | the edge splits into channels; measured in the colour | |
 | M1.5 | Specular highlight + darkened edge (alpha 20) | matches the kit | |
+
+#### M1.2 and M1.2b — done (2026-10-14)
+
+The effect derives from `OffscreenEffect` and blurs the window's own texture with a
+3x3 box-blur shader whose radius is the kit's `frost 6`. The band covers the title
+bar and stops there, so the content stays readable -- the first full-window version
+was verified working and unusable, because it blurred the text you are reading.
+
+The band height is MEASURED, not assumed:
+
+    barHeight = clientGeometry().top() - frameGeometry().top()
+
+which works for any decoration theme. A window with client-side decoration reports
+those two rectangles as identical, so the difference is zero and there is nothing
+to cover: such windows get no material, which is the honest outcome rather than a
+guess. A configurable fallback was tried and removed -- it blurred Zen Browser,
+which the user did not want.
+
+WHAT IT COST, and every item is a variation of the same mistake:
+
+  - `setUniform()` without binding the shader. It is glUniform1f(), so it wrote
+    into another program, uRadius stayed 0, all nine taps sampled the same texel,
+    and the output equalled the input. A perfect no-op with no error.
+  - the band landed at the BOTTOM. The offscreen texture's v axis runs opposite to
+    window coordinates, so the distance from the top is (1 - vTexCoord.y).
+  - the material vanished when the window was moved or focus changed. One shader
+    object is shared by every window, so uniforms set once per window at add time
+    are globals that the last window overwrites. They now go in apply().
+  - KWin does not re-read a plugin's .so once loaded, so a changed file needs a
+    session restart. Several rounds were spent testing a build KWin had not loaded.
+
+THREE OF THESE ARE THE SAME BUG: state belonging to one window kept somewhere that
+belongs to all of them. The unbound uniform wrote to the wrong program, the global
+uniform held another window's value, and the CSD fallback applied one guess to
+every window. Worth naming as a class rather than as three incidents.
 
 #### M1.1 — done (2026-10-14)
 
