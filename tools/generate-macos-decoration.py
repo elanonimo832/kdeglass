@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
 """
-generate-macos-decoration.py — Genera una decoracion de ventana estilo macOS
+generate-macos-decoration.py — Generates a macOS-style window decoration
 
-POR QUE NO SE PARTE DE ANT-DARK
-    El acuerdo del proyecto es una capa de escritorio *estilo macOS*. Copiar el tema
-    de otro y separar los botones no es eso. Aqui se generan los SVG desde cero, con
-    los valores medidos del kit de macOS 27.
+WHY IT DOES NOT START FROM ANT-DARK
+    The project agreement is a *macOS-style* desktop layer. Copying someone else's
+    theme and separating the buttons is not that. Here the SVGs are generated from
+    scratch, with the measured values from the macOS 27 kit.
 
-LO QUE GENERA
+WHAT IT GENERATES
     output/aurorae/KdeMacOS/
-      close.svg        semaforo rojo     (12 px, #FF5F57)
-      minimize.svg     semaforo amarillo (12 px, #FFBD2E)
-      maximize.svg     semaforo verde    (12 px, #28C840)
-      restore.svg      idem para restaurar
-      decoration.svg   marco de la ventana
-      KdeMacOSrc       medidas y disposicion de los botones
+      close.svg        red traffic light    (12 px, #FF5F57)
+      minimize.svg     yellow traffic light (12 px, #FFBD2E)
+      maximize.svg     green traffic light  (12 px, #28C840)
+      restore.svg      same for restore
+      decoration.svg   window frame
+      KdeMacOSrc       button measurements and layout
       metadata.desktop
 
-LOS TRES DETALLES DE macOS QUE CASI NADIE REPRODUCE
-    1. LOS GLIFOS SOLO APARECEN AL PASAR EL RATON. En reposo son tres circulos limpios.
-    2. CUANDO LA VENTANA PIERDE EL FOCO, LOS TRES SE APAGAN A GRIS. En macOS no se
-       quedan de color: se desaturan. Ese es el estado `inactive` de Aurorae.
-    3. LAS TRES SON DEL MISMO TAMANO Y ESTAN EN FILA, CON SEPARACION GENEROSA.
+THE THREE macOS DETAILS ALMOST NOBODY REPRODUCES
+    1. THE GLYPHS ONLY APPEAR ON HOVER. At rest they are three clean circles.
+    2. WHEN THE WINDOW LOSES FOCUS, ALL THREE FADE TO GRAY. In macOS they do not stay
+       colored: they desaturate. That is Aurorae's `inactive` state.
+    3. ALL THREE ARE THE SAME SIZE AND IN A ROW, WITH GENEROUS SPACING.
 
-ESTADOS DE AURORAE
-    Cada SVG lleva 5 estados EN FILA HORIZONTAL, en este orden, que es el que espera
-    el motor: active, hover, pressed, inactive, deactivated.
+AURORAE STATES
+    Each SVG carries 5 states IN A HORIZONTAL ROW, in this order, which is the one the
+    engine expects: active, hover, pressed, inactive, deactivated.
 
-USO
+USAGE
     python3 generate-macos-decoration.py output/aurorae/KdeMacOS
 """
 
@@ -37,28 +37,28 @@ import os
 import sys
 
 # --------------------------------------------------------------------------
-# Valores medidos del kit de macOS 27 (tokens-forma-efectos.toml y el .fig)
+# Measured values from the macOS 27 kit (tokens-forma-efectos.toml and the .fig)
 # --------------------------------------------------------------------------
-ESCALA = 4.0            # el sprite se dibuja a 4x y KWin lo reduce: asi no hay bordes sucios
-DIAMETRO = 12.0         # px: tamano de los semaforos medido en el kit
-MARGEN_FILA = 4.0       # hueco dentro de cada celda del sprite
+ESCALA = 4.0            # the sprite is drawn at 4x and KWin shrinks it: no dirty edges
+DIAMETRO = 12.0         # px: traffic light size measured in the kit
+MARGEN_FILA = 4.0       # gap inside each sprite cell
 
-# Colores exactos del kit.
-#   cierre     #FF5F57
-#   minimizar  #FFBD2E
+# Exact colors from the kit.
+#   close      #FF5F57
+#   minimize   #FFBD2E
 #   zoom       #28C840
-# Gris del estado sin foco: en macOS los tres se desaturan al perder el foco.
+# Gray of the unfocused state: in macOS all three desaturate when focus is lost.
 GRIS_INACTIVO = "#48484A"
 GRIS_APAGADO = "#3A3A3C"
 
-# Glifos. En macOS son trazos oscuros y finos, y solo se ven al pasar el raton.
-GLIFO_COLOR = "#4D0000"      # sobre el rojo
+# Glyphs. In macOS they are dark, thin strokes, and they only show on hover.
+GLIFO_COLOR = "#4D0000"      # over the red
 GLIFO_COLOR_AMARILLO = "#5A3C00"
 GLIFO_COLOR_VERDE = "#0B3B0B"
 
 
 def celda(indice: int) -> float:
-    """Coordenada x del centro de la celda `indice` dentro del sprite."""
+    """X coordinate of the center of cell `indice` inside the sprite."""
     return MARGEN_FILA + DIAMETRO / 2 + indice * (DIAMETRO + MARGEN_FILA * 2)
 
 
@@ -69,9 +69,9 @@ def ancho_sprite() -> float:
 def circulo(cx: float, cy: float, r: float, relleno: str,
             borde: str | None = None, opacidad: float = 1.0,
             grosor_borde: float = 1.0) -> str:
-    """Un semaforo. El ARO de 1 px no es decorativo: el kit lo define, y es lo que
+    """A traffic light. The 1 px RING is not decorative: the kit defines it, and it is
 
-    hace que el circulo se vea solido en lugar de plano. macOS tambien lo lleva.
+    what makes the circle look solid instead of flat. macOS has it too.
     """
     op = f' fill-opacity="{opacidad:g}"' if opacidad != 1.0 else ""
     trazo = ""
@@ -83,8 +83,8 @@ def circulo(cx: float, cy: float, r: float, relleno: str,
 
 
 def glifos(cx: float, cy: float, tipo: str, color: str, escala: float) -> str:
-    """El glifo que aparece al pasar el raton. Trazos, no rellenos."""
-    g = DIAMETRO * 0.27          # semiancho del glifo (macOS los hace discretos)
+    """The glyph that appears on hover. Strokes, not fills."""
+    g = DIAMETRO * 0.27          # glyph half-width (macOS keeps them subtle)
     grosor = DIAMETRO * 0.10
     estilo = f'stroke="{color}" stroke-width="{grosor:g}" stroke-linecap="round" fill="none"'
     if tipo == "close":
@@ -95,7 +95,7 @@ def glifos(cx: float, cy: float, tipo: str, color: str, escala: float) -> str:
     if tipo == "minimize":
         return f'<path d="M {cx-g:g} {cy:g} L {cx+g:g} {cy:g}" {estilo}/>'
     if tipo in ("maximize", "restore"):
-        # macOS usa dos triangulos pequenos en las esquinas, no una cruz
+        # macOS uses two small triangles in the corners, not a cross
         t = g * 0.9
         return (
             f'<path d="M {cx-g:g} {cy-g:g} L {cx-g+t:g} {cy-g:g} L {cx-g:g} {cy-g+t:g} Z" fill="{color}"/>'
@@ -105,7 +105,7 @@ def glifos(cx: float, cy: float, tipo: str, color: str, escala: float) -> str:
 
 
 def svg_boton(tipo: str, color_normal: str, color_borde: str, color_glifo: str) -> str:
-    """Un sprite de boton con los 5 estados de Aurorae en fila."""
+    """A button sprite with Aurorae's 5 states in a row."""
     cy = MARGEN_FILA + DIAMETRO / 2
     alto = MARGEN_FILA * 2 + DIAMETRO
     ancho = ancho_sprite()
@@ -116,21 +116,21 @@ def svg_boton(tipo: str, color_normal: str, color_borde: str, color_glifo: str) 
         f' viewBox="0 0 {ancho:g} {alto:g}">',
     ]
 
-    # indice 0: active  -> color, sin glifo (el glifo solo sale al pasar el raton)
+    # index 0: active  -> color, no glyph (the glyph only shows on hover)
     partes.append(f'<g id="active-center">{circulo(celda(0), cy, r, color_normal, color_borde)}</g>')
-    # indice 1: hover   -> color + glifo
+    # index 1: hover   -> color + glyph
     partes.append(
         f'<g id="hover-center">{circulo(celda(1), cy, r, color_normal, color_borde)}'
         f'{glifos(celda(1), cy, tipo, color_glifo, 1.0)}</g>'
     )
-    # indice 2: pressed -> un poco mas oscuro
+    # index 2: pressed -> a little darker
     partes.append(
         f'<g id="pressed-center">{circulo(celda(2), cy, r, color_normal, color_borde, 0.82)}'
         f'{glifos(celda(2), cy, tipo, color_glifo, 1.0)}</g>'
     )
-    # indice 3: inactive -> GRIS. Es el detalle que casi nadie reproduce.
+    # index 3: inactive -> GRAY. It is the detail almost nobody reproduces.
     partes.append(f'<g id="inactive-center">{circulo(celda(3), cy, r, GRIS_INACTIVO)}</g>')
-    # indice 4: deactivated -> gris mas apagado todavia
+    # index 4: deactivated -> an even duller gray
     partes.append(f'<g id="deactivated-center">{circulo(celda(4), cy, r, GRIS_APAGADO)}</g>')
 
     partes.append("</svg>")
@@ -139,11 +139,11 @@ def svg_boton(tipo: str, color_normal: str, color_borde: str, color_glifo: str) 
 
 def svg_marco(alto_titulo: float, radio: float) -> str:
     """
-    El marco de la ventana. macOS 27 usa un radio de ventana propio, distinto del de
-    control, y no lleva borde marcado: el peso lo da la sombra.
+    The window frame. macOS 27 uses its own window radius, different from the control
+    one, and it has no marked border: the weight comes from the shadow.
     """
-    w = 400.0      # ancho de referencia; KWin lo estira
-    h = alto_titulo * 3   # el svg de decoracion cubre titulo, lados y base
+    w = 400.0      # reference width; KWin stretches it
+    h = alto_titulo * 3   # the decoration svg covers title, sides and bottom
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w:g}" height="{h:g}" viewBox="0 0 {w:g} {h:g}">
   <defs>
     <linearGradient id="barra" x1="0" y1="0" x2="0" y2="1">
@@ -167,12 +167,12 @@ def svg_marco(alto_titulo: float, radio: float) -> str:
 '''
 
 
-# Las medidas. El alto de la barra sale de tokens-forma-efectos.toml: ventana 28.
+# The measurements. The bar height comes from tokens-forma-efectos.toml: window 28.
 ALTO_TITULO = 28.0
-RADIO_VENTANA = 12.0     # radio de ventana medido, distinto del de control
+RADIO_VENTANA = 12.0     # measured window radius, different from the control one
 
-# El KIT da DOS colores por semaforo: el relleno del circulo y el del aro.
-# Ignorar el segundo deja los botones planos, como un circulo de color sin mas.
+# The KIT gives TWO colors per traffic light: the circle fill and the ring one.
+# Ignoring the second leaves the buttons flat, like a plain colored circle.
 BOTONES = {
     "close":    ("#FF5F57", "#FF4245", GLIFO_COLOR),
     "minimize": ("#FFBD2E", "#FF9230", GLIFO_COLOR_AMARILLO),
@@ -262,9 +262,9 @@ def main() -> int:
     print("  -> metadata.desktop")
 
     print()
-    print(f"Semaforos: {DIAMETRO:g} px, separacion 8 px, en fila a la IZQUIERDA.")
-    print("Colores del kit: #FF5F57 (cerrar), #FFBD2E (minimizar), #28C840 (zoom).")
-    print("Sin foco: los tres se apagan a gris, como en macOS.")
+    print(f"Traffic lights: {DIAMETRO:g} px, 8 px apart, in a row on the LEFT.")
+    print("Kit colors: #FF5F57 (close), #FFBD2E (minimize), #28C840 (zoom).")
+    print("Unfocused: all three fade to gray, as in macOS.")
     return 0
 
 

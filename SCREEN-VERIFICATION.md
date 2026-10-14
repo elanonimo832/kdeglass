@@ -1,187 +1,187 @@
-# Verificación en pantalla real
+# Verification on a real screen
 
-Registro de la comprobación del esquema aplicado, midiendo los píxeles de una captura de
-*Configuración del sistema → Apariencia → Colores*. Es la verificación que faltaba: la
-que confirma que lo generado **se aplica y se ve como estaba calculado**.
+Record of the check of the applied scheme, measuring the pixels of a screenshot of
+*System Settings → Appearance → Colors*. It is the verification that was missing: the
+one that confirms that what was generated **is applied and looks as calculated**.
 
-- Captura: `Colors — System Settings`, 1171x905
-- Esquema en pantalla: **KdeMacosLight**, seleccionado (aparece con el borde de foco azul)
-- Método: muestreo de píxeles con PIL, agrupando por franjas y contando el color dominante
+- Screenshot: `Colors — System Settings`, 1171x905
+- Scheme on screen: **KdeMacosLight**, selected (it appears with the blue focus border)
+- Method: pixel sampling with PIL, grouping by bands and counting the dominant color
 
 ---
 
-## 1. Fondos: coinciden exactamente
+## 1. Backgrounds: they match exactly
 
-Medido en la tarjeta de vista previa de `KdeMacosLight`, y comparado con
+Measured in the preview card of `KdeMacosLight`, and compared with
 `output/color-schemes/KdeMacosLight.colors`:
 
-| Región | En pantalla | Yo declaré | |
+| Region | On screen | What I declared | |
 |---|---|---|---|
-| Cuerpo de la ventana | `#FFFFFF` | `Colors:Window.BackgroundNormal = 255,255,255` | ✔ |
-| Barra de título | `#F1F1F1` | `Colors:Header.BackgroundNormal = 241,241,241` | ✔ |
-| Banda de resalte (fila seleccionada) | `#CDDFE0` | `Colors:Selection.BackgroundNormal = 1,101,226` | ⚠ ver §3 |
+| Window body | `#FFFFFF` | `Colors:Window.BackgroundNormal = 255,255,255` | ✔ |
+| Title bar | `#F1F1F1` | `Colors:Header.BackgroundNormal = 241,241,241` | ✔ |
+| Highlight band (selected row) | `#CDDFE0` | `Colors:Selection.BackgroundNormal = 1,101,226` | ⚠ see §3 |
 
-Los dos primeros son **idénticos**. El tercero no, y tiene explicación.
+The first two are **identical**. The third is not, and there is an explanation.
 
-## 2. Textos: coinciden dentro de la tolerancia de compresión
+## 2. Texts: they match within the compression tolerance
 
-El texto se mide por el **núcleo del trazo** (el 0,5 % de píxeles más extremo), no por los
-bordes suavizados, que siempre son más claros:
+The text is measured by the **core of the stroke** (the most extreme 0.5 % of pixels), not by the
+smoothed edges, which are always lighter:
 
-| Texto | En pantalla | Yo declaré | Diferencia |
+| Text | On screen | What I declared | Difference |
 |---|---|---|---|
-| Texto normal | `#282828` | `38,38,38` = `#262626` | 2/255 por canal |
-| Texto deshabilitado | `#2D2D2D` | `35,35,35` = `#232323` | 10/255 por canal |
-| Texto sobre el resalte | casi blanco | `255,255,255` | antialiasing |
+| Normal text | `#282828` | `38,38,38` = `#262626` | 2/255 per channel |
+| Disabled text | `#2D2D2D` | `35,35,35` = `#232323` | 10/255 per channel |
+| Text on the highlight | almost white | `255,255,255` | antialiasing |
 
-La diferencia de 2 niveles en el texto normal es **ruido de la conversión a WebP**, no un
-error de cálculo. La de 10 niveles en el deshabilitado es antialiasing: al medir el
-"núcleo" de un trazo fino se mezcla parte del fondo.
+The difference of 2 levels in the normal text is **noise from the WebP conversion**, not a
+calculation error. The 10-level one in the disabled text is antialiasing: when measuring the
+"core" of a thin stroke, part of the background gets mixed in.
 
-**Conclusión:** la composición del velo es correcta. El texto normal se ve a `#282828`
-sobre blanco, que es exactamente `negro al 85 %` sobre `#FFFFFF`, que es lo que calcula el
-generador a partir del token `label/primary` del kit.
+**Conclusion:** the veil composition is correct. The normal text appears at `#282828`
+on white, which is exactly `black at 85 %` on `#FFFFFF`, which is what the
+generator calculates from the kit's `label/primary` token.
 
-## 3. La única discrepancia real: el resalte no es azul sólido
+## 3. The only real discrepancy: the highlight is not solid blue
 
-`Colors:Selection.BackgroundNormal` lo declaré como `1,101,226` (`#0165E2`), que es el
-token `misc.table.bg_selected_active` del kit: en macOS, la fila seleccionada de una tabla
-se pinta con **azul de acento sólido y texto blanco**.
+I declared `Colors:Selection.BackgroundNormal` as `1,101,226` (`#0165E2`), which is the
+kit's `misc.table.bg_selected_active` token: in macOS, the selected row of a table
+is painted with **solid accent blue and white text**.
 
-Pero en pantalla el resalte se ve **azul muy claro** (`#CDDFE0`), y el texto del resalte
-sale oscuro en vez de blanco.
+But on screen the highlight looks **very light blue** (`#CDDFE0`), and the text of the highlight
+comes out dark instead of white.
 
-**Causa:** el kit de macOS 27 tiene una opción de accesibilidad que KDE llama *«usar el
-color de acento para la selección»*. Cuando está activa, los widgets calculan el resalte a
-partir del **color de acento** y no del `BackgroundNormal` del grupo `Colors:Selection`.
-En la captura, el acento está seleccionado como «Accent color from color scheme», así que
-KDE deriva un tinte claro del azul.
+**Cause:** the macOS 27 kit has an accessibility option that KDE calls *"use the
+accent color for selection"*. When it is active, widgets calculate the highlight from
+the **accent color** and not from the `BackgroundNormal` of the `Colors:Selection` group.
+In the screenshot, the accent is selected as "Accent color from color scheme", so
+KDE derives a light tint from the blue.
 
-Es decir: el color declarado es correcto, pero **KDE lo sustituye**. Para verlo como en
-macOS (azul sólido) hay que desactivar esa opción, o fijar el acento explícitamente.
+That is: the declared color is correct, but **KDE replaces it**. To see it as in
+macOS (solid blue) you have to disable that option, or set the accent explicitly.
 
-**Esto no es un fallo del esquema**: los otros cinco esquemas de la captura (KvAdapta,
-KvAdaptaDark, KvAmbiance, KvAmbiance… y Kvantum) muestran exactamente el mismo resalte
-claro. Es el comportamiento de KDE en esta versión, no de mis colores.
+**This is not a fault of the scheme**: the other five schemes in the screenshot (KvAdapta,
+KvAdaptaDark, KvAmbiance, KvAmbiance… and Kvantum) show exactly the same light
+highlight. It is KDE's behavior in this version, not my colors'.
 
-## 4. Nota sobre el cromo oscuro
+## 4. Note about the dark chrome
 
-En la captura, la barra de título de *Configuración del sistema* y los bordes de la ventana
-se ven oscuros aunque el esquema sea claro. Es esperado: el **tema global** del sistema
-sigue siendo `Ant-Dark` y la **decoración de ventana** es de Kvantum/Ant. El instalador
-cambia el esquema de color, no el tema global ni la decoración — a propósito, para que el
-cambio sea pequeño y reversible.
+In the screenshot, the title bar of *System Settings* and the window borders
+look dark even though the scheme is light. This is expected: the system's **global theme**
+is still `Ant-Dark` and the **window decoration** is Kvantum/Ant. The installer
+changes the color scheme, not the global theme or the decoration — on purpose, so that the
+change is small and reversible.
 
-Cuando el esquema esté validado, el siguiente paso natural es un tema global que una
-esquema + decoración + Plasma Style.
+Once the scheme is validated, the next natural step is a global theme that joins
+scheme + decoration + Plasma Style.
 
 ---
 
-## 5. Qué queda verificado y qué no
+## 5. What is verified and what is not
 
 | | |
 |---|---|
-| **Verificado** | El `aplicar` funciona: el esquema aparece en Ajustes y se puede seleccionar |
-| **Verificado** | Los fondos se aplican exactamente como se calcularon |
-| **Verificado** | La composición del velo da el color de texto previsto |
-| **Verificado** | El contraste alto se conserva en pantalla (el texto se ve nítido) |
-| **Pendiente** | El CSS de GTK: no se ha probado con una app GTK real |
-| **Pendiente** | El esquema oscuro `KdeMacosDark` en pantalla |
-| **Pendiente** | El aspecto como tema global (decoración + Plasma Style) |
+| **Verified** | `aplicar` works: the scheme appears in Settings and can be selected |
+| **Verified** | The backgrounds are applied exactly as they were calculated |
+| **Verified** | The veil composition gives the expected text color |
+| **Verified** | The high contrast is preserved on screen (the text looks sharp) |
+| **Pending** | The GTK CSS: it has not been tested with a real GTK app |
+| **Pending** | The dark scheme `KdeMacosDark` on screen |
+| **Pending** | The look as a global theme (decoration + Plasma Style) |
 
 
 ---
 
-## 6. Los botones de la barra de título: NO los dibuja el tema GTK
+## 6. The title bar buttons: they are NOT drawn by the GTK theme
 
-Al probar con **Proton VPN** (`proton-vpn-gtk-app 4.18.6`, GTK4 nativo, **sin
-libadwaita**) apareció una confusión que conviene dejar escrita, porque es un error fácil
-de cometer:
+When testing with **Proton VPN** (`proton-vpn-gtk-app 4.18.6`, native GTK4, **without
+libadwaita**) a confusion appeared that is worth writing down, because it is an easy mistake
+to make:
 
-> Los botones de la barra de título —el menú, minimizar y cerrar— **no los dibuja el tema
-> GTK**. Los dibuja **KWin**, con la decoración de ventana activa.
+> The title bar buttons —the menu, minimize and close— **are not drawn by the GTK
+> theme**. They are drawn by **KWin**, with the active window decoration.
 
-Por eso no se arreglan tocando `kde-macos.css`, por mucho que se ajuste.
+That is why they are not fixed by touching `kde-macos.css`, however much you adjust it.
 
-### Primera respuesta, y por qué estaba mal
+### First response, and why it was wrong
 
-Lo primero que hice fue copiar la decoración que ya tenías (**Ant-Dark**) y separar sus
-botones. Eso **no es lo acordado**: el proyecto es *una capa estilo macOS*, y una copia del
-tema de otro con los botones más separados no es eso. Fue resolver el síntoma en vez del
-objetivo.
+The first thing I did was copy the decoration you already had (**Ant-Dark**) and separate its
+buttons. That **is not what was agreed**: the project is *a macOS-style layer*, and a copy of
+someone else's theme with the buttons further apart is not that. It was solving the symptom instead of
+the objective.
 
-### Lo correcto: una decoración propia, generada desde los tokens
+### The right thing: a decoration of its own, generated from the tokens
 
-`output/aurorae/KdeMacOS/` es una decoración **generada desde cero** por
-`tools/generate-macos-decoration.py`, con los valores medidos del kit:
+`output/aurorae/KdeMacOS/` is a decoration **generated from scratch** by
+`tools/generate-macos-decoration.py`, with the measured values from the kit:
 
-| Elemento | Valor | Origen |
+| Element | Value | Origin |
 |---|---|---|
-| Tamaño del semáforo | 12 px | Medido en el `.fig` |
-| Cerrar | `#FF5F57` | `tokens-forma-efectos.toml` |
-| Minimizar | `#FFBD2E` | Idem |
-| Zoom | `#28C840` | Idem |
-| Posición | **Izquierda**, orden cerrar-minimizar-zoom | Convención de macOS |
-| Separación | 8 px | Para que respiren |
-| Alto de barra | 28 px | Medido |
+| Traffic light size | 12 px | Measured in the `.fig` |
+| Close | `#FF5F57` | `tokens-forma-efectos.toml` |
+| Minimize | `#FFBD2E` | Ditto |
+| Zoom | `#28C840` | Ditto |
+| Position | **Left**, close-minimize-zoom order | macOS convention |
+| Separation | 8 px | So they can breathe |
+| Bar height | 28 px | Measured |
 
-**Los tres detalles que casi nadie reproduce y aquí sí están:**
+**The three details that almost nobody reproduces and here are present:**
 
-1. **Los glifos solo aparecen al pasar el ratón.** En reposo son tres círculos limpios.
-2. **Sin foco, los tres se apagan a gris** (`#48484A` / `#3A3A3C`). En macOS los semáforos
-   no se quedan de color: se desaturan. Es el estado `inactive` de Aurorae.
-3. **Están a la izquierda.** Tu decoración anterior los tenía repartidos y sin semáforos.
+1. **The glyphs only appear on mouse hover.** At rest they are three clean circles.
+2. **Without focus, the three dim to gray** (`#48484A` / `#3A3A3C`). In macOS the traffic lights
+   do not stay colored: they desaturate. It is Aurorae's `inactive` state.
+3. **They are on the left.** Your previous decoration had them spread out and without traffic lights.
 
-Vista previa: `output/aurorae/preview/`.
+Preview: `output/aurorae/preview/`.
 
-### Instalación
+### Installation
 
 ```bash
-./install-decoration.sh plan              # ver qué haría
-./install-decoration.sh aplicar --si      # instalar
+./install-decoration.sh plan              # see what it would do
+./install-decoration.sh aplicar --si      # install
 ```
 
-Luego: *Ajustes → Apariencia → Decoraciones de ventana → **KdeMacOS***.
+Then: *Settings → Appearance → Window Decorations → **KdeMacOS***.
 
-**No modifica ninguna decoración existente**: se instala aparte y se elige en Ajustes. El
-ciclo instalar → revertir está probado con un `HOME` falso.
+**It does not modify any existing decoration**: it is installed separately and chosen in Settings. The
+install → revert cycle is tested with a fake `HOME`.
 
-### Lo que sigue pendiente en la decoración
+### What is still pending in the decoration
 
-El `.rc` declara `Shadow=true` y el marco es una aproximación: la sombra real de macOS son
-**dos capas** (difusa radio 54 + contacto radio 1) que ya están medidas en
-`tokens-forma-efectos.toml`. Aurorae no permite declarar dos sombras, así que la del marco
-la tendrá que poner el efecto KWin del paso 5.
+The `.rc` declares `Shadow=true` and the frame is an approximation: the real macOS shadow is
+**two layers** (diffuse radius 54 + contact radius 1) that are already measured in
+`tokens-forma-efectos.toml`. Aurorae does not allow declaring two shadows, so the frame's
+one will have to be added by the KWin effect of step 5.
 
-### El otro dato que salió de aquí
+### The other piece of data that came out of this
 
-Proton VPN trae su propio CSS, con su marca en violeta (`#8A6EFF`). El verde de «Protected»
-es suyo, de estado, no del tema. Para apps que pintan lo suyo, el tema del sistema solo
-influye en lo que la app no dibuja ella misma. Es la lista de excepciones de
-[ANALYSIS.md](ANALYSIS.md) §3.3, ahora con un caso real comprobado.
+Proton VPN brings its own CSS, with its brand in purple (`#8A6EFF`). The green of "Protected"
+is its own, a state color, not the theme's. For apps that paint their own thing, the system theme only
+influences what the app does not draw itself. It is the list of exceptions in
+[ANALYSIS.md](ANALYSIS.md) §3.3, now with a real tested case.
 
 
 ---
 
-## 7. Por qué los semáforos salían a la derecha (y no a la izquierda)
+## 7. Why the traffic lights came out on the right (and not on the left)
 
-Tras instalar `KdeMacOS`, la captura de Konsole mostró **tres círculos oscuros a la
-derecha** en lugar de los semáforos de colores a la izquierda. La causa está localizada y
-comprobada contra el `kwinrc` real:
+After installing `KdeMacOS`, the Konsole screenshot showed **three dark circles on the
+right** instead of the colored traffic lights on the left. The cause is located and
+checked against the real `kwinrc`:
 
 ```
 ~/.config/kwinrc
     [org.kde.kdecoration2]
     library=org.kde.kwin.aurorae.v2
     theme=__aurorae__svg__KdeMacOS
-    <-- NO habia ninguna clave de botones
+    <-- there was NO button key at all
 ```
 
-**El tema declara `LeftButtons=XIA` en su `.rc`, pero KWin 6 no lee ahí la disposición.**
-La lee de `kwinrc`. Si las claves no existen, aplica **su propio valor por defecto, que
-pone los botones a la derecha**. Por eso el tema pedía la izquierda y salían a la derecha.
+**The theme declares `LeftButtons=XIA` in its `.rc`, but KWin 6 does not read the layout there.**
+It reads it from `kwinrc`. If the keys do not exist, it applies **its own default value, which
+puts the buttons on the right**. That is why the theme asked for the left and they came out on the right.
 
-Las claves correctas son:
+The correct keys are:
 
 ```ini
 [org.kde.kdecoration2]
@@ -189,15 +189,15 @@ ButtonsOnLeft=XIA
 ButtonsOnRight=
 ```
 
-`X` = cerrar, `I` = minimizar, `A` = maximizar. En ese orden y a la izquierda es lo que
-hace macOS.
+`X` = close, `I` = minimize, `A` = maximize. In that order and on the left is what
+macOS does.
 
-Esto **no lo podía ver el análisis estático**: el tema era coherente, el motor estaba bien
-elegido y el SVG estaba bien formado. Solo aparece al mirar la ventana renderizada.
+This **could not be seen by the static analysis**: the theme was coherent, the engine was well
+chosen and the SVG was well formed. It only appears when looking at the rendered window.
 
-### Corregido en el instalador
+### Fixed in the installer
 
-El subcomando `--activar` ahora escribe las tres claves que importan:
+The `--activar` subcommand now writes the three keys that matter:
 
 ```
 library=org.kde.kwin.aurorae.v2
@@ -206,44 +206,44 @@ ButtonsOnLeft=XIA
 ButtonsOnRight=
 ```
 
-Y `plan` informa de la disposición **que tiene KWin en ese momento**, no de la que declara
-el tema, que es la que engañaba.
+And `plan` reports the layout **that KWin has at that moment**, not the one the theme
+declares, which is what was misleading.
 
-### Y una limpieza pendiente
+### And a pending cleanup
 
-La primera versión del instalador creó **`Ant-MacOS`** (la copia de Ant-Dark, antes de que
-se corrigiera el criterio). Sigue instalada. Se quita con:
+The first version of the installer created **`Ant-MacOS`** (the copy of Ant-Dark, before the
+criterion was corrected). It is still installed. It is removed with:
 
 ```bash
 ./install-decoration.sh limpiar
 ```
 
-### Lo que sigue sin poder verificar aquí
+### What still cannot be verified here
 
-No pude arrancar un KWin anidado para ver el resultado: el sandbox no permite crear el
-socket en `/run/user/1000` ni sobrevive el proceso. Así que **el color final de los
-semáforos está sin confirmar en pantalla**. Lo que sí está verificado: el SVG es válido,
-tiene los cinco estados en su sitio y los colores son los del kit.
+I could not start a nested KWin to see the result: the sandbox does not allow creating the
+socket in `/run/user/1000` nor does the process survive. So **the final color of the
+traffic lights is unconfirmed on screen**. What is verified: the SVG is valid,
+it has the five states in place and the colors are the kit's.
 
 
 ---
 
-## 8. Confirmado en pantalla: los semáforos funcionan
+## 8. Confirmed on screen: the traffic lights work
 
-Tras aplicar `ButtonsOnLeft=XIA`, la captura de Konsole muestra los **tres semáforos a la
-izquierda**, en color, y el mismo aspecto en Ajustes del sistema. Medido sobre la captura:
+After applying `ButtonsOnLeft=XIA`, the Konsole screenshot shows the **three traffic lights on the
+left**, in color, and the same appearance in System Settings. Measured on the screenshot:
 
-| Semáforo | En pantalla | Del kit | Diferencia |
+| Traffic light | On screen | From the kit | Difference |
 |---|---|---|---|
-| Cerrar | `#F26E69` | `#FF5F57` | 18/255 |
-| Minimizar | `#F7C450` | `#FFBD2E` | 34/255 |
+| Close | `#F26E69` | `#FF5F57` | 18/255 |
+| Minimize | `#F7C450` | `#FFBD2E` | 34/255 |
 | Zoom | `#45C95A` | `#28C840` | 29/255 |
-| Separación entre bordes | **8 px** | declarado 8 px | exacto |
+| Separation between edges | **8 px** | declared 8 px | exact |
 
-Las diferencias de color son de la **compresión WebP** de la captura y del suavizado de
-bordes a 12 px, no del renderizado. La separación coincide **exactamente**.
+The color differences are from the **WebP compression** of the screenshot and from the edge
+smoothing at 12 px, not from the rendering. The separation matches **exactly**.
 
-### Comprobado en el `kwinrc` real
+### Checked in the real `kwinrc`
 
 ```ini
 [org.kde.kdecoration2]
@@ -253,46 +253,46 @@ library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__KdeMacOS
 ```
 
-### Y una mejora que faltaba: el aro
+### And a missing improvement: the ring
 
-El kit da **dos** colores por semáforo: el relleno del círculo **y el del aro**. Yo solo
-usaba el primero, y los botones salían planos. Ya están los dos:
+The kit gives **two** colors per traffic light: the fill of the circle **and the ring's**. I only
+used the first, and the buttons came out flat. Both are there now:
 
 ```
-close.svg     relleno #FF5F57   aro #FF4245
-minimize.svg  relleno #FFBD2E   aro #FF9230
-maximize.svg  relleno #28C840   aro #30D158
+close.svg     fill #FF5F57   ring #FF4245
+minimize.svg  fill #FFBD2E   ring #FF9230
+maximize.svg  fill #28C840   ring #30D158
 ```
 
 ---
 
-## 9. Lo que NO es fiel, y conviene saberlo
+## 9. What is NOT faithful, and it is worth knowing
 
-Comparé los colores del kit con los que macOS **pinta realmente**. Hay una diferencia
-sistemática:
+I compared the kit's colors with the ones macOS **actually paints**. There is a systematic
+difference:
 
-| | Kit (lo que uso) | macOS en pantalla |
+| | Kit (what I use) | macOS on screen |
 |---|---|---|
-| Cerrar | `#FF5F57` | `#ED6A5F` |
-| Minimizar | `#FFBD2E` | `#F6BE50` |
+| Close | `#FF5F57` | `#ED6A5F` |
+| Minimize | `#FFBD2E` | `#F6BE50` |
 | Zoom | `#28C840` | `#61C555` |
-| Saturación del verde | 80 % | **57 %** |
+| Green saturation | 80 % | **57 %** |
 
-El kit está **~18/255 más saturado** que lo que se ve en la pantalla de macOS, sobre todo
-en el verde (`#28C840` frente a `#61C555`). La causa probable es que los valores del kit
-son los *declarados* en sRGB, mientras que macOS los dibuja con su gestión de color y un
-poco de vibrancy encima.
+The kit is **~18/255 more saturated** than what is seen on the macOS screen, above all
+in the green (`#28C840` versus `#61C555`). The probable cause is that the kit's values
+are the ones *declared* in sRGB, while macOS draws them with its color management and a
+bit of vibrancy on top.
 
-**Decisión tomada:** se usan los valores del **kit**, no los de la pantalla. Motivo: el
-proyecto se construye *desde los tokens*, y mezclar aquí una corrección sacada de una
-captura rompería esa regla. Queda anotado aquí y, si se quiere afinar, es un cambio de tres
-constantes en `tools/generate-macos-decoration.py`.
+**Decision taken:** the **kit** values are used, not the screen ones. Reason: the
+project is built *from the tokens*, and mixing in a correction taken from a
+screenshot here would break that rule. It is noted here and, if you want to fine-tune it, it is a change of three
+constants in `tools/generate-macos-decoration.py`.
 
-**Y falta un detalle de fidelidad:** macOS pone un **aro ligeramente más oscuro** que el
-relleno (el kit lo refleja con el segundo color), pero además los semáforos reales llevan
-transparencia en los bordes. KWin con SVG no aplica ese desvanecido con facilidad.
+**And a fidelity detail is missing:** macOS puts a **slightly darker ring** than the
+fill (the kit reflects it with the second color), but on top of that the real traffic lights carry
+transparency at the edges. KWin with SVG does not apply that fade easily.
 
-### Referencia consultada
+### Reference consulted
 
 [`lwouis/macos-traffic-light-buttons-as-SVG`](https://github.com/lwouis/macos-traffic-light-buttons-as-SVG),
-una aproximación en SVG de los botones reales, con los colores medidos por su autor.
+an SVG approximation of the real buttons, with the colors measured by its author.

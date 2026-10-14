@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-extract-fig.py — Saca del documento .fig los valores que NO eran variables
+extract-fig.py — Pulls from the .fig document the values that were NOT variables
 
-POR QUE HACE FALTA
-    La exportacion de Variables de Figma solo lleva lo declarado como variable. Los
-    radios, los efectos, los colores de trazo y los estilos de texto viven en las
-    PROPIEDADES DE NODO, asi que no aparecen por ningun lado. Aqui si estan.
+WHY IT IS NEEDED
+    Figma's Variables export only carries what was declared as a variable. Radii,
+    effects, stroke colors and text styles live in the NODE PROPERTIES, so they do not
+    show up anywhere. Here they are.
 
-QUE EXTRAE
-    1. cornerRadius + cornerSmoothing   -> el radio y el SQUIRCLE (la superelipse)
-    2. effects                          -> sombras, difuminados, radios de efecto
-    3. fillPaints / strokePaints        -> el borde capilar y la translucidez (alfa)
-    4. fontSize / lineHeight / letterSpacing / fontName -> estilos de texto reales
-    5. stackSpacing / padding           -> espaciados de layout
+WHAT IT EXTRACTS
+    1. cornerRadius + cornerSmoothing   -> the radius and the SQUIRCLE (the superellipse)
+    2. effects                          -> shadows, blurs, effect radii
+    3. fillPaints / strokePaints        -> the hairline border and translucency (alpha)
+    4. fontSize / lineHeight / letterSpacing / fontName -> real text styles
+    5. stackSpacing / padding           -> layout spacings
 
-    Para cada magnitud se agrupa por nombre de nodo, que es lo que permite
-    identificar a que control pertenece cada valor (p. ej. una "Window" con radio 10).
+    For each magnitude it groups by node name, which is what makes it possible to
+    identify which control each value belongs to (e.g. a "Window" with radius 10).
 
-USO
+USAGE
     python3 extract-fig.py kit.json output/
 """
 
@@ -30,7 +30,7 @@ import re
 import sys
 from datetime import date
 
-# Nombres que interesan para el cromo de ventana y los controles.
+# Names of interest for the window chrome and the controls.
 RELEVANTES = re.compile(
     r"window|titlebar|title bar|toolbar|sidebar|button|checkbox|radio|switch|toggle|"
     r"slider|segmented|field|search|menu|popover|sheet|panel|tab|stepper|combo|"
@@ -59,7 +59,7 @@ def num(x):
 
 
 def paints_a_texto(paints) -> str:
-    """Resume una lista de paints: color + alfa + tipo de opacidad."""
+    """Summarizes a list of paints: color + alpha + opacity type."""
     if not isinstance(paints, list):
         return ""
     partes = []
@@ -99,12 +99,12 @@ def main() -> int:
     origen, destino = sys.argv[1], sys.argv[2]
     os.makedirs(destino, exist_ok=True)
 
-    print(f"Leyendo {origen} ...")
+    print(f"Reading {origen} ...")
     d = json.load(open(origen))
     nodos = d.get("nodeChanges", [])
-    print(f"  {len(nodos)} nodos")
+    print(f"  {len(nodos)} nodes")
 
-    # ---- acumuladores: (magnitud) -> Counter[(nombre_normalizado, valor)] ----
+    # ---- accumulators: (magnitude) -> Counter[(normalized_name, value)] ----
     radios = collections.Counter()
     smoothing = collections.Counter()
     efectos = collections.Counter()
@@ -116,7 +116,7 @@ def main() -> int:
         nombre = (n.get("name") or "").strip()
         t = tipo_de(n)
 
-        # 1) radios
+        # 1) radii
         cr = num(n.get("cornerRadius"))
         cs = num(n.get("cornerSmoothing"))
         if cr is not None and cr > 0:
@@ -129,7 +129,7 @@ def main() -> int:
             if v:
                 radios[(f"{nombre[:40]}[esquina]", round(v, 2))] += 1
 
-        # 2) efectos (sombras, difuminados)
+        # 2) effects (shadows, blurs)
         for e in (n.get("effects") or []):
             if not isinstance(e, dict):
                 continue
@@ -145,13 +145,13 @@ def main() -> int:
             hexv = col.get("hex", "") if isinstance(col, dict) else ""
             efectos[(t, str(et), radio, dx, dy, hexv, round(float(col.get("a", 1)), 3) if isinstance(col, dict) else None)] += 1
 
-        # 3) trazos y rellenos (color, alfa)
+        # 3) strokes and fills (color, alpha)
         for campo, etiqueta in (("strokePaints", "trazo"), ("fillPaints", "relleno")):
             txt = paints_a_texto(n.get(campo))
             if txt:
                 trazos[(etiqueta, txt[:120], round(num(n.get("strokeWeight")) or 0, 2))] += 1
 
-        # 4) texto
+        # 4) text
         fs, lh, ls = num(n.get("fontSize")), num(n.get("lineHeight")), num(n.get("letterSpacing"))
         fn = n.get("fontName")
         if isinstance(fn, dict):
@@ -162,14 +162,14 @@ def main() -> int:
             textos[(t, round(fs, 2), round(lh, 2) if lh else None,
                     round(ls, 4) if ls is not None else None, fam[:28], nombre[:44])] += 1
 
-        # 5) espaciados de layout
+        # 5) layout spacings
         for campo in ("stackSpacing", "stackHorizontalPadding", "stackVerticalPadding",
                       "stackPaddingRight", "stackPaddingBottom"):
             v = num(n.get(campo))
             if v:
                 espaciados[(campo, round(v, 2), nombre[:40])] += 1
 
-    # ---------- volcado ----------
+    # ---------- dump ----------
     def volcar(nombre_fichero, titulo, contador, formateador, limite=60):
         ruta = os.path.join(destino, nombre_fichero)
         with open(ruta, "w", encoding="utf-8") as f:
@@ -179,7 +179,7 @@ def main() -> int:
             f.write("# 'n=' es el numero de nodos con ese valor: los de n alto son los del sistema.\n\n")
             for clave, cuenta in contador.most_common(limite):
                 f.write(f"{formateador(clave)}    n={cuenta}\n")
-        print(f"  -> {ruta} ({min(limite,len(contador))} de {len(contador)} valores)")
+        print(f"  -> {ruta} ({min(limite,len(contador))} of {len(contador)} values)")
 
     volcar("radios.txt", "RADIOS DE ESQUINA por nodo (cornerRadius)", radios,
            lambda k: f"{k[1]:>8g}  {k[0]}")
@@ -201,7 +201,7 @@ def main() -> int:
     volcar("espaciados.txt", "ESPACIADOS DE LAYOUT (stack / padding)", espaciados,
            lambda k: f"{k[0]:<26s} {k[1]:>5g}  {k[2]}")
 
-    print("\nHecho.")
+    print("\nDone.")
     return 0
 
 

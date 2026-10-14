@@ -1,347 +1,347 @@
-# INCIDENTE: pantalla negra en KDE Plasma (CachyOS) — 2026-10-13 / 14
+# INCIDENT: black screen on KDE Plasma (CachyOS) — 2026-10-13 / 14
 
-> ## ⚠️ ESTE DOCUMENTO ES HISTÓRICO: contiene conclusiones SUPERADAS
+> ## ⚠️ THIS DOCUMENT IS HISTORICAL: it contains SUPERSEDED conclusions
 >
-> Se escribió a lo largo de dos sesiones, y cada vez que encontrábamos una causa
-> nueva quedaba registrada sin borrar la anterior. Hay **cuatro conclusiones
-> sucesivas** y solo la última es correcta.
+> It was written across two sessions, and each time we found a new cause
+> it was recorded without deleting the previous one. There are **four successive
+> conclusions** and only the last one is correct.
 >
-> ## La causa, en una línea
+> ## The cause, in one line
 >
-> **El identificador del efecto.** El mismo código, byte a byte, compilado como
-> `macosglass` dejaba la composición al **100 % de negro**, y con un id nuevo
-> (`macosglass2`) funciona. Medido con capturas y análisis de píxeles.
-> El efecto se llama ahora `macosglass2`.
+> **The effect's identifier.** The same code, byte for byte, compiled as
+> `macosglass` left the composition at **100 % black**, and with a new id
+> (`macosglass2`) it works. Measured with screenshots and pixel analysis.
+> The effect is now called `macosglass2`.
 >
-> ## Lo que NO era la causa (aunque lo pareciera en su momento)
+> ## What was NOT the cause (even though it seemed so at the time)
 >
-> | Conclusión que quedó escrita | Estado |
+> | Conclusion that was written down | Status |
 > |---|---|
-> | «El efecto no era la causa» (build antigua) | **falso** |
-> | «El contexto OpenGL / scene-graph» | síntoma, no causa |
-> | «Faltaba la llamada de cadena en `paintWindow()`» | era **un fallo real**, pero no el que rompía |
-> | «El identificador `macosglass`» | **✅ correcto** (lo confirma la bisección) |
+> | "The effect was not the cause" (old build) | **false** |
+> | "The OpenGL context / scene-graph" | symptom, not cause |
+> | "The chain call was missing in `paintWindow()`" | it was **a real fault**, but not the one that broke it |
+> | "The `macosglass` identifier" | **✅ correct** (bisection confirms it) |
 >
-> ## Lo que sí quedó arreglado y sigue vigente
+> ## What did get fixed and is still valid
 >
-> 1. **La cadena de pintado.** `paintWindow()` TIENE que llamar a
->    `effects->paintWindow()`. Es un fallo real y lo comprueba `verify-chain.sh`.
-> 2. **`supported()`** devolvía `false` (`effects != nullptr`, el ejemplo de la doc
->    de KDE) y KWin descartaba el efecto EN SILENCIO.
-> 3. **La ruta** es `kwin/effects/plugins/`, no `kwin/effects/`. Un nivel. Dos horas.
-> 4. **El nombre del fichero define el pluginId**, sin prefijo `lib`.
-> 5. **Nunca `kwin_wayland --replace`** en Wayland: deja la pantalla negra.
+> 1. **The paint chain.** `paintWindow()` HAS to call
+>    `effects->paintWindow()`. It is a real fault and `verify-chain.sh` checks it.
+> 2. **`supported()`** returned `false` (`effects != nullptr`, the example in KDE's
+>    doc) and KWin discarded the effect SILENTLY.
+> 3. **The path** is `kwin/effects/plugins/`, not `kwin/effects/`. One level. Two hours.
+> 4. **The file name defines the pluginId**, with no `lib` prefix.
+> 5. **Never `kwin_wayland --replace`** on Wayland: it leaves the screen black.
 >
-> ## Cómo recuperarse
+> ## How to recover
 >
 > ```bash
-> bash ~/RECOVER-KDE.sh reanimar     # en caliente, sin cerrar sesión
+> bash ~/RECOVER-KDE.sh reanimar     # on the fly, without logging out
 > ```
 >
 > ---
 >
-> *Lo que sigue es el registro histórico, en orden cronológico inverso al final.
-> Las conclusiones antiguas se conservan a propósito: muestran cómo se llegó a la
-> buena, y qué señales se leyeron mal.*
+> *What follows is the historical record, in reverse chronological order at the end.
+> The old conclusions are kept on purpose: they show how we got to the
+> right one, and which signals were misread.*
 
 
 
-# ✅ ARREGLADO — 2026-10-13 23:32: causa raíz exacta y corrección
+# ✅ FIXED — 2026-10-13 23:32: exact root cause and fix
 
-La causa **no** era el contexto OpenGL ni la compilación: era **una llamada que
-faltaba** en `MacosGlassEffect::paintWindow()`.
+The cause was **not** the OpenGL context or the compilation: it was **a call that
+was missing** in `MacosGlassEffect::paintWindow()`.
 
-## La regla de la cadena de pintado de KWin
+## The KWin paint chain rule
 
-El código de KWin 6.7.5 (`src/effect/effecthandler.cpp`) llama a **un solo**
-efecto por invocación:
+KWin 6.7.5's code (`src/effect/effecthandler.cpp`) calls **a single**
+effect per invocation:
 
 ```cpp
 void EffectsHandler::paintWindow(...)
 {
     if (m_currentPaintWindowIterator != m_activeEffects.constEnd()) {
-        (*m_currentPaintWindowIterator++)->paintWindow(...);  // UN efecto
+        (*m_currentPaintWindowIterator++)->paintWindow(...);  // ONE effect
     } else {
-        m_scene->finalPaintWindow(...);                       // dibuja la ventana
+        m_scene->finalPaintWindow(...);                       // draws the window
     }
 }
 ```
 
-La cadena avanza porque la implementación **base** (`Effect::paintWindow`,
-`src/effect/effect.cpp`) vuelve a entrar:
+The chain advances because the **base** implementation (`Effect::paintWindow`,
+`src/effect/effect.cpp`) re-enters:
 
 ```cpp
 void Effect::paintWindow(...)
 {
-    effects->paintWindow(...);   // -> siguiente efecto, o finalPaintWindow()
+    effects->paintWindow(...);   // -> next effect, or finalPaintWindow()
 }
 ```
 
-Nuestro efecto **sobreescribía `paintWindow()` y devolvía sin llamar a
-`effects->paintWindow()`** en ningún camino. Cuando la cadena llegaba a
-`macosglass`, se cortaba: `WorkspaceScene::finalPaintWindow()` no se ejecutaba
-**nunca** y **ninguna ventana se dibujaba**. El fondo del escritorio de Plasma es
-una ventana más, así que solo quedaba el color de fondo del compositor: **negro**.
+Our effect **overrode `paintWindow()` and returned without calling
+`effects->paintWindow()`** on any path. When the chain reached
+`macosglass`, it was cut: `WorkspaceScene::finalPaintWindow()` never ran
+and **no window was drawn**. The Plasma desktop background is
+one more window, so only the compositor's background color was left: **black**.
 
-Esto explica todos los síntomas: KWin y plasmashell vivos por D-Bus (el proceso no
-se cae), `Compositing is active` (el compositor funciona), pero el scene-graph
-nunca recibe la orden de pintar. El cursor lo pinta KWin por otra vía, de ahí que
-se viera sobre el negro.
+This explains all the symptoms: KWin and plasmashell alive over D-Bus (the process does
+not crash), `Compositing is active` (the compositor works), but the scene-graph
+never receives the paint order. The cursor is painted by KWin through another path, which is why
+it was visible over the black.
 
-## La corrección
+## The fix
 
-`effect-kwin/src/glass.cpp`: **todos** los caminos de `paintWindow()` terminan en
+`effect-kwin/src/glass.cpp`: **all** the paths of `paintWindow()` end in
 
 ```cpp
 effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
 ```
 
-Comprobado a nivel de binario (sin cargarlo en la sesión):
+Verified at binary level (without loading it into the session):
 
 ```
-.so antiguo (sistema) : 0 referencias a EffectsHandler::paintWindow   <- roto
-.so nuevo  (build)    : tail-call a EffectsHandler::paintWindow       <- OK
+old .so (system) : 0 references to EffectsHandler::paintWindow   <- broken
+new .so (build)  : tail-call to EffectsHandler::paintWindow      <- OK
 ```
 
-## Qué hace ahora el efecto
+## What the effect does now
 
-Sigue **sin dibujar nada** (el shader del material es el paso siguiente). Pero ya
-no rompe la cadena: a efectos de pintado se comporta como si no estuviera
-cargado. `effect-kwin/verify-chain.sh` lo comprueba automáticamente (fuente +
-binario) y `build.sh` / `install.sh` **abortan** si la cadena no está.
+It still **draws nothing** (the material shader is the next step). But it no
+longer breaks the chain: for painting purposes it behaves as if it were not
+loaded. `effect-kwin/verify-chain.sh` checks it automatically (source +
+binary) and `build.sh` / `install.sh` **abort** if the chain is not there.
 
-## Cómo probarlo
+## How to test it
 
 ```bash
 cd "~/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin"
-./verify-chain.sh                      # fuente + binario
+./verify-chain.sh                      # source + binary
 sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
      /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
-./probar-en-vivo.sh                        # carga, captura, mide y DESCARGA solo
+./probar-en-vivo.sh                        # loads, captures, measures and ONLY unloads
 ```
 
-`probar-en-vivo.sh` descarga el efecto **siempre** (`trap EXIT`) aunque el render
-se rompiera, y se niega a empezar si el `.so` instalado no lleva el arreglo. Si
-algo fuera mal de todos modos: `bash ~/RECOVER-KDE.sh reanimar`.
+`probar-en-vivo.sh` unloads the effect **always** (`trap EXIT`) even if the render
+broke, and it refuses to start if the installed `.so` does not carry the fix. If
+something went wrong anyway: `bash ~/RECOVER-KDE.sh reanimar`.
 
-> Nota: el agente no pudo instalar el `.so` (el sandbox no puede `sudo`), así que
-> el binario del sistema **sigue siendo el antiguo** hasta que se ejecute el
-> `sudo install` de arriba. El `.so` arreglado está en
+> Note: the agent could not install the `.so` (the sandbox cannot `sudo`), so
+> the system binary **is still the old one** until the `sudo install` above is run.
+> The fixed `.so` is in
 > `effect-kwin/build/plugins/kwin/effects/macosglass.so`.
 
-## Resumen en una línea
-Se carga el efecto KWin propio `macosglass` (build compilada por nosotros) y la sesión
-Plasma queda en **pantalla negra con el cursor visible**. KWin y plasmashell **siguen
-vivos** (responden por D-Bus) y el compositor incluso dice `Compositing is active`,
-pero deja de renderizar por un fallo del **contexto OpenGL / scene-graph**.
+## One-line summary
+Our own KWin effect `macosglass` is loaded (a build we compiled ourselves) and the Plasma
+session ends up on a **black screen with the cursor visible**. KWin and plasmashell **stay
+alive** (they answer over D-Bus) and the compositor even says `Compositing is active`,
+but it stops rendering because of a failure of the **OpenGL context / scene-graph**.
 
 ---
 
-# ACTUALIZACIÓN 2026-10-13 23:12 — SEGUNDO INCIDENTE
+# UPDATE 2026-10-13 23:12 — SECOND INCIDENT
 
-## Qué volvió a pasar (cronología exacta)
-| Hora | Hecho |
+## What happened again (exact timeline)
+| Time | Event |
 |---|---|
-| 22:54 | Arranque (boot 0). Sesión gráfica **con `macosglassEnabled=false`**: funcionó (KWin 1314, **0** errores de contexto). |
-| 23:03:42 | El usuario reinstala el `.so` nuevo: `sudo install build/plugins/kwin/effects/macosglass.so /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. `kwinrc` queda con `macosglassEnabled=true`. |
-| 23:04:22 | Logout/login. Nueva sesión Wayland (sesión 5, **tty3**). `startplasma-wayland`. |
-| 23:04:23 | KWin **3458** arranca y carga el efecto: `[macos-glass] cargado. Borde oscurecido activo, alfa 20`. |
-| 23:04:24 | `[macos-glass] paintWindow alcanzado para ""`. El efecto entra en la ruta de pintado. |
-| 23:04:42–23:05:19 | 5× `kwin_wayland[3458]: Could not delete render time query because no context is current` → **pantalla negra**. |
-| 23:05:54 | El usuario entra a tty2 (sesión 6) para hablar con el agente. |
+| 22:54 | Boot (boot 0). Graphical session **with `macosglassEnabled=false`**: it worked (KWin 1314, **0** context errors). |
+| 23:03:42 | The user reinstalls the new `.so`: `sudo install build/plugins/kwin/effects/macosglass.so /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. `kwinrc` ends up with `macosglassEnabled=true`. |
+| 23:04:22 | Logout/login. New Wayland session (session 5, **tty3**). `startplasma-wayland`. |
+| 23:04:23 | KWin **3458** starts and loads the effect: `[macos-glass] cargado. Borde oscurecido activo, alfa 20`. |
+| 23:04:24 | `[macos-glass] paintWindow alcanzado para ""`. The effect enters the paint path. |
+| 23:04:42–23:05:19 | 5× `kwin_wayland[3458]: Could not delete render time query because no context is current` → **black screen**. |
+| 23:05:54 | The user goes into tty2 (session 6) to talk to the agent. |
 | 23:10:01 | `RECOVER-KDE.sh recuperar --reset-output` (backup `20261013-231001`). |
-| 23:10:07 | `Compositing.reinitialize()` → recrea el backend GL y **vuelve a cargar** macosglass (config en memoria). |
-| 23:10:32 | `reconfigure()` + `unloadEffect macosglass` → efecto fuera, `macosglassEnabled=false` en disco. |
-| 23:10:58 / 23:12:20 | Capturas: escritorio **renderizado y vivo** (el reloj del panel avanza 11:06 → 11:12 PM). |
+| 23:10:07 | `Compositing.reinitialize()` → recreates the GL backend and **loads macosglass again** (config in memory). |
+| 23:10:32 | `reconfigure()` + `unloadEffect macosglass` → effect out, `macosglassEnabled=false` on disk. |
+| 23:10:58 / 23:12:20 | Screenshots: desktop **rendered and alive** (the panel clock advances 11:06 → 11:12 PM). |
 
-## Recuperación EN CALIENTE (funcionó; no hizo falta reiniciar)
+## HOT recovery (it worked; no reboot was needed)
 ```bash
-bash ~/RECOVER-KDE.sh recuperar --reset-output      # backup + desactiva macosglass/blur
+bash ~/RECOVER-KDE.sh recuperar --reset-output      # backup + disables macosglass/blur
 export XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 
-qdbus6 org.kde.KWin /KWin     org.kde.KWin.reconfigure                  # que KWin relea kwinrc
+qdbus6 org.kde.KWin /KWin     org.kde.KWin.reconfigure                  # make KWin re-read kwinrc
 qdbus6 org.kde.KWin /Effects  org.kde.kwin.Effects.unloadEffect macosglass
-qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize   # recrea el contexto GL
+qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize   # recreates the GL context
 ```
-O, en una línea, `bash ~/RECOVER-KDE.sh reanimar` (nuevo comando del script).
+Or, in one line, `bash ~/RECOVER-KDE.sh reanimar` (a new command in the script).
 
-**Orden importa:** `reinitialize()` **recarga los efectos según la configuración que KWin
-tiene EN MEMORIA**. Si no se ha llamado antes a `reconfigure()`, KWin todavía cree que
-`macosglassEnabled=true` y **vuelve a cargar el efecto** (así pasó a las 23:10:07).
-Por eso: `reconfigure` → `unloadEffect` → (y si hace falta) `reinitialize`.
+**Order matters:** `reinitialize()` **reloads the effects according to the configuration KWin
+has IN MEMORY**. If `reconfigure()` has not been called first, KWin still believes that
+`macosglassEnabled=true` and **loads the effect again** (that is what happened at 23:10:07).
+Hence: `reconfigure` → `unloadEffect` → (and if needed) `reinitialize`.
 
-## Evidencia de que `macosglass` es el disparador (esto CORRIGE la conclusión anterior)
-- KWin **1314** (sesión de 22:54–23:04, `macosglassEnabled=false`): **0** errores de contexto, escritorio OK.
-- KWin **3458** (sesión de 23:04, `macosglassEnabled=true`): `[macos-glass] cargado` → `paintWindow` → **5** `no context is current` en 37 s.
-- Es el único efecto no estándar cargado; con él descargado y el backend recreado, los errores **desaparecen**.
+## Evidence that `macosglass` is the trigger (this CORRECTS the previous conclusion)
+- KWin **1314** (session 22:54–23:04, `macosglassEnabled=false`): **0** context errors, desktop OK.
+- KWin **3458** (session 23:04, `macosglassEnabled=true`): `[macos-glass] cargado` → `paintWindow` → **5** `no context is current` in 37 s.
+- It is the only non-standard effect loaded; with it unloaded and the backend recreated, the errors **disappear**.
 
-> **Corrección honesta:** en la primera sesión (22:40+) escribí «El efecto `macosglass`
-> NO fue la causa; su `paintWindow` es un no-op». Eso era cierto para la build antigua y
-> para el proceso ya roto, pero **la conclusión era errónea**: el segundo incidente
-> demuestra que cargar el efecto es lo que rompe el render. Su `paintWindow` es un no-op,
-> pero el plugin (compilado contra KWin 6.7.5 / Qt 6.12) deja el contexto OpenGL inválido
-> al entrar en la ruta de pintado.
+> **Honest correction:** in the first session (22:40+) I wrote "The `macosglass`
+> effect was NOT the cause; its `paintWindow` is a no-op". That was true for the old build and
+> for the already broken process, but **the conclusion was wrong**: the second incident
+> shows that loading the effect is what breaks the render. Its `paintWindow` is a no-op,
+> but the plugin (compiled against KWin 6.7.5 / Qt 6.12) leaves the OpenGL context invalid
+> when it enters the paint path.
 
-## Prueba decisiva — EJECUTADA (2026-10-13 23:24–23:26): CAUSA CONFIRMADA
+## Decisive test — EXECUTED (2026-10-13 23:24–23:26): CAUSE CONFIRMED
 
-Se ejecutó en vivo con el escritorio estable y la sesión gráfica (**tty3**) activa, usando
-capturas `spectacle` (3840x2160) como testigo objetivo y análisis de píxeles con PIL.
+It was executed live with the desktop stable and the graphical session (**tty3**) active, using
+`spectacle` screenshots (3840x2160) as an objective witness and pixel analysis with PIL.
 
-| Captura | Estado de `macosglass` | Contenido medido |
+| Screenshot | `macosglass` state | Measured content |
 |---|---|---|
-| A (control) | **descargado** | 861 KB — escritorio real, **0,1 %** de píxeles negros |
-| B (+10 s) | **cargado** en caliente | 32 KB — **100 % `#000000`** |
-| B (+30 s) | **cargado** | 32 KB — **100 % `#000000`** |
-| C | recién **descargado** (sin `reinitialize`) | 856 KB — escritorio real |
-| D | tras `reinitialize` | 855 KB — escritorio real |
+| A (control) | **unloaded** | 861 KB — real desktop, **0,1 %** black pixels |
+| B (+10 s) | **loaded** live | 32 KB — **100 % `#000000`** |
+| B (+30 s) | **loaded** | 32 KB — **100 % `#000000`** |
+| C | just **unloaded** (without `reinitialize`) | 856 KB — real desktop |
+| D | after `reinitialize` | 855 KB — real desktop |
 
-**Conclusión (zanjado):** cargar `macosglass` en el KWin vivo **deja la composición en negro
-al 100 %** — la misma pantalla negra del incidente — y **descargarlo la restaura al
-instante**, sin cerrar sesión ni `reinitialize`. El efecto es la causa, sin ambigüedad.
+**Conclusion (settled):** loading `macosglass` in the live KWin **leaves the composition 100 %
+black** — the same black screen as the incident — and **unloading it restores it
+instantly**, without logging out or `reinitialize`. The effect is the cause, unambiguously.
 
-Matiz que corrige/afina lo anterior: en carga en caliente `[macos-glass] paintWindow`
-**no** llega a registrarse (el render se rompe antes de esa ruta); en el arranque del
-incidente sí se registraba (23:04:24). La línea `Could not delete render time query because
-no context is current` reapareció, pero de forma **esporádica** (1 vez, ligada al ciclo del
-efecto / `reinitialize`), no en oleada como al arrancar. Por eso la prueba de fuego es la
-**captura**, no el log.
+Nuance that corrects/refines the above: on live load `[macos-glass] paintWindow`
+does **not** get logged (the render breaks before that path); on the incident boot
+it was logged (23:04:24). The line `Could not delete render time query because
+no context is current` reappeared, but **sporadically** (1 time, tied to the effect
+cycle / `reinitialize`), not in a wave as on boot. That is why the acid test is the
+**screenshot**, not the log.
 
-Evidencia en `analisis-kde-macos/evidence/`:
+Evidence in `analisis-kde-macos/evidence/`:
 `2026-10-13-2324-prueba-control-escritorio.png`,
 `2026-10-13-2324-prueba-efecto-cargado-negro.png`,
 `2026-10-13-2324-prueba-tras-descargar.png`.
 
-### Reproducir la prueba
+### Reproducing the test
 ```bash
 export XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
-loginctl activate 5                     # activar la sesión gráfica (tty3)
-qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect macosglass   # -> pantalla negra
-# comparar capturas (spectacle -b -n -o /tmp/a.png): la primera ya sale negra
-qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass # -> restaura YA
-qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize    # opcional
+loginctl activate 5                     # activate the graphical session (tty3)
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect macosglass   # -> black screen
+# compare screenshots (spectacle -b -n -o /tmp/a.png): the first one is already black
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass # -> restores NOW
+qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize    # optional
 ```
 
 ---
 
-# DOCUMENTO ORIGINAL (primer incidente, 22:19–22:54)
+# ORIGINAL DOCUMENT (first incident, 22:19–22:54)
 
-## Síntoma
-- Pantalla negra, cursor del ratón visible y moviéndose.
-- `loginctl`: la sesión gráfica está `online`; KWin (6.7.5) y plasmashell responden en el bus.
-- KWin ve bien la salida: HDMI-A-1, 3840x2160, scale 1, `Compositing is active`,
-  OpenGL sobre AMD Radeon 780M (radeonsi, Mesa 26.2.4).
+## Symptom
+- Black screen, mouse cursor visible and moving.
+- `loginctl`: the graphical session is `online`; KWin (6.7.5) and plasmashell answer on the bus.
+- KWin sees the output correctly: HDMI-A-1, 3840x2160, scale 1, `Compositing is active`,
+  OpenGL on AMD Radeon 780M (radeonsi, Mesa 26.2.4).
 
-## Disparadores conocidos (los dos que rompieron)
-1. **`kwin_wayland --replace`** en Wayland (primer incidente, 22:19:49). Arranca un
-   **segundo compositor** que compite por el DRM/GL. En el arranque anterior dejó:
+## Known triggers (the two that broke it)
+1. **`kwin_wayland --replace`** on Wayland (first incident, 22:19:49). It starts a
+   **second compositor** that competes for the DRM/GL. On the previous boot it left:
    ```
    Failed to find a working output layer configuration!
    Applying output configuration failed!
    ```
-2. **Cargar el efecto `macosglass`** en una sesión nueva (segundo incidente, 23:04).
-   Ver la actualización de arriba.
+2. **Loading the `macosglass` effect** in a new session (second incident, 23:04).
+   See the update above.
 
-## Evidencia clave (journal de la sesión de usuario)
-Al forzar un re-render (cambiar tema/esquema), a las 22:50:05 KWin empezó a inundar
-el journal con:
+## Key evidence (user session journal)
+When forcing a re-render (changing theme/scheme), at 22:50:05 KWin began to flood
+the journal with:
 ```
 kwin_wayland[1315]: No QSGTexture provided from updateSampledImage(). This is wrong.
 kwin_wayland[1315]: Could not delete render time query because no context is current
 ```
-=> **El contexto OpenGL no está activo durante el render**: KWin compone un lienzo
-vacío (negro). Es un estado del proceso KWin.
+=> **The OpenGL context is not active during the render**: KWin composites an empty
+canvas (black). It is a state of the KWin process.
 
-Otras pistas:
-- `kwin_wayland[1069]: Failed to create framebuffer: Invalid argument` (greeter, 1 vez).
-- `atomic commit failed: Permission denied` => **ruido benigno** de cambios de VT
-  (tty2 <-> tty3); también sale al ejecutar `loginctl activate`. NO es la causa.
-- `plasmashell[1450]: The requested buffer size is too big, ignoring` => viene de
-  `libQt6Svg`; secundario.
+Other clues:
+- `kwin_wayland[1069]: Failed to create framebuffer: Invalid argument` (greeter, 1 time).
+- `atomic commit failed: Permission denied` => **benign noise** from VT changes
+  (tty2 <-> tty3); it also appears when running `loginctl activate`. It is NOT the cause.
+- `plasmashell[1450]: The requested buffer size is too big, ignoring` => it comes from
+  `libQt6Svg`; secondary.
 
-## Limitación importante del agente (DSH) — no te fíes a ciegas de las capturas
-El sandbox de comandos usa `bwrap ... --dev /dev`, por lo que:
-- **`/dev/dri` NO existe** dentro del sandbox (sin GPU / render node).
-- `/dev/shm` a veces es de solo lectura (en esta sesión del 23:06 sí era escribible).
-- KWin normalmente deniega `org.kde.KWin.ScreenShot2` a procesos no autorizados.
-=> Las capturas con `spectacle` lanzadas por el agente **pueden** salir negras aunque la
-pantalla esté bien. La fuente de verdad final es lo que ve el usuario. **Pero** una captura
-que muestra contenido y cuyo reloj avanza sí es prueba positiva de que el escritorio renderiza
-(eso pasó a las 23:10:58 y 23:12:20).
+## Important limitation of the agent (DSH) — do not blindly trust the screenshots
+The command sandbox uses `bwrap ... --dev /dev`, so:
+- **`/dev/dri` does NOT exist** inside the sandbox (no GPU / render node).
+- `/dev/shm` is sometimes read-only (in this session at 23:06 it was writable).
+- KWin normally denies `org.kde.KWin.ScreenShot2` to unauthorized processes.
+=> Screenshots with `spectacle` launched by the agent **may** come out black even if the
+screen is fine. The final source of truth is what the user sees. **But** a screenshot
+that shows content and whose clock advances is positive proof that the desktop renders
+(that happened at 23:10:58 and 23:12:20).
 
-## Estado que dejé (2026-10-13 23:12)
+## State I left behind (2026-10-13 23:12)
 `~/.config/kwinrc`:
 - `[Plugins] macosglassEnabled=false`, `blurEnabled=false`
-- `[org.kde.kdecoration2]` sin `theme`/`library` (decoración por defecto)
+- `[org.kde.kdecoration2]` without `theme`/`library` (default decoration)
 `~/.config/kdeglobals`:
 - `ColorScheme=BreezeDark`
 `~/.config/kwinoutputconfig.json`:
-- Apartado a `~/.local/state/kde-macos/incidente-recuperacion/20261013-231001/` (KWin lo regenera).
-Efecto:
-- **Descargado en caliente** del KWin vivo (`isEffectLoaded=false`, activo `activeEffects` vacío).
-- `.so` de usuario apartado: `~/.local/lib/plugins/kwin/effects/libmacosglass.so.disabled-20261013-231244`.
-- `.so` de sistema **sigue instalado** (borrarlo requiere root):
-  `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. Es inerte mientras esté desactivado.
-- Para quitarlo del todo (lo más recomendable):
+- Moved aside to `~/.local/state/kde-macos/incidente-recuperacion/20261013-231001/` (KWin regenerates it).
+Effect:
+- **Unloaded live** from the live KWin (`isEffectLoaded=false`, active `activeEffects` empty).
+- User `.so` set aside: `~/.local/lib/plugins/kwin/effects/libmacosglass.so.disabled-20261013-231244`.
+- System `.so` **is still installed** (deleting it requires root):
+  `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`. It is inert as long as it is disabled.
+- To remove it completely (the most advisable):
   `sudo rm /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so`
 Backups:
 - `~/.cache/kwinrc.before-exp-<epoch>`
-- `~/.local/state/kde-macos/incidente-recuperacion/` (incluye `20261013-231001/`)
-Otros cambios del proyecto (reversibles): temas aurorae/GTK/esquemas en `~/.local/share/…`.
+- `~/.local/state/kde-macos/incidente-recuperacion/` (includes `20261013-231001/`)
+Other project changes (reversible): aurorae/GTK/scheme themes in `~/.local/share/…`.
 
-## Pasos de recuperación (en orden)
-0. **Recuperación en caliente, sin cerrar sesión** (probada el 2026-10-13 23:12):
+## Recovery steps (in order)
+0. **Hot recovery, without logging out** (tested on 2026-10-13 23:12):
    ```
    bash ~/RECOVER-KDE.sh reanimar
    ```
-   Si el script no está, los 4 comandos de "Recuperación EN CALIENTE" de arriba.
-1. Si sigue negro, cambiar a la sesión gráfica con **Ctrl+Alt+F<n>**, donde `<n>` es la
-   TTY de la sesión *wayland* (el 23:04 era **tty3**, no tty2; el script lo calcula solo):
+   If the script is not there, the 4 commands of "HOT recovery" above.
+1. If it is still black, switch to the graphical session with **Ctrl+Alt+F<n>**, where `<n>` is the
+   TTY of the *wayland* session (at 23:04 it was **tty3**, not tty2; the script works it out itself):
    ```
-   loginctl list-sessions            # busca la de TYPE=wayland y mira su TTY
+   loginctl list-sessions            # look for the one with TYPE=wayland and check its TTY
    ```
-2. Si sigue negro, reiniciar el gestor de sesión o el equipo:
+2. If it is still black, restart the session manager or the machine:
    ```
-   sudo systemctl restart plasmalogin     # cierra la sesión; vuelve el login
-   # o
+   sudo systemctl restart plasmalogin     # closes the session; you get the login back
+   # or
    sudo reboot
    ```
-   Con `macosglass` y `blur` ya desactivados, KWin arranca sin ellos.
-3. Si tras reiniciar sigue negro:
+   With `macosglass` and `blur` already disabled, KWin starts without them.
+3. If after rebooting it is still black:
    ```
    bash ~/RECOVER-KDE.sh recuperar --reset-output
    sudo reboot
    ```
-4. Si aun así sigue negro, probar con un **usuario nuevo** (config limpia) para
-   descartar `~/.config`:
+4. If it is still black even then, try a **new user** (clean config) to
+   rule out `~/.config`:
    ```
    sudo useradd -m prueba && sudo passwd prueba
    ```
-   Si con el usuario nuevo se ve bien => el problema está en la config de `jracosta`.
-   Renombrar/restaurar: `~/.config/kwinrc`, `~/.config/kdeglobals`,
+   If it looks fine with the new user => the problem is in `jracosta`'s config.
+   Rename/restore: `~/.config/kwinrc`, `~/.config/kdeglobals`,
    `~/.config/plasma-org.kde.plasma.desktop-appletsrc`, `~/.config/kwinoutputconfig.json`.
 
-## Rehabilitar el aspecto macOS
-El efecto `macosglass` **ya no rompe la sesión** (arreglado 2026-10-13 23:32; ver
-la sección de arriba). Aun así **todavía no dibuja nada**: es seguro, pero inerte.
+## Re-enabling the macOS look
+The `macosglass` effect **no longer breaks the session** (fixed 2026-10-13 23:32; see
+the section above). Even so it **still draws nothing**: it is safe, but inert.
 
-Lo que sí cambia el aspecto y no toca el render:
+What does change the look and does not touch the render:
 ```
 cd "/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos"
 ./install-decoration.sh aplicar --si --activar
-# Color:  Ajustes -> Apariencia -> Colores -> KdeMacosLight/Dark
+# Color:  Settings -> Appearance -> Colors -> KdeMacosLight/Dark
 ```
-Si quieres volver a probar el efecto (ya arreglado), instala el binario nuevo y
-usa la prueba con red de seguridad (**nunca** `kwin_wayland --replace`):
+If you want to test the effect again (already fixed), install the new binary and
+use the test with a safety net (**never** `kwin_wayland --replace`):
 ```
 cd effect-kwin
 ./verify-chain.sh
 sudo install -Dm755 build/plugins/kwin/effects/macosglass.so \
      /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass.so
-./probar-en-vivo.sh          # carga, mide y descarga solo
+./probar-en-vivo.sh          # loads, measures and only unloads
 ```
-`RECOVER-KDE.sh revertir` reaplica todo de golpe (bajo tu riesgo).
+`RECOVER-KDE.sh revertir` re-applies everything at once (at your own risk).
 
-## Comandos de diagnóstico útiles
+## Useful diagnostic commands
 ```
 export XDG_RUNTIME_DIR=/run/user/1000
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
@@ -352,138 +352,138 @@ qdbus6 org.kde.KWin /Compositor org.freedesktop.DBus.Properties.Get org.kde.kwin
 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass
 qdbus6 org.kde.KWin /Compositor org.kde.kwin.Compositing.reinitialize
 qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure
-kscreen-doctor -o                        # desde el sandbox puede abortar (core dumped); es normal
+kscreen-doctor -o                        # from the sandbox it may abort (core dumped); that is normal
 loginctl list-sessions; loginctl show-session <id> -p Type -p TTY -p Active
 journalctl --user -b | grep -iE 'macos-glass|QSGTexture|context is current|atomic|kwin|plasmashell'
-ls -la /dev/dri /dev/shm                 # dentro del sandbox /dev/dri no existe
+ls -la /dev/dri /dev/shm                 # inside the sandbox /dev/dri does not exist
 ```
 
-## Cronología
-**Primer incidente**
-- 21:12 instalador de esquemas de color (kdeglobals)
-- 21:36 decoración KdeMacOS
-- 21:52–22:25 compilación e instalación del efecto macosglass
-- 22:19:49 `kwin_wayland --replace` -> rompe la sesión
+## Timeline
+**First incident**
+- 21:12 color scheme installer (kdeglobals)
+- 21:36 KdeMacOS decoration
+- 21:52–22:25 compilation and installation of the macosglass effect
+- 22:19:49 `kwin_wayland --replace` -> breaks the session
 - 22:27 reboot
-- 22:28 login -> pantalla negra
-- 22:34–22:38 sesión de diagnóstico previa (no cambió nada)
-- 22:40+ sesión de diagnóstico y cambios reversibles (origen de este documento)
-- 22:54 reboot con `macosglassEnabled=false`
+- 22:28 login -> black screen
+- 22:34–22:38 previous diagnostic session (changed nothing)
+- 22:40+ diagnostic session and reversible changes (origin of this document)
+- 22:54 reboot with `macosglassEnabled=false`
 
-**Segundo incidente**
-- 22:54–23:04 boot 0, sesión con el efecto desactivado: funcionó (KWin 1314, 0 errores)
-- 23:03:42 sudo install del `.so` nuevo; `macosglassEnabled=true`
-- 23:04:22 logout/login en **tty3**; KWin 3458
-- 23:04:23 `[macos-glass] cargado`; 23:04:24 `paintWindow` alcanzado
-- 23:04:42–23:05:19 5× `no context is current` -> pantalla negra
-- 23:05:54 login en tty2 (sesión 6) para usar DSH
+**Second incident**
+- 22:54–23:04 boot 0, session with the effect disabled: it worked (KWin 1314, 0 errors)
+- 23:03:42 sudo install of the new `.so`; `macosglassEnabled=true`
+- 23:04:22 logout/login on **tty3**; KWin 3458
+- 23:04:23 `[macos-glass] cargado`; 23:04:24 `paintWindow` reached
+- 23:04:42–23:05:19 5× `no context is current` -> black screen
+- 23:05:54 login on tty2 (session 6) to use DSH
 - 23:10:01 `RECOVER-KDE.sh recuperar --reset-output` (backup `20261013-231001`)
-- 23:10:07 `reinitialize()` (recarga macosglass), 23:10:32 `reconfigure`+`unloadEffect`
-- 23:10:58 / 23:12:20 capturas: escritorio recuperado y **vivo** (reloj avanzando)
-- 23:12:44 `.so` de usuario apartado como `.disabled-20261013-231244`
+- 23:10:07 `reinitialize()` (reloads macosglass), 23:10:32 `reconfigure`+`unloadEffect`
+- 23:10:58 / 23:12:20 screenshots: desktop recovered and **alive** (clock advancing)
+- 23:12:44 user `.so` set aside as `.disabled-20261013-231244`
 
 ---
 
-# RESUELTO — 2026-10-14: la causa era el IDENTIFICADOR del efecto
+# RESOLVED — 2026-10-14: the cause was the effect's IDENTIFIER
 
-## El hallazgo
+## The finding
 
-Bisección con un **efecto mínimo** (una clase que solo se carga y no hace nada) y
-medición objetiva del negro en pantalla (capturas `spectacle` + PIL):
+Bisection with a **minimal effect** (a class that only loads and does nothing) and
+objective measurement of black on screen (`spectacle` screenshots + PIL):
 
-| Variante | Código | id del plugin | negro en pantalla |
+| Variant | Code | plugin id | black on screen |
 |---|---|---|---|
-| `bisect.so` | mínimo | `bisect` | **0 %** ✅ |
-| `testglass2.so` | mínimo | `testglass2` | **0 %** ✅ |
-| `macosglass` (completo) | implementación completa | `macosglass` | **100 %** ❌ |
-| `macosglass` sin `paintWindow` | menos código | `macosglass` | **100 %** ❌ |
-| `macosglass` sin `Q_PROPERTY` | clase casi vacía | `macosglass` | **100 %** ❌ |
-| `macosglass` **con el código del mínimo** | **el mismo que funciona** | `macosglass` | **100 %** ❌ |
-| implementación completa renombrada | **completo** | **`macosglass2`** | **0 %** ✅ |
+| `bisect.so` | minimal | `bisect` | **0 %** ✅ |
+| `testglass2.so` | minimal | `testglass2` | **0 %** ✅ |
+| `macosglass` (full) | complete implementation | `macosglass` | **100 %** ❌ |
+| `macosglass` without `paintWindow` | less code | `macosglass` | **100 %** ❌ |
+| `macosglass` without `Q_PROPERTY` | almost empty class | `macosglass` | **100 %** ❌ |
+| `macosglass` **with the minimal code** | **the same one that works** | `macosglass` | **100 %** ❌ |
+| complete implementation renamed | **complete** | **`macosglass2`** | **0 %** ✅ |
 
-**El mismo código, byte a byte, funciona con un id y rompe con otro.**
+**The same code, byte for byte, works with one id and breaks with another.**
 
-## La conclusión
+## The conclusion
 
-**No era el código.** Ni `paintWindow`, ni la llamada de cadena, ni los `Q_PROPERTY`,
-ni los miembros, ni el `.h`/`.cpp`, ni el CMake, ni las dependencias (los `.so` tienen
-las **mismas 23** en los dos casos), ni la ruta de instalación.
+**It was not the code.** Not `paintWindow`, nor the chain call, nor the `Q_PROPERTY`s,
+nor the members, nor the `.h`/`.cpp`, nor the CMake, nor the dependencies (the `.so` files have
+the **same 23** in both cases), nor the installation path.
 
-Era **el identificador `macosglass`** — que venía de toda la cadena de intentos fallidos
-de esta sesión (plugin sin metadata, con el `Id` declarado, con nombre `libmacosglass`,
-instalado en la ruta equivocada...).
+It was **the `macosglass` identifier** — which came from the whole chain of failed attempts
+in this session (plugin without metadata, with the `Id` declared, named `libmacosglass`,
+installed in the wrong path...).
 
-## El arreglo
+## The fix
 
-El efecto se instala como **`macosglass2`**. `install.sh` limpia los restos del
-id viejo y de los plugins de prueba.
+The effect is installed as **`macosglass2`**. `install.sh` cleans up the remains of the
+old id and of the test plugins.
 
-## Lo que NO puedo explicar
+## What I CANNOT explain
 
-**Por qué** un id concreto rompe el render. El estado observable era idéntico al del id
-que funciona: misma metadata embebida (`KPackageStructure: "KWin/Effect"`), mismo
-`isSupported()`, mismo `enabledByDefault`, misma ruta. No he encontrado la diferencia.
+**Why** a specific id breaks the render. The observable state was identical to that of the id
+that works: same embedded metadata (`KPackageStructure: "KWin/Effect"`), same
+`isSupported()`, same `enabledByDefault`, same path. I have not found the difference.
 
-Es un dato para el equipo de KWin: *«un plugin de efecto con id X deja la composición al
-100 % de negro, y el mismo binario renombrado a Y funciona»*. Queda anotado como
-observación reproducible, no como diagnóstico.
+It is a data point for the KWin team: *"an effect plugin with id X leaves the composition 100 %
+black, and the same binary renamed to Y works"*. It is noted down as a reproducible
+observation, not as a diagnosis.
 
-## Lo que queda arreglado de verdad
+## What is genuinely fixed
 
-- La **cadena de pintado**: el efecto **tiene** que llamar a `effects->paintWindow()`.
-  Era un fallo real (y sigue siéndolo si alguien lo quita). Ver `verify-chain.sh`.
-- `supported()` devolvía `false` porque usaba `effects != nullptr` (el ejemplo de la doc
-  de KDE), y KWin descartaba el efecto en silencio.
-- La ruta de instalación es `kwin/effects/plugins/` (KWin::PluginEffectLoader).
-- El nombre del fichero define el pluginId: sin prefijo `lib`.
-- **Nunca `kwin_wayland --replace`**: deja la pantalla negra.
+- The **paint chain**: the effect **has** to call `effects->paintWindow()`.
+  It was a real fault (and still is if someone removes it). See `verify-chain.sh`.
+- `supported()` returned `false` because it used `effects != nullptr` (the example in KDE's
+  doc), and KWin discarded the effect silently.
+- The installation path is `kwin/effects/plugins/` (KWin::PluginEffectLoader).
+- The file name defines the pluginId: with no `lib` prefix.
+- **Never `kwin_wayland --replace`**: it leaves the screen black.
 
-## Estado final
+## Final status
 
-El efecto `macosglass2` carga **sin romper nada** y está enganchado a la cadena de
-pintado. **No dibuja todavía**: el shader del material (difusión, refracción 70,
-dispersión 20, realce especular) es el paso siguiente. Los siete parámetros están medidos
-en `tokens.toml`.
+The `macosglass2` effect loads **without breaking anything** and is hooked into the paint
+chain. **It does not draw yet**: the material shader (diffusion, refraction 70,
+dispersion 20, specular highlight) is the next step. The seven parameters are measured
+in `tokens.toml`.
 
 
 ---
 
-# VERIFICADO — 2026-10-14 00:XX: el efecto funciona en un arranque limpio
+# VERIFIED — 2026-10-14 00:XX: the effect works on a clean boot
 
-Tras reiniciar el equipo (sudo restaurado), con **solo `macosglass2.so`** en la ruta de
-KWin y los tres plugins de prueba eliminados:
+After rebooting the machine (sudo restored), with **only `macosglass2.so`** in the KWin
+path and the three test plugins removed:
 
 ```
-control          : negro=  0.0%
-macosglass2      : negro=  0.0%   <- EL EFECTO FUNCIONA
-tras-descargar   : negro=  0.0%
-VEREDICTO: NO lo rompe
+control          : black=  0.0%
+macosglass2      : black=  0.0%   <- THE EFFECT WORKS
+tras-descargar   : black=  0.0%
+VERDICT: it does NOT break it
 ```
 
-El script `test-installed.sh` lo hace sin sudo (no reinstala nada: carga, mide y
-descarga con `trap EXIT`).
+The script `test-installed.sh` does it without sudo (it reinstalls nothing: it loads, measures and
+unloads with `trap EXIT`).
 
-## Estado final del efecto
+## Final effect status
 
 ```
 .plugin        : /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
-tamano         : 38824 bytes
-cadena pintado : 3 referencias a EffectsHandler::paintWindow
-pluginId       : macosglass2            (el nombre del fichero manda)
+size           : 38824 bytes
+paint chain    : 3 references to EffectsHandler::paintWindow
+pluginId       : macosglass2            (the file name is what counts)
 isEffectSupported : true
 kwinrc         : [Plugins] macosglass2Enabled=true, blurEnabled=false
 ```
 
-## Otro fallo propio, corregido: `grep -q` en un pipe
+## Another fault of my own, fixed: `grep -q` in a pipe
 
-La comprobacion de seguridad de `install.sh` (`objdump | grep -q`) daba un
-resultado **NO DETERMINISTA** con `set -o pipefail`: `grep -q` aborta al encontrar la
-coincidencia y cierra el pipe, y el estado del pipe varia. Llegaba a **abortar la
-instalacion de un `.so` correcto** (paso dos veces).
+The safety check in `install.sh` (`objdump | grep -q`) gave a
+**NON-DETERMINISTIC** result with `set -o pipefail`: `grep -q` aborts when it finds the
+match and closes the pipe, and the pipe status varies. It even got to **abort the
+installation of a correct `.so`** (it happened twice).
 
-Corregido en `install.sh`, `verify-chain.sh` y `probar-en-vivo.sh`:
-`grep -c ... >/dev/null` en lugar de `grep -q`. Leer toda la entrada es determinista.
-Comprobado 8/8 y 15/15.
+Fixed in `install.sh`, `verify-chain.sh` and `probar-en-vivo.sh`:
+`grep -c ... >/dev/null` instead of `grep -q`. Reading all the input is deterministic.
+Verified 8/8 and 15/15.
 
-Leccion: una comprobacion de seguridad que da falsos positivos es peor que no tenerla,
-porque hace dudar de algo que esta bien.
+Lesson: a safety check that gives false positives is worse than not having it,
+because it makes you doubt something that is fine.

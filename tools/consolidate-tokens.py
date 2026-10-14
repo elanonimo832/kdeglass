@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-consolidate-tokens.py — Une los cinco ejes en un solo tokens.toml
+consolidate-tokens.py — Merges the five axes into a single tokens.toml
 
-POR QUE
-    El brief pedia «un tokens.json con el sistema de diseno… De ahi se GENERAN los
-    tres». Este es ese fichero, en TOML (mejor para diffear que JSON) y con los cinco
-    ejes que el brief no tenia completos:
+WHY
+    The brief asked for «a tokens.json with the design system… From it the three are
+    GENERATED». This is that file, in TOML (better for diffing than JSON) and with the
+    five axes the brief did not have complete:
 
-      1. color      — 61 tokens medidos, en claro y oscuro
-      2. forma      — radios, squircle, sombras, borde capilar
-      3. metricas   — tamanos de control por tamano (Mini..XL)
-      4. tipografia — la escala de macOS de las HIG oficiales
-      5. material   — Liquid Glass y los difuminados
+      1. color      — 61 measured tokens, in light and dark
+      2. shape      — radii, squircle, shadows, hairline border
+      3. metrics    — control sizes per size (Mini..XL)
+      4. typography — the macOS scale from the official HIG
+      5. material   — Liquid Glass and the blurs
 
-    Y una sexta seccion, [_procedencia], que dice de donde sale cada eje. Sin eso, un
-    token es una cifra sin origen.
+    And a sixth section, [_procedencia], which says where each axis comes from. Without
+    that, a token is a figure with no origin.
 
-USO
+USAGE
     python3 consolidate-tokens.py tokens/ tokens.toml
 """
 
@@ -35,7 +35,7 @@ def leer(p: str) -> dict:
 
 
 def serializar(obj, prefijo: str = "") -> list[str]:
-    """Vuelca un dict anidado como TOML, con las hojas ordenadas."""
+    """Dumps a nested dict as TOML, with the leaves sorted."""
     lineas = []
     simples = {k: v for k, v in obj.items() if not isinstance(v, dict)}
     tablas = {k: v for k, v in obj.items() if isinstance(v, dict)}
@@ -72,10 +72,10 @@ def main() -> int:
     tipo = leer(os.path.join(dir_tokens, "tokens-tipografia_macos.toml"))
     kit = leer(os.path.join(dir_tokens, "tokens-kit.toml"))
 
-    # Quitamos la meta de cada parcial: la consolidada tiene la suya.
+    # We remove the meta from each partial: the consolidated one has its own.
     for d in (color, forma, metricas, tipo, kit):
         d.pop("_meta", None)
-    # Y los restos del export que no son diseno.
+    # And the leftovers of the export that are not design.
     for basura in ("mode", "string"):
         color.pop(basura, None)
 
@@ -179,7 +179,7 @@ def main() -> int:
 
     with open(destino, "w", encoding="utf-8") as f:
         f.write("\n".join(L))
-    print(f"Escrito {destino}: {len(L)} lineas")
+    print(f"Wrote {destino}: {len(L)} lines")
     return 0
 
 

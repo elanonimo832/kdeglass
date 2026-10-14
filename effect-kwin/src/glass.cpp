@@ -11,7 +11,7 @@ KWIN_EFFECT_FACTORY_SUPPORTED(MacosGlassEffect, "metadata.json",
 
 MacosGlassEffect::MacosGlassEffect()
 {
-    qInfo() << "[macos-glass] cargado. Borde oscurecido activo, alfa" << m_borderAlpha;
+    qInfo() << "[macos-glass] loaded. Darkened border active, alpha" << m_borderAlpha;
     reconfigure(ReconfigureAll);
 }
 

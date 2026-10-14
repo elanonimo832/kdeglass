@@ -1,161 +1,161 @@
-# Huellas que faltan y cómo conseguirlas
+# Missing traces and how to get them
 
-> **ACTUALIZACIÓN: el hueco #1 y el #2 están CERRADOS.** Apple publica la tabla completa de
-> «macOS built-in text styles» en las Human Interface Guidelines, con tamaños, interlineados,
-> pesos y **tracking**. Está extraída en
+> **UPDATE: gap #1 and #2 are CLOSED.** Apple publishes the full table of
+> "macOS built-in text styles" in the Human Interface Guidelines, with sizes, line heights,
+> weights and **tracking**. It is extracted in
 > [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) (80 tokens,
-> fuente autorizada). Lo que sigue siendo cierto: **no estaba en Figma** y sigue sin estar;
-> lo que cambia es que no hacía falta que estuviera.
+> authorized source). What is still true: **it was not in Figma** and still is not;
+> what changes is that it did not need to be there.
 
-Cierre del inventario. Qué está resuelto, qué no, **por qué no** y por dónde se puede
-conseguir cada cosa que falta. Con la verificación de que el hueco no es un descuido.
+Closing of the inventory. What is resolved, what is not, **why not** and where each
+missing thing can be obtained. With the verification that the gap is not an oversight.
 
-- Inventario de lo recibido: [FIGMA-INVENTORY.md](FIGMA-INVENTORY.md)
-- Referencias y método: [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md)
+- Inventory of what was received: [FIGMA-INVENTORY.md](FIGMA-INVENTORY.md)
+- References and method: [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md)
 
 ---
 
-## 1. No es que no lo encuentres: no está en el export
+## 1. It is not that you cannot find it: it is not in the export
 
-La conclusión importante, verificada contra los propios ficheros:
+The important conclusion, verified against the files themselves:
 
-> Buscar más en la colección de Variables de Figma no va a dar resultado, porque
-> **lo que falta no son variables**. Son **propiedades de nodo**, y la exportación de
-> Variables solo viaja con lo declarado como variable.
+> Searching more in the Figma Variables collection will not help, because
+> **what is missing is not variables**. They are **node properties**, and the Variables
+> export only carries what is declared as a variable.
 
-Comprobado en los datos:
+Checked in the data:
 
-| Comprobación | Resultado |
+| Check | Result |
 |---|---|
-| Nombres de estilo en `Text Leading` | `Large Title, Title 1-3, Headline, Body, Callout, Subheadline, Footnote, Caption 1-2` → **nomenclatura de iOS**, no de macOS |
-| Claves de tamaño en `Sizes` | Solo `Global/Font Size = 13`. **No hay** `Body 13` ni escala de estilos |
-| `Sizes` — variantes | Mini, Small, Medium, Large, XL (5) |
-| `Dynamic Type` — variantes | 12 escalas (xSmall→AX5) |
-| `Text Leading` — variantes | Default, Loose, Tight (3) |
+| Style names in `Text Leading` | `Large Title, Title 1-3, Headline, Body, Callout, Subheadline, Footnote, Caption 1-2` → **iOS naming**, not macOS |
+| Size keys in `Sizes` | Only `Global/Font Size = 13`. There is **no** `Body 13` or style scale |
+| `Sizes` — variants | Mini, Small, Medium, Large, XL (5) |
+| `Dynamic Type` — variants | 12 scales (xSmall→AX5) |
+| `Text Leading` — variants | Default, Loose, Tight (3) |
 
-Es decir: el kit **sí tiene un sistema tipográfico completo**, pero es el de iOS. El de
-macOS (el que usa la barra de menús, la barra lateral y los controles de escritorio) o
-está en otra colección que no se exportó, o vive directamente en los estilos de texto del
-documento — y esos **no salen en una exportación de Variables** en ningún caso.
+That is: the kit **does have a complete typographic system**, but it is iOS's. The
+macOS one (the one used by the menu bar, the sidebar and the desktop controls) is either
+in another collection that was not exported, or lives directly in the document's text styles
+— and those **do not come out in a Variables export** in any case.
 
-Lo mismo vale para los radios de ventana, las sombras y los bordes capilares: son
-propiedades de cada nodo.
+The same holds for window radii, shadows and hairline borders: they are
+properties of each node.
 
 ---
 
-## 2. Estado final: lo que hay
+## 2. Final state: what there is
 
 ```
-CONSEGUIDO (146 tokens de macOS, validados)     ->  tokens/
-  tokens-colors.toml    63   color completo, claro y oscuro, con alfa exacto
-  tokens-sizes.toml     65   metricas de todos los controles, por tamano
-  tokens-kit.toml       18   material Liquid Glass + rellenos y bordes
+ACHIEVED (146 macOS tokens, validated)     ->  tokens/
+  tokens-colors.toml    63   full color, light and dark, with exact alpha
+  tokens-sizes.toml     65   metrics of all controls, by size
+  tokens-kit.toml       18   Liquid Glass material + fills and borders
 
-REFERENCIA (483 tokens de otros sistemas)       ->  tokens/reference/
-  Material 3, Salesforce, iOS, escalas genericas
+REFERENCE (483 tokens from other systems)       ->  tokens/reference/
+  Material 3, Salesforce, iOS, generic scales
 ```
 
-Con esto ya se puede construir la mayor parte del tema:
+With this, most of the theme can already be built:
 
-| Capa del plan | ¿Se puede hacer ya? |
+| Plan layer | Can it be done already? |
 |---|---|
-| Esquemas de color de KDE (claro y oscuro) | **Sí**, con los 63 colores medidos |
-| Métricas de controles en el QStyle | **Sí**, con los 65 tokens de `Sizes` |
-| Efecto KWin de material | **Sí**, con los 11 parámetros de Liquid Glass |
-| CSS de GTK | **Sí**, para color |
-| Radios de ventana | **No** — falta el dato |
-| Escala tipográfica de macOS | **Sí** — 11 estilos, con interlineado, peso y tracking |
-| Sombras y bordes capilares | **No** — faltan los efectos |
+| KDE color schemes (light and dark) | **Yes**, with the 63 measured colors |
+| Control metrics in the QStyle | **Yes**, with the 65 `Sizes` tokens |
+| KWin material effect | **Yes**, with the 11 Liquid Glass parameters |
+| GTK CSS | **Yes**, for color |
+| Window radii | **No** — the datum is missing |
+| macOS type scale | **Yes** — 11 styles, with line height, weight and tracking |
+| Shadows and hairline borders | **No** — the effects are missing |
 
 ---
 
-## 3. Lo que falta, una por una
+## 3. What is missing, one by one
 
-| # | Falta | Por qué falta | Cómo se consigue |
+| # | Missing | Why it is missing | How it is obtained |
 |---|---|---|---|
-| 1 | ~~**Escala tipográfica de macOS**~~ | **RESUELTO** con las HIG oficiales | [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) |
-| 2 | ~~**Tamaño de fuente por control**~~ | **RESUELTO**: la escala de macOS incluye los 11 estilos y el tracking | Igual que el anterior |
-| 3 | **Radios de ventana, hoja y popover** | Son propiedades de nodo | Capturas de ventanas sobre fondo liso |
-| 4 | **Sombras de ventana y de menú** | Son efectos de nodo | Capturas, midiendo el desvanecido |
-| 5 | **Borde capilar de 1 px** (color y alfa) | Es un trazo de nodo | Capturas, perfil de intensidad |
-| 6 | **Geometría del squircle de icono** | Es un trazado vectorial | Plantilla oficial de iconos, o medir un icono |
-| 7 | **Espaciados de layout** | Viven en los nodos | Capturas, midiendo distancias |
+| 1 | ~~**macOS type scale**~~ | **RESOLVED** with the official HIG | [`tokens/tokens-tipografia_macos.toml`](tokens/tokens-tipografia_macos.toml) |
+| 2 | ~~**Font size per control**~~ | **RESOLVED**: the macOS scale includes the 11 styles and tracking | Same as the previous one |
+| 3 | **Window, sheet and popover radii** | They are node properties | Screenshots of windows over a flat background |
+| 4 | **Window and menu shadows** | They are node effects | Screenshots, measuring the fade |
+| 5 | **1 px hairline border** (color and alpha) | It is a node stroke | Screenshots, intensity profile |
+| 6 | **Icon squircle geometry** | It is a vector path | Official icon template, or measuring an icon |
+| 7 | **Layout spacings** | They live in the nodes | Screenshots, measuring distances |
 
-Quedan **cinco** huecos, no siete: la tipografía se resolvió por la vía documental en lugar
-de la de medición. Ninguno de los cinco restantes bloquea el arranque: los esquemas de color,
-las métricas de control, el material y ahora también la tipografía se pueden construir **hoy**.
+**Five** gaps remain, not seven: typography was resolved through the documentary route instead
+of the measurement one. None of the five remaining ones blocks the start: the color schemes,
+the control metrics, the material and now also the typography can be built **today**.
 
 ---
 
-## 4. Cómo conseguir cada hueco
+## 4. How to get each gap
 
-### Vía A · Capturas de pantalla (la más accesible)
+### Path A · Screenshots (the most accessible)
 
-**No hace falta un Mac.** Basta con capturas de macOS a **escala 1×**, y en este equipo
-ya están las herramientas para medirlas (`magick`, PIL, numpy):
+**You do not need a Mac.** macOS screenshots at **1× scale** are enough, and this machine
+already has the tools to measure them (`magick`, PIL, numpy):
 
-| Hueco | Cómo se mide de una captura |
+| Gap | How it is measured from a screenshot |
 |---|---|
-| Radios de ventana (#3) | Por canal alfa: recuento de píxeles transparentes en la esquina, ajuste a un cuarto de círculo |
-| Sombras (#4) | Perfil de intensidad desde el borde hacia fuera; ajuste de la caída |
-| Borde capilar (#5) | Corte transversal: ancho y valor del pico |
-| Espaciados (#7) | Detección de bordes y medida entre ellos |
-| ~~Tipografía (#1, #2)~~ | **Ya no hace falta medirla**: está publicada en las HIG |
+| Window radii (#3) | By alpha channel: count of transparent pixels in the corner, fit to a quarter circle |
+| Shadows (#4) | Intensity profile from the border outward; fit of the falloff |
+| Hairline border (#5) | Cross-section: width and peak value |
+| Spacings (#7) | Edge detection and measurement between them |
+| ~~Typography (#1, #2)~~ | **No longer needs measuring**: it is published in the HIG |
 
-Si tienes acceso a un Mac —propio, de alguien, o incluso una máquina virtual— con la lista
-de capturas de [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md) §7 ya es suficiente.
+If you have access to a Mac —your own, someone else's, or even a virtual machine— with the list
+of screenshots in [DESIGN-REFERENCES.md](DESIGN-REFERENCES.md) §7 it is enough.
 
-### Vía B · El `.fig` completo
+### Path B · The full `.fig`
 
-`File → Save local copy` en la **app de escritorio** (en el navegador no existe). Trae los
-estilos de texto y las propiedades de nodo, que es exactamente lo que falta. El
-decodificador está escrito y validado: [tools/figma/README.md](tools/figma/README.md).
+`File → Save local copy` in the **desktop app** (it does not exist in the browser). It brings the text
+styles and the node properties, which is exactly what is missing. The
+decoder is written and validated: [tools/figma/README.md](tools/figma/README.md).
 
-### Vía C · Documentación y convención, para el punto 1
+### Path C · Documentation and convention, for point 1
 
-El tamaño base ya está medido: **13 pt** para el texto de control estándar. El resto de la
-escala de macOS se puede tomar de la convención documentada (título de ventana 13
-semibold, títulos grandes 22 y 26, texto pequeño 10-11) **marcando cada valor como no
-medido**, para sustituirlo cuando haya capturas. Es aceptable porque la escala tipográfica
-es la parte más tolerante: se corrige después sin tocar el QStyle.
-
----
-
-## 5. Advertencia sobre inventar la tipografía
-
-Hay un riesgo real en rellenar el hueco de tipografía «a ojo» y presentarlo como medido.
-
-El tamaño base **sí** está medido: `Sizes/Global/Font Size = 13`. Pero el interlineado, el
-espaciado entre letras y los tamaños de los niveles superiores **no lo están**. Si se
-inventan y se dan por buenos, el resultado es un tema que parece correcto en una captura
-y no lo es en uso real — y peor, nadie sabrá por qué.
-
-**Regla para el `tokens.toml`:** cada token lleva su procedencia, y los no medidos van
-marcados como `procedencia = "convencion"` en lugar de `"medido"` o `"export"`. Es la
-misma disciplina que ya se aplica a los colores, y es lo que hace que el fichero sea
-auditable dentro de seis meses.
+The base size is already measured: **13 pt** for standard control text. The rest of the
+macOS scale can be taken from the documented convention (window title 13
+semibold, large titles 22 and 26, small text 10-11) **marking each value as not
+measured**, to replace it when there are screenshots. It is acceptable because the type scale
+is the most tolerant part: it is corrected later without touching the QStyle.
 
 ---
 
-## 6. Recomendación
+## 5. Warning about inventing the typography
 
-**Empezar ya con lo que está medido**, que es bastante más de lo que parece:
+There is a real risk in filling the typography gap "by eye" and presenting it as measured.
+
+The base size **is** measured: `Sizes/Global/Font Size = 13`. But the line height, the
+letter spacing and the sizes of the upper levels **are not**. If they are
+invented and taken as good, the result is a theme that looks right in a screenshot
+and is not in real use — and worse, nobody will know why.
+
+**Rule for `tokens.toml`:** each token carries its provenance, and the unmeasured ones are
+marked as `procedencia = "convencion"` instead of `"medido"` or `"export"`. It is the
+same discipline that is already applied to colors, and it is what makes the file
+auditable six months from now.
+
+---
+
+## 6. Recommendation
+
+**Start now with what is measured**, which is quite a bit more than it seems:
 
 ```
-PASO 2a · Esquemas de color de KDE (.colors), claro y oscuro
-          salen de tokens-colors.toml, que esta completo y medido
+STEP 2a · KDE color schemes (.colors), light and dark
+          they come from tokens-colors.toml, which is complete and measured
 
-PASO 2b · tokens.toml consolidado
-          color (medido) + metricas (medido) + material (medido)
-          + tipografia (solo el 13 medido, el resto marcado como convencion)
+STEP 2b · consolidated tokens.toml
+          color (measured) + metrics (measured) + material (measured)
+          + typography (only the 13 measured, the rest marked as convention)
 
-PASO 3  · Efecto KWin de material
-          tiene los 11 parametros; es el mayor impacto visual por linea de codigo
+STEP 3  · KWin material effect
+          it has the 11 parameters; it is the biggest visual impact per line of code
 
-PENDIENTE · radios de ventana y tipografia completa
-          entran cuando haya capturas, sin bloquear nada de lo anterior
+PENDING · window radii and full typography
+          they come in when there are screenshots, without blocking anything above
 ```
 
-La clave es que **nada de lo que falta bloquea lo que ya se puede hacer**. Los huecos
-afectan a la forma de la ventana y al texto; el color, las métricas de control y el
-material están completos.
+The key is that **nothing missing blocks what can already be done**. The gaps
+affect the window shape and the text; color, control metrics and
+material are complete.

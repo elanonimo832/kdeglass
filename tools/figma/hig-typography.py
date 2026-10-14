@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """
-hig-typography.py — Extrae la tipografia de macOS de las HIG oficiales de Apple
+hig-typography.py — Extracts the macOS typography from Apple's official HIG
 
-FUENTE
+SOURCE
     https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json
 
-    La pagina de las HIG es una aplicacion JavaScript, asi que el HTML no trae el
-    contenido. Los datos viven en ese JSON (DocC), y ahi estan las tablas completas:
-    escalas de todas las plataformas, tamanos por defecto y minimo, y los valores de
-    tracking por tamano.
+    The HIG page is a JavaScript application, so the HTML does not carry the content.
+    The data lives in that JSON (DocC), and the complete tables are there: scales for
+    every platform, default and minimum sizes, and the tracking values by size.
 
-    Es la fuente AUTORIZADA: Apple publica estos numeros, no hay que medirlos ni
-    inferirlos. Es lo que faltaba para el eje tipografico.
+    It is the AUTHORIZED source: Apple publishes these numbers, there is no need to
+    measure or infer them. It is what was missing for the typography axis.
 
-USO
-    python3 hig-typography.py <hig-typography.json> [salida.toml]
+USAGE
+    python3 hig-typography.py <hig-typography.json> [output.toml]
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ FUENTE = "https://developer.apple.com/design/human-interface-guidelines/typograp
 
 
 def txt(celda) -> str:
-    """Texto de una celda: lista de parrafos -> inlineContent -> text."""
+    """Text of a cell: list of paragraphs -> inlineContent -> text."""
     return " ".join(
         ic.get("text", "")
         for p in celda
@@ -41,7 +40,7 @@ def tabla(bloque) -> list[list[str]]:
 
 
 def clave_seccion(contenido, i) -> str:
-    """Busca el encabezado que precede a la tabla en el indice i."""
+    """Looks for the heading that precedes the table at index i."""
     for j in range(i - 1, max(0, i - 8), -1):
         if contenido[j].get("type") == "heading":
             return contenido[j].get("text", "")
@@ -58,9 +57,9 @@ def main() -> int:
     d = json.load(open(origen))
     contenido = d["primaryContentSections"][0]["content"]
 
-    plataformas = None      # tamano por defecto/minimo por plataforma
-    estilos_macos = None    # tabla de estilos de macOS
-    tracking_macos = None   # tracking por tamano de macOS
+    plataformas = None      # default/minimum size per platform
+    estilos_macos = None    # macOS styles table
+    tracking_macos = None   # macOS tracking by size
 
     for i, blk in enumerate(contenido):
         if blk.get("type") != "table":
@@ -77,16 +76,16 @@ def main() -> int:
             tracking_macos = filas
 
     if not estilos_macos:
-        print("ERROR: no se encontro la tabla de estilos de macOS.")
+        print("ERROR: the macOS styles table was not found.")
         return 1
     if not plataformas:
-        print("ERROR: no se encontro la tabla de tamanos por plataforma.")
+        print("ERROR: the table of sizes per platform was not found.")
         return 1
 
     lineas = []
     n = 0
 
-    # ---- tamano por defecto y minimo ----
+    # ---- default and minimum size ----
     lineas.append("[tamano_base]")
     lineas.append("# Tamano recomendado por Apple para cada plataforma.")
     for fila in plataformas[1:]:
@@ -99,7 +98,7 @@ def main() -> int:
         n += 1
     lineas.append("")
 
-    # ---- estilos de texto de macOS ----
+    # ---- macOS text styles ----
     pesos = {"Regular": 400, "Medium": 500, "Semibold": 600,
              "Bold": 700, "Heavy": 800, "Black": 900}
 
@@ -127,7 +126,7 @@ def main() -> int:
         n += 1
     lineas.append("")
 
-    # ---- tracking de macOS ----
+    # ---- macOS tracking ----
     if tracking_macos:
         lineas.append("[tracking]")
         lineas.append("# Tracking de macOS por tamano, de las HIG.")
@@ -178,10 +177,10 @@ def main() -> int:
     with open(salida, "w", encoding="utf-8") as f:
         f.write("\n".join(cabecera + lineas))
 
-    print(f"Escrito {salida}: {n} tokens")
-    print(f"  plataformas: {len(plataformas)-1}")
-    print(f"  estilos macOS: {len(estilos_macos)-1}")
-    print(f"  valores de tracking: {max(0, len(tracking_macos)-1) if tracking_macos else 'NO ENCONTRADOS'}")
+    print(f"Wrote {salida}: {n} tokens")
+    print(f"  platforms: {len(plataformas)-1}")
+    print(f"  macOS styles: {len(estilos_macos)-1}")
+    print(f"  tracking values: {max(0, len(tracking_macos)-1) if tracking_macos else 'NOT FOUND'}")
     return 0
 
 
