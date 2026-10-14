@@ -124,11 +124,31 @@ bool MacosGlassEffect::loadShader()
 
 void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
 {
-    if (!m_active || !w->isNormalWindow()) {
+    // DIAGNOSE: report every decision, so a silent no-op can be told apart from a
+    // blur that is too subtle. The first M1.2 attempt produced no visible change
+    // and no error, which is exactly the ambiguous case.
+    static int logged = 0;
+    const bool normal = w->isNormalWindow();
+
+    if (!m_active || !normal) {
+        if (logged < 8) {
+            ++logged;
+            qInfo() << "[macos-glass] DIAGNOSE skip" << w->caption()
+                    << "active=" << m_active << "normal=" << normal;
+        }
         return;
     }
     if (!loadShader()) {
+        qInfo() << "[macos-glass] DIAGNOSE shader FAILED to load";
         return;
+    }
+    if (logged < 8) {
+        ++logged;
+        const QSize sz = w->frameGeometry().size().toSize();
+        qInfo() << "[macos-glass] DIAGNOSE redirect" << w->caption()
+                << "frameSize=" << sz
+                << "texel=" << QVector2D(1.0f / (sz.width() ? sz.width() : 1),
+                                         1.0f / (sz.height() ? sz.height() : 1));
     }
     // redirect() is what makes KWin render this window into an offscreen texture
     // so the shader can read it.
