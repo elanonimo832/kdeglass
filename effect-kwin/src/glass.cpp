@@ -3,6 +3,16 @@
 #include <KPluginFactory>
 #include <QLoggingCategory>
 
+// KWin's GL entry points. This header pulls in libepoxy, where glScissor,
+// glClear and glClearColor resolve (the effect's .so already links libepoxy
+// through libkwin; verified with readelf).
+#include <opengl/glutils.h>
+
+// RenderTarget and RenderViewport are only forward-declared by effect.h; the
+// drawing code calls size() and scale(), so it needs the full definitions.
+#include <core/rendertarget.h>
+#include <core/renderviewport.h>
+
 namespace KWin
 {
 
@@ -48,9 +58,40 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
     // That is why ALL paths end up calling effects->paintWindow().
     // ---------------------------------------------------------------------
     if (w && w->isNormalWindow() && !w->isFullScreen()
-        && !(mask & PAINT_WINDOW_TRANSFORMED)) {
-        // The border will be drawn with GL here. The material shader is the
-        // next step; for now only the hook is left marked.
+        && !(mask & PAINT_WINDOW_TRANSFORMED) && renderTarget.framebuffer()) {
+        // ---------------------------------------------------------------
+        // M1.1 -- draw a flat colour patch, with no shader yet.
+        //
+        // The framebuffer already holds this window's content; we only clear a
+        // small region of it. The scissor box limits the clear to that region,
+        // which is the cheapest possible proof that the GL path works.
+        //
+        // Coordinates: frameGeometry() is in logical pixels and the framebuffer
+        // is in device pixels, so everything is multiplied by the viewport
+        // scale. GL's origin is bottom-left, hence the flip on Y.
+        // ---------------------------------------------------------------
+        const double scale = viewport.scale();
+        const RectF frame = w->frameGeometry();
+        const int x = qRound(frame.x() * scale);
+        const int y = qRound(frame.y() * scale);
+        const int size = qRound(static_cast<double>(kMarkerSize) * scale);
+        const int fbHeight = renderTarget.size().height();  // QSize::height() is already int
+
+        if (size > 0 && fbHeight > 0) {
+            glEnable(GL_SCISSOR_TEST);
+            // bottom-left origin: this puts the marker at the TOP-left corner
+            glScissor(x, fbHeight - y - size, size, size);
+            glClearColor(kMarkerR, kMarkerG, kMarkerB, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDisable(GL_SCISSOR_TEST);
+        }
+
+        static bool warned = false;
+        if (!warned) {
+            qInfo() << "[macos-glass] M1.1 marker drawn for" << w->caption()
+                    << "at" << x << y << "size" << size;
+            warned = true;
+        }
     }
 
     effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);

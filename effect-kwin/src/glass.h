@@ -42,6 +42,27 @@ private:
     // `Fills - Opaque / Secondary` = black at 8% in light, white at 8% in dark.
     int m_borderAlpha = 20;
     qreal m_borderWidth = 1.0;
+
+    // ---------------------------------------------------------------------
+    // M1.1 -- the marker.
+    //
+    // The effect used to load, join the paint chain and draw NOTHING. The harness
+    // could only assert "black = 0 %", which proves it does not BREAK rendering
+    // but says nothing about whether it draws.
+    //
+    // M1.1 paints a flat colour patch in the top-left corner of every normal
+    // window. It is deliberately obvious: the point is to prove the whole path
+    // works -- bind the framebuffer, set a scissor region, get a colour on
+    // screen -- before adding any material on top. It goes away once the
+    // material shader exists.
+    //
+    // A provisional magenta, picked because nothing else in output/ produces it,
+    // so a screenshot test can look for it unambiguously.
+    // ---------------------------------------------------------------------
+    static constexpr float kMarkerR = 0.70f;   // 0xB3
+    static constexpr float kMarkerG = 0.23f;   // 0x3A
+    static constexpr float kMarkerB = 0.36f;   // 0x5B
+    static constexpr int kMarkerSize = 48;     // device pixels, square
 };
 
 } // namespace KWin
