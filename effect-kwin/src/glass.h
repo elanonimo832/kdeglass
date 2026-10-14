@@ -141,23 +141,26 @@ private:
     // M1.3a step 3a -- the frost over the captured desktop.
     //
     // Step 2 composites the desktop SHARP. macOS shows it frosted, and the kit's
-    // `frost 6` is the radius this uses, at the capture texture's own texel size.
+    // `frost 6/16/16` is what this uses: `BackgroundRadius` is the OUTER radius in
+    // texels of the capture, the inner one is 6/16 of it, and the shader samples both
+    // scales (glass.cpp explains why a single 3x3 was not enough).
     //
-    // DEFAULT 0, AND THAT IS DELIBERATE. The value is a setting rather than a
-    // constant because adding the blur changes what the band looks like, and the
-    // project's rule is one variable at a time: the first relogin verifies the SHARP
-    // composite (is the desktop there at all?), and the frost is switched on
-    // afterwards in the same session, without a second relogin:
+    // 16 IS THE DEFAULT because 16 is what the kit says and what the user's eye picked
+    // on screen: at 0 the band is the sharp composite step 2 was verified with, and at
+    // 6 the frost is real but invisible against anything coarser than text. Worth
+    // keeping: a flat wallpaper of 380 px squares cannot show a 6 px blur at all, so
+    // "I see no frost" was a fact about the test pattern before the effect.
     //
-    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 6
-    //   qdbus6 org.kde.KWin /KWin reconfigure
+    // It is still a setting, and the working way to change it is:
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 16
+    //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
+    // (`/KWin reconfigure` does NOT reach the effects; see the note in reconfigure().)
     //
     // Why the blur does not disturb the step-2 measurement: measure-glass.py compares
     // the band's MEAN colour over two backgrounds, and a blur preserves the mean. So
-    // the GLASS/OPAQUE verdict is unaffected by this knob, which is what makes it safe
-    // to have both in one build.
+    // the GLASS/OPAQUE verdict is unaffected by this knob.
     // ---------------------------------------------------------------------
-    static constexpr int kBackgroundRadius = 0;   // 0 = sharp (step 2 behaviour)
+    static constexpr int kBackgroundRadius = 16;   // kit: frost outer 16; 0 = sharp
 
     int m_backgroundRadius = kBackgroundRadius;
 

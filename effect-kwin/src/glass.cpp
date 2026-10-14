@@ -122,21 +122,28 @@ void main()
         // STEP 3a -- FROST: the same 3x3 kernel the bar uses, at the CAPTURE's texel
         // size (a different texture from the window's, so it has its own scale).
         //
-        // Radius 0 takes the branch below and is the default, so the shipped
-        // behaviour is exactly the sharp composite that step 2 verifies. Both branches
-        // are kept separate on purpose: sampling the same texel nine times is not
-        // literally the same float as sampling it once, and a default that is not
-        // bit-identical to the verified one is a variable nobody asked for.
+        // THE FROST IS TWO SCALES, and that is the kit's own figure: frost 6/16/16 is
+        // an inner radius of 6 and an outer of 16, with the 16 repeated. A single 3x3
+        // at the outer spacing samples nine ISOLATED points, so a background with text
+        // reads as nine ghost copies of it -- measured on screen at radius 16, and the
+        // reason this is not one 3x3 any more. Two nested 3x3 grids fill the gaps:
+        //     outer 16, twice (the kit repeats it)  -> 18 samples
+        //     inner  6 = 16 * 0.375                ->  9 samples
+        //     total 27, so the average is /27.
+        // Radius 0 takes the branch below and stays bit-identical to the single-sample
+        // composite that step 2 was verified with.
+        const float kInnerScale = 0.375;   // kit: frost 6/16/16 -> 6 / 16
         vec3 desktop;
         if (uBackgroundRadius > 0.5) {
             vec4 suma = vec4(0.0);
             for (int x = -1; x <= 1; ++x) {
                 for (int y = -1; y <= 1; ++y) {
-                    vec2 d = vec2(float(x), float(y)) * uBackgroundRadius * uBackgroundTexel;
-                    suma += texture(background, uvBackground + d);
+                    vec2 dir = vec2(float(x), float(y)) * uBackgroundTexel;
+                    suma += 2.0 * texture(background, uvBackground + dir * uBackgroundRadius);
+                    suma += texture(background, uvBackground + dir * uBackgroundRadius * kInnerScale);
                 }
             }
-            desktop = (suma / 9.0).rgb;
+            desktop = (suma / 27.0).rgb;
         } else {
             desktop = texture(background, uvBackground).rgb;
         }
@@ -222,6 +229,13 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             redirect(w);
         }
     }
+
+    // ASK FOR A FULL REPAINT, or the new values arrive only where a window happens to
+    // be damaged. That is what "the effect improves little by little" was: the band had
+    // the old appearance everywhere except the parts that were redrawn, and nothing
+    // told the screen to redraw all of it. Note that redirect() is a no-op for windows
+    // that are already redirected, so it does not repaint anything either.
+    effects->addRepaintFull();
 }
 
 bool MacosGlassEffect::loadShader()

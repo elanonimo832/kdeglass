@@ -60,12 +60,13 @@ read `capture: ok=1200 refused=0`. The desktop is copied into an owned `GLTextur
 the window's expanded geometry, clamped to the render target, and composited in the
 fragment shader.
 
-The frost over that capture ships in the same build with `BackgroundRadius` defaulting
-to 0, so the relogin verified one variable (is the desktop there?) before a second one
-changed how it looks. It is switched on with a `kwinrc` key plus
-`qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2`, no
-relogin -- note that `/KWin reconfigure` does NOT reach the effects, which cost a
-session of believing a value had been applied when it had not.
+The frost over that capture is **seen on screen**: `BackgroundRadius` (the kit's outer
+16 by default, 0 for the sharp composite) blurs the backdrop in two scales, because a
+single 3x3 at the outer spacing samples nine isolated points and text behind the window
+reads as nine ghost copies of it. It is tuned live with
+`qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2` --
+note that `/KWin reconfigure` does NOT reach the effects, which cost a session of
+believing a value had been applied when it had not.
 
 Left for the next steps: tune `kGlassAlpha`, and settle whether the captured
 background is sampled with the right size and offset — the shader's sizes come from

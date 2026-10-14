@@ -155,7 +155,7 @@ deliberately, so that a correct override is not another false alarm.
 | --- | --- | --- |
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
 | 2 | Override `drawWindow`; capture the desktop into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | ✅ **VERIFIED ON SCREEN** (2026-10-14): band moved **73.8** over two backgrounds where 12 is the threshold, `capture: ok=1200 refused=0`. The capture covers the window's expanded geometry, clamped to the render target, composited in the fragment shader (unit 1, `uHasBackground`) |
-| 3a | Blur the captured background. Split out from "tune alpha" so that it stays ONE variable: it is a setting (`BackgroundRadius`) whose default of 0 keeps the sharp composite the relogin verified. | 🟡 **in the verified build, off by default**: radius 0 is the single-sample path; the frost is switched on in the same session with a `kwinrc` key + `reconfigure`, no relogin |
+| 3a | Blur the captured background, in two scales so it does not read as ghost copies. | ✅ **done and seen on screen** (2026-10-14): `BackgroundRadius` defaults to the kit's outer 16, the inner scale is 6/16 of it, and 0 still takes the single-sample path. Tuned live with `reconfigureEffect`; the user's eye picked 16 over 6 |
 | 3b | Tune `kGlassAlpha`, and settle whether the *sampled* background needs the texture's own size and the shadow margins as uniforms (section 5: the band's SHAPE measured correct; only the sampling is unverified, and only against structured content). | not started -- alpha is a judgement call on screen, and the sampling test needs text behind the window |
 
 Each step must be committed before starting the next. If a session runs out of
@@ -367,9 +367,8 @@ Two things the instruments CANNOT catch, and both are for the eye:
   object shared by all windows. Check two windows over different backgrounds.
 
 **Then the frost, in the same session.** The blur over the captured desktop is
-`BackgroundRadius`, and it ships at 0 on purpose: the relogin verifies the SHARP
-composite, where a wrong answer is obvious to the eye, and only then is the blur added
-as the second variable:
+`BackgroundRadius`, now defaulting to the kit's outer 16 (6 was too small to see, 0 is
+the sharp composite step 2 was verified with):
 
 ```bash
 kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 16
@@ -392,6 +391,12 @@ It does not disturb the measurement above: `measure-glass.py` compares the band'
 what `measure-titlebar.py` reports -- its exit code 3 ("the band changed but kept its
 detail") is what an UNBLURRED capture looks like -- so read its numbers, not just the
 code.
+
+**And judge the frost with the right pattern.** The first attempt used a wallpaper of
+380 px squares and reported "no frost": a 6 px blur is 1.5% of such a square and cannot
+be seen, while the SAME 6 px smears the traffic lights and the title text beyond
+recognition -- both are visible in the same screenshot. Text or a photo behind the
+window shows the frost immediately; large flat geometry cannot show it at all.
 
 `test-glass.sh` **holds the window still and changes only the background**. Its
 first version asked the user to move the window, which changed two things at once —

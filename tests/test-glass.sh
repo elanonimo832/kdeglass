@@ -62,19 +62,25 @@ afirmar_codigo "the composite keeps part of the bar colour" "$FUENTE" 'mix[(]des
 afirmar_codigo "the capture orientation is configurable, not assumed" "$FUENTE" 'BackgroundFlipV'
 
 echo "  -- M1.3a step 3a: the frost over the captured desktop --"
-# Step 2 shows the desktop SHARP. macOS shows it frosted, and adding the blur changes
-# what the band looks like -- a second variable. It is therefore a setting whose
-# default is 0, so the build that gets its first relogin behaves exactly like the one
-# step 2 verified, and the frost is switched on afterwards in the same session.
-afirmar_codigo "the frost radius is a setting, 0 by default" "$CABECERA" 'kBackgroundRadius = 0'
+# Step 2 shows the desktop SHARP; macOS shows it frosted. It is a setting so it can be
+# tuned without a rebuild, and its default is the kit's own outer radius: 16 is what the
+# user's eye selected on screen. 0 is the sharp composite step 2 was verified with, and
+# 6 is real but invisible against anything coarser than text.
+afirmar_codigo "the frost radius defaults to the kit's outer 16" "$CABECERA" 'kBackgroundRadius = 16'
 afirmar_codigo "the radius is read from the effect's config" "$FUENTE" 'BackgroundRadius'
 afirmar_codigo "the shader can blur the captured background" "$FUENTE" 'uBackgroundRadius'
 # The capture is a different texture from the window's, so it has its own texel size.
 # Reusing the window's would make the radius a ~3% lie, which is free to avoid.
 afirmar_codigo "the frost is measured in the capture's own texels" "$FUENTE" 'uBackgroundTexel'
-# Radius 0 must be the SINGLE-sample path, not nine samples of the same texel: the
-# default has to stay identical to what was verified, down to the arithmetic.
+# Radius 0 must be the SINGLE-sample path, not a stack of samples of the same texel:
+# the sharp state has to stay identical to what was verified.
 afirmar_codigo "radius 0 keeps the single-sample path" "$FUENTE" 'desktop = texture[(]background, uvBackground[)]'
+# TWO SCALES, because one 3x3 at the outer spacing samples nine isolated points and a
+# background with text reads as nine ghost copies of it -- seen on screen at radius 16.
+# The pair is the kit's `frost 6/16/16`, the outer sampled twice because that is how the
+# kit writes it.
+afirmar_codigo "the frost samples an inner scale derived from the kit" "$FUENTE" 'kInnerScale'
+afirmar_codigo "and the outer scale carries the kit's repeated figure" "$FUENTE" '2.0 [*] texture'
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
