@@ -183,11 +183,24 @@ void main()
     // height leaves about 4, which is invisible. `uRadius` stays as a floor, so the kit's
     // frost figure still means something if it is ever set wider than the bar.
     float toneRadius = max(uRadius, uTitleBarHeight * 0.5);
+    // THE TONE MUST NOT LOOK BELOW THE BAR, and this is the fix for a strip the user saw on
+    // screen. The kernel reaches tens of pixels vertically, and just below the bar sit the
+    // theme's white border and then the client's dark content: a sample landing there drags
+    // the tone down, and the glass darkens in a sharp band along the bar's bottom edge.
+    // Measured on the user's screenshot: the lower 14 rows of a 39-row band had an implied
+    // tone of 167 where the bar's own is 238 -- exactly (246+246+30)/3, one sample in the
+    // client -- with a one-row transition, because three discrete samples make a step and not
+    // a gradient. Clamping the SAMPLED v to the band's own span keeps the tone the bar's.
+    // The HORIZONTAL reach is untouched, so the title is still smeared away, which is what
+    // the radius is for.
+    float vBandBottom = 1.0 - uTitleBarHeight * uTexelSize.y;
+    const float vBandTop = 1.0;
     vec4 sum = vec4(0.0);
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
             vec2 d = vec2(float(x), float(y)) * toneRadius * uTexelSize;
-            sum += texture(sampler, vTexCoord + d);
+            sum += texture(sampler, vec2(vTexCoord.x + d.x,
+                                        clamp(vTexCoord.y + d.y, vBandBottom, vBandTop)));
         }
     }
     vec3 baseline = (sum / 9.0).rgb;
@@ -204,10 +217,14 @@ void main()
     // are drawn crisp -- a bright halo around each letter and each traffic light. The
     // user saw exactly that ("los botones se ven algo extraños"). A 3x3 at
     // uChromeRadius texels keeps the ring about a pixel wide.
+    // Clamped for the same reason as the tone above: a sample below the bar lands on the
+    // border or on the client, which deviates hugely from the bar, and would classify the
+    // bar's own last rows as chrome -- a thin crisp line along the bottom edge.
     vec4 tightSum = vec4(0.0);
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
-            tightSum += texture(sampler, vTexCoord + vec2(float(x), float(y)) * uChromeRadius * uTexelSize);
+            vec2 c = vTexCoord + vec2(float(x), float(y)) * uChromeRadius * uTexelSize;
+            tightSum += texture(sampler, vec2(c.x, clamp(c.y, vBandBottom, vBandTop)));
         }
     }
     vec3 tight = (tightSum / 9.0).rgb;

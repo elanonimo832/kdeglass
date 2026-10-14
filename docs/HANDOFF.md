@@ -219,6 +219,18 @@ can see exactly where it stopped.
   would recurse forever: `m_isDirty` is cleared only after the nested call returns.
   Consequence: the capture is taken once per paint, from the screen, and is not
   overwritten by the window's own texture. Do not add a re-entry guard for this.
+- **A dark strip along the bottom of the band.** **FIXED (2026-10-14), and it was this
+  session's own regression.** Widening the tone kernel to half the bar's height (to stop the
+  title ghosting into the glass) made it reach *below* the bar, where the theme's white border
+  and then the client's dark content sit: a sample landing in the client drags the tone down,
+  and the glass darkens in a band along the bottom edge. Measured on the user's screenshot:
+  the lower **14 rows of a 39-row band** had an implied tone of **167** where the bar's own is
+  **238** -- exactly (246 + 246 + 30) / 3, one sample of three in the client -- with a one-row
+  transition, because three discrete samples make a step and not a gradient. `measure-*` could
+  not have caught this; the user's eye and one profile of the screenshot did. Both kernels over
+  the WINDOW texture (tone and chrome baseline) now clamp the sampled v to the band's own
+  span; the kernel over the CAPTURE must not, because the backdrop legitimately extends past
+  the bar -- and that distinction is asserted in the suite.
 - **The window is drawn over the band.** **State: resolved by construction** -- the
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.

@@ -431,3 +431,16 @@ afirmar_codigo "the frame's place inside the capture is computed" "$SOURCE" \
   'm_sampleOffset = QVector2D[(]float[(]frameRect[.]x[(][)] - region[.]x[(][)][)]'
 afirmar_codigo "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" \
   'uBackgroundOffset [+] vTexCoord [*] uBackgroundScale'
+
+echo "  -- the bar's kernels do not look outside the bar --"
+# Measured on the user's screen: the lower 14 rows of a 39-row band had an implied tone of
+# 167 where the bar's own is 238 -- exactly (246+246+30)/3, one of the tone kernel's three
+# vertical samples inside the client, with a one-row transition because three discrete
+# samples make a step and not a gradient. Both kernels over the WINDOW texture are clamped to
+# the band now; the kernel over the CAPTURE must NOT be, because the backdrop legitimately
+# extends past the bar.
+afirmar_codigo "the band's v span is computed" "$SOURCE" 'vBandBottom = 1[.]0 - uTitleBarHeight [*] uTexelSize[.]y'
+afirmar_codigo "the tone can only sample inside the bar" "$SOURCE" 'clamp[(]vTexCoord[.]y [+] d[.]y, vBandBottom, vBandTop[)]'
+afirmar_codigo "and so can the chrome baseline" "$SOURCE" 'clamp[(]c[.]y, vBandBottom, vBandTop[)]'
+afirmar_igual "the backdrop kernel is NOT clamped (the backdrop goes past the bar)" "2" \
+  "$(grep -c 'uvBackground + dir' effect-kwin/src/glass.cpp)"
