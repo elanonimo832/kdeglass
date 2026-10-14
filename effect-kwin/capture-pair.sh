@@ -16,6 +16,32 @@ SALIDA="${1:-/tmp}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 
+# THE RECTANGLE, from the effect's own diagnostics. The format is Qt's, so the four numbers are
+# inside `frame= KWin::RectF(1226,476 1387x1138)` -- x, y, then width x height. The first version
+# of this expected `QRect(QPoint(...), QSize(...))`, which is NOT what Qt streams for a RectF, and
+# the user's run died on it; hence the tolerant extraction and the --geometry mode, which lets the
+# suite check this against the exact line their journal produced.
+leer_geometria() { # leer_geometria "<journal line>" -> "x y w h bar" or nothing
+    local linea="$1" trozo
+    # head -1 matters: the line carries frame, client AND expanded rectangles, and all three
+    # have numbers. Reading the first is the frame; reading all of them produced three lines.
+    trozo=$(printf '%s' "$linea" | grep -oE 'frame= *[A-Za-z:_]*RectF?\([^)]*\)' \
+            | grep -oE '\([^)]*\)' | head -1 | tr -d '()')
+    [ -n "$trozo" ] || return 1
+    local bar
+    bar=$(printf '%s' "$linea" | grep -oE 'barHeight= *[0-9]+' | grep -oE '[0-9]+' | head -1)
+    printf '%s %s\n' "$trozo" "$bar"
+}
+
+# TEST MODE FIRST, before the trap is armed: this path must not touch the effect at all, and
+# with the trap armed its "loaded again" line ended up inside the captured output -- which is how
+# the suite noticed that reading a rectangle was reloading the user's effect.
+if [ "${1:-}" = "--geometry" ]; then
+    leidos=$(leer_geometria "${2:-}") || { echo "could not read a rectangle out of that line"; exit 2; }
+    echo "$leidos"
+    exit 0
+fi
+
 efecto() { # efecto on|off
     timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects."$1"Effect "$ID" >/dev/null 2>&1
 }
@@ -27,25 +53,30 @@ restaurar() {
 }
 trap restaurar EXIT INT TERM
 
-# THE RECTANGLE, from the effect's own diagnostics: it prints frame= and barHeight= for the first
-# few windows it sees, and that is the same rectangle its band covers. Read with the effect ON,
-# before anything is unloaded.
+
+CAPTION="${2:-}"
 diag=$(timeout 20 journalctl --user --since '60 min ago' -o cat 2>/dev/null \
-       | grep 'frame=' | grep 'barHeight=' | grep -v systemd-run | tail -1)
+       | grep 'title bar band:' | grep -v systemd-run \
+       | { if [ -n "$CAPTION" ]; then grep -F "$CAPTION"; else cat; fi; } | tail -1)
 if [ -z "$diag" ]; then
-    echo "No 'frame= ... barHeight= ...' line in the journal from the last hour."
+    echo "No 'title bar band: ... frame= ... barHeight= ...' line in the journal from the last hour."
     echo "That line comes from the effect itself, so:"
     echo "  1. make sure the effect is loaded and a decorated window is on screen"
     echo "  2. move that window a little, so it repaints"
-    echo "  3. run this again"
+    if [ -n "$CAPTION" ]; then
+        echo "  3. or drop the caption filter '$CAPTION': it may not match any window"
+    else
+        echo "  3. run this again"
+    fi
     exit 2
 fi
 echo "the effect says:"
 echo "  $diag"
-# QRect(QPoint(x, y), QSize(w, h)) -> the four numbers, in the order Qt streams them
-nums=$(printf '%s' "$diag" | grep -oE 'frame= *QRect\([^)]*\)' | grep -oE '[-0-9]+' | head -4)
-bar=$(printf '%s' "$diag" | grep -oE 'barHeight= *[0-9]+' | grep -oE '[0-9]+' | head -1)
-set -- $nums
+ventana=$(printf '%s' "$diag" | sed -n 's/.*title bar band: *"\([^"]*\)".*/\1/p')
+echo "  -> that is the window \"$ventana\""
+
+leidos=$(leer_geometria "$diag") || { echo "could not read the rectangle out of that line"; exit 2; }
+set -- $leidos
 X=${1:-}; Y=${2:-}; ANCHO=${3:-}; ALTO=${4:-}
 if [ -z "${X:-}" ] || [ -z "${Y:-}" ] || [ -z "${ANCHO:-}" ] || [ -z "${ALTO:-}" ] || [ -z "${bar:-}" ]; then
     echo "could not read x, y, width, height and barHeight out of that line"

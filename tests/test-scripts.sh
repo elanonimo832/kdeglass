@@ -136,5 +136,17 @@ echo "  -- capture-pair.sh takes both captures and puts the effect back --"
 afirmar_codigo "the effect is unloaded for the theme's capture" "$EF/capture-pair.sh" 'unloadEffect'
 afirmar_codigo "and loaded again" "$EF/capture-pair.sh" 'loadEffect'
 afirmar_codigo "the trap restores it even on interrupt" "$EF/capture-pair.sh" 'trap restaurar EXIT INT TERM'
-afirmar_codigo "the rectangle comes from the effect's own diagnostics" "$EF/capture-pair.sh" "grep 'frame='"
+afirmar_codigo "the rectangle comes from the effect's own diagnostics" "$EF/capture-pair.sh" "title bar band:"
 afirmar_codigo "both captures are cropped to the same strip" "$EF/capture-pair.sh" 'recorte = '
+
+echo "  -- capture-pair.sh parses the geometry Qt actually streams --"
+# The first version expected QRect(QPoint(...), QSize(...)) and died on the real line, which is
+# `frame= KWin::RectF(1226,476 1387x1138)`. This is the exact line from the user's journal:
+LINEA='[macos-glass] title bar band: "Unsaved* — Spectacle" frame= KWin::RectF(1226,476 1387x1138) client= KWin::RectF(1230,514 1379x1096) expanded= KWin::RectF(1212,474 1415x1142) shadowMargin= QPointF(14,2) barHeight= 38'
+leido=$("$EF/capture-pair.sh" --geometry "$LINEA" 2>/dev/null)
+afirmar_igual "it reads x, y, width, height and barHeight" "1226,476 1387x1138 38" "$leido"
+# A window dragged partly off screen has negative coordinates, and an off-by-one there would crop
+# the wrong strip:
+LINEA2='[macos-glass] title bar band: "x" frame= KWin::RectF(-120,40 800x600) barHeight= 34'
+afirmar_igual "and negative coordinates survive" "-120,40 800x600 34" \
+  "$("$EF/capture-pair.sh" --geometry "$LINEA2" 2>/dev/null)"
