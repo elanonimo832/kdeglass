@@ -279,10 +279,21 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     //
     // Diagnose counter: if the band disappears while this keeps counting, the
     // shader is being overwritten elsewhere and that is the place to look.
-    static int applied = 0;
-    if (applied < 6) {
-        ++applied;
-        qInfo() << "[macos-glass] apply() re-asserting the shader for" << w->caption();
+    // Count apply() calls PER WINDOW, and log a periodic summary. The symptom to
+    // chase is a window that HAD the material and lost it when another window was
+    // created. A single global counter cannot show that: what matters is whether
+    // apply() keeps being called for a window that is still on screen.
+    static QHash<QString, int> counts;
+    static int total = 0;
+    const QString key = w->caption();
+    ++counts[key];
+    ++total;
+    if (total == 200 || (total % 500) == 0) {
+        QString resumen;
+        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) {
+            resumen += QStringLiteral("[%1 x%2] ").arg(it.key().left(14)).arg(it.value());
+        }
+        qInfo() << "[macos-glass] apply() totals:" << resumen;
     }
     if (m_shader) {
         setShader(w, m_shader.get());
