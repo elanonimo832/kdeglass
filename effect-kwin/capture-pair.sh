@@ -46,9 +46,22 @@ leer_geometria() { # leer_geometria "<journal line>" -> "x y w h bar" or nothing
 # TEST MODE FIRST, before the trap is armed: this path must not touch the effect at all, and
 # with the trap armed its "loaded again" line ended up inside the captured output -- which is how
 # the suite noticed that reading a rectangle was reloading the user's effect.
+# ONE resolver, used by the test mode AND by the capture path, so that a test of the parse is a
+# test of the step the capture actually performs. The version before this tested `leer_geometria`
+# while the capture path read a variable named `bar` that no longer existed: the guard saw bar=''
+# on every run, and the test could not see it because it never exercised that step.
+resolver_geometria() { # <line> -> "x y w h bar", all five or nothing
+    local l
+    l=$(leer_geometria "$1") || return 1
+    set -- $l
+    if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ] || [ -z "${5:-}" ]; then
+        return 1
+    fi
+    printf '%s %s %s %s %s\n' "$1" "$2" "$3" "$4" "$5"
+}
+
 if [ "${1:-}" = "--geometry" ]; then
-    leidos=$(leer_geometria "${2:-}") || { echo "could not read a rectangle out of that line"; exit 2; }
-    echo "$leidos"
+    resolver_geometria "${2:-}" || { echo "could not read x, y, width, height and barHeight"; exit 2; }
     exit 0
 fi
 
@@ -85,9 +98,9 @@ echo "  $diag"
 ventana=$(printf '%s' "$diag" | sed -n 's/.*title bar band: *"\([^"]*\)".*/\1/p')
 echo "  -> that is the window \"$ventana\""
 
-leidos=$(leer_geometria "$diag") || { echo "could not read the rectangle out of that line"; exit 2; }
+leidos=$(resolver_geometria "$diag") || { echo "could not read the rectangle out of that line"; exit 2; }
 set -- $leidos
-X=${1:-}; Y=${2:-}; ANCHO=${3:-}; ALTO=${4:-}
+X=$1; Y=$2; ANCHO=$3; ALTO=$4; bar=$5
 if [ -z "${X:-}" ] || [ -z "${Y:-}" ] || [ -z "${ANCHO:-}" ] || [ -z "${ALTO:-}" ] || [ -z "${bar:-}" ]; then
     echo "could not read x, y, width, height and barHeight out of that line"
     echo "  (parsed: x='${X:-}' y='${Y:-}' width='${ANCHO:-}' height='${ALTO:-}' bar='${bar:-}')"

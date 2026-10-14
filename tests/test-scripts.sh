@@ -154,3 +154,8 @@ afirmar_igual "and negative coordinates survive" "-120 40 800 600 34" \
 # exact way this broke once already.
 afirmar_igual "the parse yields five fields for set --" "5" \
   "$("$EF/capture-pair.sh" --geometry "$LINEA" 2>/dev/null | wc -w)"
+# And the CAPTURE PATH must run that same step. The version before this tested the parse while the
+# capture read a variable the parse no longer set, so the guard saw bar='' on every real run and
+# this test could not tell: it never exercised the consumption.
+afirmar_codigo "the capture path calls the same resolver" "$EF/capture-pair.sh" 'resolver_geometria "\$diag"'
+afirmar_codigo "and takes all five from set --" "$EF/capture-pair.sh" 'X=\$1; Y=\$2; ANCHO=\$3; ALTO=\$4; bar=\$5' 
