@@ -45,7 +45,7 @@ while the command reports success.
 | Key | Default | What it does |
 |---|---|---|
 | `BackgroundRadius` | 16 | frost radius, in screen pixels (0 = the sharp composite) |
-| `FrostDownsample` | 0 | factor the backdrop is captured at; 0 derives it (radius/4). The capture is what makes the frost an average instead of a sample |
+| `FrostDownsample` | 0 | factor the backdrop is captured at; 0 derives it (radius/8). Capped at **2**, because a bilinear blit minifying by 2 reads exactly the four texels of each block -- a true box -- while by 4 it reads four of sixteen and aliases into Moire over text |
 | `GlassAlpha` | 0.25 | how much of the bar's own tone the glass keeps -- Apple's `[liquid_glass] opacity = 25` |
 | `CornerRadius` | 16 | radius of the window's corners; 0 leaves whatever the decoration drew |
 | `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |

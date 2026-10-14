@@ -98,7 +98,11 @@ afirmar_codigo "and its threshold is one tunable knob" "$SOURCE" 'uChromeLow'
 # 12 px disc as around it. Chroma is local, so it costs no halo.
 # ...and it must be USED, not merely declared: asserting the name alone passed while
 # the term was disconnected, which is the third time this shape has bitten.
-afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$SOURCE" 'max[(]byDeviation, byColour[)]'
+afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$SOURCE" 'max[(]byCoverage, byColour[)]'
+# And the mask is a COVERAGE, not a switch: the theme bakes its own white into every
+# anti-aliased boundary pixel, so drawing those "crisp" is a white fringe over our glass. The
+# estimated coverage turns a half-covered pixel into half glass.
+afirmar_codigo "the chrome weight is an estimated coverage" "$SOURCE" 'clamp[(][(]toneLuma - luma[)] / toneLuma'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
 afirmar_codigo "the band's colour is premultiplied by its alpha" "$SOURCE" 'result [*] window[.]a'
@@ -504,3 +508,24 @@ afirmar_codigo "measured from the frame's own edges and the bar's bottom" "$SOUR
 afirmar_codigo "and the material amplifies the backdrop's chroma" "$SOURCE" 'uMaterialBoost'
 afirmar_igual "1.0 is off, so the knob defaults above it" "1" \
   "$(grep -c 'kMaterialBoost = 1[.]20f' effect-kwin/src/glass.h)"
+
+echo "  -- the capture's reduction is capped at two --"
+# A GL_LINEAR blit minifying by 2 reads exactly the four texels of each block (a true box); by 4
+# it reads four of sixteen and aliases, which is the moire the user saw over large text.
+afirmar_codigo "the downsample factor is clamped to 2" "$SOURCE" 'std::clamp[(]m_backgroundDownsample, 1, 2[)]'
+afirmar_codigo "and the derived one too" "$SOURCE" 'std::clamp[(]m_backgroundRadius / 8, 1, 2[)]'
+
+echo "  -- the simulator models the shader faithfully --"
+# The user asked for a way to stop paying a relogin per idea. This is it, and the maths is only
+# worth trusting if it is checked on every run: --self-test compares the model against the two
+# cases whose answer is known by definition (alpha 0 is the frosted backdrop, alpha 1 is the
+# bar's tone) and against the one pixel the white fringe lives in (a half-covered glyph edge,
+# which must come out PARTIAL, not crisp).
+afirmar_existe "simulate.py exists (iteration without a relogin)" "$EF/simulate.py"
+if timeout 300 python3 "$EF/simulate.py" --self-test >/tmp/sim-selftest.txt 2>&1; then
+  ok "the simulator's self-test passes ($(grep -c . /tmp/sim-selftest.txt) lines of evidence)"
+else
+  fallo "the simulator's self-test FAILED:"; sed 's/^/      /' /tmp/sim-selftest.txt | head -6
+fi
+# Its knob defaults must come from the header, or a changed default would be simulated wrongly.
+afirmar_codigo "the simulator reads its defaults from the effect" "$EF/simulate.py" 'defaults_from_source'

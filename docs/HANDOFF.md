@@ -880,6 +880,27 @@ assertions failed with it: the tests, not the habit, are what keeps that agreeme
   glass, so it is not this knob: **`Vibrancy` is off by default again**, the theme's own text
   colour wins, and the knob stays for whoever wants the flip.
 
+## 9f. Iterating without a relogin: simulate.py
+
+The user asked for it in as many words: "habria forma de que automatices todo esto para no
+reiniciar y puedas comparar vs lo que tenemos de apple". Every idea in this session had cost a
+build, an install, a logout and a login, which is why three defects in one mechanism survived
+three rounds. `effect-kwin/simulate.py` ends that: it implements the band's arithmetic in numpy
+-- the frost over the reduced capture, the vertical median tone, the coverage estimate, the
+mixes, the amplification and the rim -- and reproduces what the effect will do from two
+screenshots: the title strip with the effect OFF, and the same region of the desktop with the
+window out of the way.
+
+It earned its keep on the day it was written. The first version of the coverage ramp used
+`uChromeLow + 0.25`, and `--self-test` showed a half-covered glyph edge coming out at **1.00**:
+the white fringe would have survived the fix meant for it. The ramp is `+ 0.85` now and that same
+pixel measures **0.43**. Seconds, not a session.
+
+`--self-test` is in the suite, so the model cannot drift from the shader, and it checks the three
+things whose answer is known by definition: alpha 0 gives the frosted backdrop, alpha 1 gives the
+bar's tone, and a glyph's half-covered edge must be PARTIAL rather than crisp. Its knob defaults
+are read from `src/glass.h`, for the same reason the settings table is a test.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

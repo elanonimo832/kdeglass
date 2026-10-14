@@ -290,7 +290,25 @@ void main()
     // light. At 0.15 the fringe stays glass and the button's edge dissolves into the material,
     // while the saturated interior still passes.
     float byColour = smoothstep(0.15, 0.30, chroma);
-    float chrome = max(byDeviation, byColour);
+    // ...AND THE MASK IS A COVERAGE, NOT A SWITCH. The theme anti-aliases its text and its
+    // buttons against its OWN white bar, so every boundary pixel is `coverage * chrome +
+    // (1 - coverage) * white` -- a white fringe baked into the texture that no compositing can
+    // remove, and which drawing "crisp" paints over OUR glass. The user saw it twice: "un blanco
+    // de fondo como los botones y su halo", now around the glyphs. Estimating the coverage as
+    // `(tone - pixel) / tone` for something darker than the bar (and the mirror for something
+    // lighter) turns that fringe into a PARTIAL weight, so a half-covered pixel is half glass:
+    // the white dissolves instead of ringing. ChromeLow stays as the noise floor, and the ramp
+    // above it is wide so the coverage is gradual.
+    float luma = dot(window.rgb, kLuma);
+    float toneLuma = dot(baseline, kLuma);
+    float darker = (toneLuma > 0.001) ? clamp((toneLuma - luma) / toneLuma, 0.0, 1.0) : 0.0;
+    float lighter = (1.0 - toneLuma > 0.001) ? clamp((luma - toneLuma) / (1.0 - toneLuma), 0.0, 1.0) : 0.0;
+    // AND THE RAMP SPANS THE WHOLE RANGE. At `+ 0.25` a half-covered pixel -- exactly the
+    // fringe this exists for -- had a deviation of 0.45 and still saturated to a weight of 1,
+    // so the white survived; the simulator showed it in seconds, which is what it is for. A
+    // deviation of 1.0 means chrome over black, so that is where full weight belongs.
+    float byCoverage = smoothstep(uChromeLow, min(1.0, uChromeLow + 0.85), max(darker, lighter));
+    float chrome = max(byCoverage, byColour);
 
     // M1.3a -- THE DESKTOP ITSELF, NOT AN ALPHA.
     //
@@ -759,9 +777,16 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // "sampling a blurred version of text", which is what the user saw, and it costs one
     // blit. A true average would mean averaging the block in the shader, i.e. factor^2
     // more fetches per tap, and the eye has not asked for it yet.
+    // CAPPED AT 2, AND THAT IS THE FIX FOR GRAIN. A GL_LINEAR blit that minifies by 2 reads
+    // exactly the four source texels of each block -- a true box filter. By 4 it reads four of
+    // SIXTEEN and skips the rest, which is aliasing, and over high-frequency content it shows as
+    // moire: the user moved a window over large text and reported "se ve muy raro, la
+    // transparencia se ve extrana al estar por encima de un texto". A factor of 4 was mine, from
+    // radius/4. Two is the largest factor that averages honestly, and the kernel then covers the
+    // footprint because its taps are 2 texels apart.
     const int factor = m_backgroundDownsample > 0
-        ? m_backgroundDownsample
-        : std::clamp(m_backgroundRadius / 4, 1, 16);
+        ? std::clamp(m_backgroundDownsample, 1, 2)
+        : std::clamp(m_backgroundRadius / 8, 1, 2);
     const QSize reducedSize(std::max(1, size.width() / factor),
                          std::max(1, size.height() / factor));
 
