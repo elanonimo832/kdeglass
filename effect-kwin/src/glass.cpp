@@ -82,37 +82,59 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
 
     if (w && w->isNormalWindow() && !w->isFullScreen()
         && !(mask & PAINT_WINDOW_TRANSFORMED) && renderTarget.framebuffer()) {
-        // ---------------------------------------------------------------
-        // M1.1 -- draw a flat colour patch, with no shader yet.
+        // -----------------------------------------------------------------
+        // M1.1 -- a flat colour patch at the window's TOP-LEFT corner.
         //
-        // The framebuffer already holds this window's content; we only clear a
-        // small region of it. The scissor box limits the clear to that region,
-        // which is the cheapest possible proof that the GL path works.
+        // COORDINATES, which is what the first version got wrong. The window
+        // moved up and the patch moved down, because frameGeometry() is the
+        // window's position in GLOBAL screen space being used as if it were an
+        // offset inside the window.
         //
-        // Coordinates: frameGeometry() is in logical pixels and the framebuffer
-        // is in device pixels, so everything is multiplied by the viewport
-        // scale. GL's origin is bottom-left, hence the flip on Y.
-        // ---------------------------------------------------------------
-        const double scale = viewport.scale();
-        const RectF frame = w->frameGeometry();
-        const int x = qRound(frame.x() * scale);
-        const int y = qRound(frame.y() * scale);
-        const int size = qRound(static_cast<double>(kMarkerSize) * scale);
-        const int fbHeight = renderTarget.size().height();  // QSize::height() is already int
+        // paintWindow() gets the SCREEN's render target, and the window is drawn
+        // by projecting its geometry into it. The pattern KWin's own blur effect
+        // uses (src/plugins/blur/blur.cpp) is:
+        //   1. logical global rect   = frameGeometry() + data translation
+        //   2. viewport.mapToDeviceCoordinates() to reach device pixels
+        //   3. viewport.deviceSize() is the framebuffer size, whose origin is
+        //      the TOP-LEFT, while glScissor's origin is BOTTOM-LEFT.
+        //
+        // data.xTranslation()/yTranslation() matter: they carry the window's
+        // displacement during animations, so ignoring them makes the patch lag.
+        // -----------------------------------------------------------------
+        const RectF logicalGlobal = w->frameGeometry().translated(
+            QPointF(data.xTranslation(), data.yTranslation()));
+        const RectF deviceRect = viewport.mapToDeviceCoordinates(logicalGlobal);
+
+        const int x = qRound(deviceRect.x());
+        const int y = qRound(deviceRect.y());
+        const int size = qRound(static_cast<double>(kMarkerSize) * viewport.scale());
+        const int fbHeight = viewport.deviceSize().height();
 
         if (size > 0 && fbHeight > 0) {
+            // Restore KWin's own scissor state instead of blindly disabling it:
+            // KWin clips window painting with the scissor test, and clobbering it
+            // can leave artefacts on unrelated parts of the frame.
+            GLint previousBox[4] = {0, 0, 0, 0};
+            const GLboolean scissorWasEnabled = glIsEnabled(GL_SCISSOR_TEST);
+            glGetIntegerv(GL_SCISSOR_BOX, previousBox);
+
             glEnable(GL_SCISSOR_TEST);
-            // bottom-left origin: this puts the marker at the TOP-left corner
+            // bottom-left origin: this puts the patch at the window's TOP-left
             glScissor(x, fbHeight - y - size, size, size);
             glClearColor(kMarkerR, kMarkerG, kMarkerB, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
-            glDisable(GL_SCISSOR_TEST);
+
+            glScissor(previousBox[0], previousBox[1], previousBox[2], previousBox[3]);
+            if (!scissorWasEnabled) {
+                glDisable(GL_SCISSOR_TEST);
+            }
         }
 
         static bool warned = false;
         if (!warned) {
             qInfo() << "[macos-glass] M1.1 marker drawn for" << w->caption()
-                    << "at" << x << y << "size" << size;
+                    << "logical" << logicalGlobal << "device" << deviceRect
+                    << "size" << size;
             warned = true;
         }
     }
