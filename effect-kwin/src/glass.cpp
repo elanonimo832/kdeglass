@@ -297,6 +297,11 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     if (!m_active || !w->isNormalWindow() || !w->hasDecoration()) {
         return false;
     }
+    // No shader means apply() returns before drawing the band, so a capture would be
+    // work whose result nobody reads.
+    if (!m_shader) {
+        return false;
+    }
     // Reading from a QImage render target is not possible with a framebuffer blit.
     GLFramebuffer *sourceFbo = renderTarget.framebuffer();
     if (!sourceFbo) {
@@ -367,6 +372,29 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
                        << w->caption().left(20)
                        << "-- blits unsupported on this GL context?";
         }
+    }
+
+    // DIAGNOSE the verifier's question, because the answer costs a relogin.
+    //
+    // Every other instrument here needs a screen, and this one line decides which
+    // of two very different problems you are looking at after logging back in:
+    //   ok climbing          -> the desktop IS being captured, so a wrong-looking
+    //                           band is a COMPOSITE problem (uv, alpha, colour)
+    //   refused climbing     -> there is no capture at all and the band is the old
+    //                           opaque alpha path; the GL context cannot blit
+    // Without it, "the band looks wrong" and "there was never a band" read the same
+    // in the journal, and finding out costs another session.
+    static int capturasOk = 0;
+    static int capturasRechazadas = 0;
+    if (ok) {
+        ++capturasOk;
+    } else {
+        ++capturasRechazadas;
+    }
+    const int intentos = capturasOk + capturasRechazadas;
+    if (intentos == 60 || (intentos % 300) == 0) {
+        qInfo() << "[macos-glass] capture: ok=" << capturasOk
+                << "refused=" << capturasRechazadas;
     }
     return ok;
 }

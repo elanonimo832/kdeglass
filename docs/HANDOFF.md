@@ -250,8 +250,20 @@ way to see it from here. Skipped, loudly, if the validator is not installed.
 **Then, for M1.3a step 2 specifically:** the criterion is that the band shows the
 desktop, so `test-glass.sh` + `measure-glass.py` is the verdict (it reported 3.2,
 OPAQUE, for the alpha-only attempt; a composite at `uGlassAlpha` should move by tens
-because the bar now carries 45% of the background). Two things it CANNOT catch, and
-both are for the eye:
+because the bar now carries 45% of the background).
+
+**And the journal says which problem you have**, which saves a second relogin:
+
+```bash
+journalctl --user -b -o cat | grep macos-glass | grep -E 'capture:|refused'
+```
+
+    capture: ok=N refused=0   the desktop IS being captured -> a wrong band is a
+                              COMPOSITE problem (uv, alpha, colour), not a missing one
+    capture: ok=0 refused=N   there is no capture at all; the band is the old opaque
+                              alpha path (the GL context refused the blit)
+
+Two things the instruments CANNOT catch, and both are for the eye:
 
 - **the desktop upside down** -- two flat backgrounds look the same flipped. If that
   is what you see, `BackgroundFlipV` in `kwinrc` (see section 5) is the switch.
