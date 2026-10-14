@@ -59,3 +59,25 @@ de esquinas movido del paso 5 al 3 (es el mayor impacto visual por línea de có
 HDR explícitamente a v3.
 
 > Detalle completo y tabla de las 12 acciones sobre el brief: [`ANALISIS.md`](ANALISIS.md).
+
+---
+
+## Cómo verificar que todo sigue bien
+
+```bash
+pruebas/ejecutar.sh            # 68 comprobaciones (~30 s)
+pruebas/ejecutar.sh efecto     # solo un área: artefactos|efecto|scripts|documentacion
+```
+
+El arnés vigila los invariantes que han costado más caro, no el formato:
+
+- los **tokens** son TOML válido y regenerar un esquema da un fichero **idéntico**
+- el **efecto** llama a `effects->paintWindow()` (sin eso, pantalla negra)
+- la ruta del plugin es `kwin/effects/plugins` (**un nivel** de diferencia, 2 horas)
+- el id es `macosglass2`, **no** `macosglass` (con ese id el render se rompía)
+- ningún script **ejecuta** `kwin_wayland --replace` (deja la pantalla negra)
+
+> Las aserciones sobre código **ignoran los comentarios**, y ninguna prueba se da por
+> buena hasta comprobar que **falla** al romper el código. Ambas reglas salieron de
+> errores reales: una prueba que pasaba por un comentario, y otra que no detectaba
+> la rotura.
