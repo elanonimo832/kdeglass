@@ -127,6 +127,7 @@ afirmar_codigo "and the outer scale carries the kit's repeated figure" "$FUENTE"
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
+afirmar_existe "measure-alignment.py exists (step 3d)" "$EF/measure-alignment.py"
 
 echo "  -- the live test refuses to measure a stale install --"
 # The trap this closes: the installed .so was still the pre-capture build when the
@@ -215,4 +216,81 @@ PYEOF
     # looking for the reason instead of showing it.
     printf '%s\n' "$malos_shader" | sed '$d' | sed 's/^/      /'
   fi
+fi
+
+echo "  -- the alignment instrument recovers a known displacement --"
+# Step 3d: does the band sample the backdrop where it should, or does the content arrive
+# displaced by the decoration's shadow margins (14 px across, 7 px down on this theme)?
+# It cannot be answered by looking, because the backdrop BEHIND the window is hidden; the
+# instrument compares the band against the same backdrop just OUTSIDE the window, and a
+# synthetic image reproduces that exactly, with a displacement chosen by the test.
+#
+# Written before the tool existed, so it fails on a missing tool instead of passing on
+# nothing -- and the displacement is asserted with its SIGN, because a sign error would
+# be invisible if only the magnitude were checked.
+if ! python3 -c 'import PIL, numpy' >/dev/null 2>&1; then
+  ok "(SKIPPED: Pillow/numpy are not installed; the alignment instrument was NOT exercised)"
+else
+  CAJA_AL="$(mktemp -d)"
+  python3 - "$CAJA_AL" <<'PYEOF'
+import pathlib, sys
+import numpy as np
+from PIL import Image
+
+d = pathlib.Path(sys.argv[1])
+rng = np.random.default_rng(7)
+ALTO, ANCHO = 600, 900
+# A backdrop with UNIQUE structure in both axes: random horizontal lines (text) and
+# random vertical columns. Periodic structure would give the correlation several equally
+# good lags and the test would be measuring the period instead of the displacement.
+base = np.full((ALTO, ANCHO, 3), 200, dtype=np.uint8)
+y = 0
+while y < ALTO:
+    h = int(rng.integers(3, 9))
+    base[y:y + h, :] = int(rng.integers(60, 120))
+    y += h + int(rng.integers(6, 20))
+x = 0
+while x < ANCHO:
+    w = int(rng.integers(2, 10))
+    base[:, x:x + w] = int(rng.integers(120, 170))
+    x += w + int(rng.integers(10, 40))
+
+X, Y, W, BAR = 300, 200, 400, 40
+
+
+def captura(dx, dy, plano=False):
+    img = np.full((ALTO, ANCHO, 3), 180, dtype=np.uint8) if plano else base.copy()
+    for j in range(BAR):
+        fila = (Y + j + dy)
+        for i in range(W):
+            col = (X + i + dx)
+            if 0 <= fila < ALTO and 0 <= col < ANCHO:
+                img[Y + j, X + i] = base[fila, col]
+    return img
+
+
+Image.fromarray(captura(0, 0)).save(d / "alineado.png")
+Image.fromarray(captura(14, 7)).save(d / "desplazado.png")
+Image.fromarray(captura(0, 0, plano=True)).save(d / "plano.png")
+PYEOF
+  alin=$(python3 "$EF/measure-alignment.py" "$CAJA_AL/alineado.png" 300 200 400 40 2>&1)
+  despl=$(python3 "$EF/measure-alignment.py" "$CAJA_AL/desplazado.png" 300 200 400 40 2>&1)
+  plano=$(python3 "$EF/measure-alignment.py" "$CAJA_AL/plano.png" 300 200 400 40 2>&1)
+
+  dx_alin=$(printf '%s\n' "$alin" | sed -n 's/^horizontal: *//p' | cut -d' ' -f1)
+  dy_alin=$(printf '%s\n' "$alin" | sed -n 's/^vertical: *//p' | cut -d' ' -f1)
+  dx_des=$(printf '%s\n' "$despl" | sed -n 's/^horizontal: *//p' | cut -d' ' -f1)
+  dy_des=$(printf '%s\n' "$despl" | sed -n 's/^vertical: *//p' | cut -d' ' -f1)
+
+  afirmar_igual "an aligned band reports no displacement" "0 0" "${dx_alin:-?} ${dy_alin:-?}"
+  # The band's content was taken from 14 px to the RIGHT and 7 px DOWN, and the instrument
+  # reports the displacement in that same direction: positive = the band shows what
+  # belongs further right / further down. Measured on the frame 1:1.
+  afirmar_igual "a displaced band reports (14, 7), with sign" "14 7" "${dx_des:-?} ${dy_des:-?}"
+  if grep -qi 'inconclusive' <<< "$plano"; then
+    ok "a flat backdrop is reported inconclusive instead of inventing a shift"
+  else
+    fallo "a flat backdrop produced a displacement out of nothing"
+  fi
+  rm -rf "${CAJA_AL:?}"
 fi

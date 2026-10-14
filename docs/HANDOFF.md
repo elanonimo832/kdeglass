@@ -159,7 +159,7 @@ deliberately, so that a correct override is not another false alarm.
 | 3b | Make the chrome readable again (title and buttons), round the corners, and make the quality knobs tunable. | ✅ **done** (2026-10-14): the bar's blur became the blank that isolates the chrome, which is drawn crisp over the glass; the halo the first version produced was fixed with a TIGHT baseline of its own; `GlassAlpha`, `ChromeRadius` and `ChromeLow` are settings |
 | 3b′ | The rounded corners the user asked for. | ✅ **done in the effect, not in the theme**: this theme's SVG has a 12 px arc but aurorae clips the corner piece into a 1 px cell, so the frame is a rectangle and there was nothing to follow. The effect draws the rounded rectangle itself (`CornerRadius`, default 12; 0 = off) and discards what falls outside. That is the beginning of M2, driven by a real request |
 | 3c | A frost that AVERAGES instead of sampling, so text behind the window dissolves into a haze. | ✅ **done** (2026-10-14): the backdrop is captured already reduced (a scaled blit) and the kernel only has to be wide, not dense; the tone of the bar in the glass is averaged over half the bar's height so the title leaves no ghost |
-| 3d | Settle whether the reduced capture's region and the shader's own sizes agree (the reason the sampling question existed at all). | not started -- the pixel comparison that would answer it is written down in section 5 |
+| 3d | Settle whether the band samples the backdrop where it belongs, or displaced by the decoration's shadow margins. | 🟡 **instrument ready, measurement pending**: `measure-alignment.py` correlates the band against the same backdrop just outside the window (rows against a strip beside it, columns against a strip above it), with synthetic cases in the suite that prove it recovers a known (14, 7) WITH its sign and refuses to invent one from a flat backdrop. Needs one screenshot with text behind and `BackgroundRadius=0` |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -404,6 +404,20 @@ Two things the instruments CANNOT catch, and both are for the eye:
 - **a band that shows another window's background** -- the capture texture is one
   object shared by all windows. Check two windows over different backgrounds.
 
+**And for step 3d, one screenshot settles it.** Put something with TEXT behind the
+window, set `BackgroundRadius=0` (the sharp composite, so the band is not blurred), and:
+
+```bash
+python3 measure-alignment.py /ruta/captura.png <x> <y> <w> <bar>
+```
+
+The rectangle is the one the effect prints (`frame= ... barHeight= ...`). It reports a
+horizontal and a vertical displacement, with the sign, and `(0, 0)` means the sampling
+agrees with the decoration and there is no margin bug to fix. It needs structure in BOTH
+axes to say anything: rows against a strip beside the window (text lines), columns
+against a strip above it (window edges, page columns). A flat backdrop gives INCONCLUSIVE
+rather than a number made of noise.
+
 **Then the frost, in the same session.** The blur over the captured desktop is
 `BackgroundRadius`, now defaulting to the kit's outer 16 (6 was too small to see, 0 is
 the sharp composite step 2 was verified with):
@@ -450,6 +464,7 @@ The instruments:
 | `measure-diffusion.py` | is local contrast lost with brightness preserved |
 | `verify-chain.sh` | does the effect continue KWin's paint chain (black-screen safety) |
 | `tests/run.sh` (glass) | do the embedded shaders compile, without a screen |
+| `measure-alignment.py` | is the backdrop sampled where it belongs, or displaced by the shadow margin (step 3d) |
 
 ## 8. Lessons this step paid for
 
