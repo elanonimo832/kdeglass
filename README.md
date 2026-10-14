@@ -68,8 +68,8 @@ HDR explicitly to v3.
 ## How to verify that everything is still fine
 
 ```bash
-tests/run.sh            # the full harness (~30 s)
-tests/run.sh efecto     # only one area: artefactos|efecto|scripts|documentacion
+tests/run.sh            # all areas (~30 s)
+tests/run.sh effect      # one area: artifacts|claims|documentation|effect|scripts
 ```
 
 The harness watches the invariants that have cost the most, not the formatting:

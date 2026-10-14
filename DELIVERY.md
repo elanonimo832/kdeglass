@@ -580,7 +580,7 @@ with `macosglass2` it works. The effect is now called `macosglass2`.
 **Effect status (2026-10-14):**
 - Installed in the correct path (`kwin/effects/plugins/`) and it loads without breaking anything
 - **It does not draw yet**: the material shader is the next step
-- The project is under git, with a full test harness (`tests/run.sh`)
+- The project is under git, with a test harness at `tests/run.sh`
 - Of the 9 debugging scripts, 4 remain, and the deleted ones pointed to the old id
 
 > For the complete, ordered account, see **`INCIDENT.md`**, which also carries
