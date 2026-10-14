@@ -170,7 +170,18 @@ void main()
 
     // `high` is derived from `low` (3x) so there is ONE knob to turn on a screen.
     float deviation = abs(dot(window.rgb - tight, vec3(0.2126, 0.7152, 0.0722)));
-    float chrome = smoothstep(uChromeLow, uChromeLow * 3.0, deviation);
+    float porDesviacion = smoothstep(uChromeLow, uChromeLow * 3.0, deviation);
+
+    // COLOUR IS CHROME TOO, and it is the term that keeps the traffic lights SOLID.
+    // A tight baseline sees the same colour in the middle of a 12 px disc as around it,
+    // so a deviation-only mask hollows the buttons out: a bright ring with glass in the
+    // centre. Chroma is a LOCAL property -- no neighbourhood, no halo -- and the bar is
+    // neutral (its own figure is #F6F6F6: saturation 0.02), so anything clearly coloured
+    // is chrome by itself.
+    float saturacion = max(max(window.r, window.g), window.b)
+                     - min(min(window.r, window.g), window.b);
+    float porColor = smoothstep(0.06, 0.15, saturacion);
+    float chrome = max(porDesviacion, porColor);
 
     // M1.3a -- THE DESKTOP ITSELF, NOT AN ALPHA.
     //

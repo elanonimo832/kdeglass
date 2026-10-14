@@ -124,6 +124,13 @@ was still set when `test-harness.sh` ran.
   `grep -q` in a pipe was forbidden in `effect-kwin/*.sh` and used nine times inside
   `tests/`, including in the helper that runs every assertion. The scan now covers
   both.
+- **An assertion on a name is not an assertion on the wiring.** Three times in one
+  session a test asserted that an identifier appeared in the source, and passed while the
+  term was disconnected from the result: `discard;` that could never run, a corner test
+  replaced by `if (false)`, and a chroma term that was declared and never used. Each was
+  written against the *name* because the name was easy to grep. Assert the expression
+  that decides -- `max(porDesviacion, porColor)`, `dot(esquina, esquina) > r * r` -- or the
+  test is pinning a word, not a behaviour.
 
 ## The work cycle
 

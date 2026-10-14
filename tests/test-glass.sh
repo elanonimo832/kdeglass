@@ -78,6 +78,12 @@ afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(
 # each letter and each traffic light, which is what the user saw.
 afirmar_codigo "the chrome baseline is its own, narrow radius" "$FUENTE" 'uChromeRadius'
 afirmar_codigo "and its threshold is one tunable knob" "$FUENTE" 'uChromeLow'
+# Colour is chrome too. Without this the traffic lights come out as bright rings with
+# glass in the middle, because a tight baseline sees the same colour in the centre of a
+# 12 px disc as around it. Chroma is local, so it costs no halo.
+# ...and it must be USED, not merely declared: asserting the name alone passed while
+# the term was disconnected, which is the third time this shape has bitten.
+afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$FUENTE" 'max[(]porDesviacion, porColor[)]'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
 afirmar_codigo "the band's colour is premultiplied by its alpha" "$FUENTE" 'salida [*] window[.]a'
