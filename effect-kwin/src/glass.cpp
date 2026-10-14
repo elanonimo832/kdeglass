@@ -23,6 +23,14 @@ MacosGlassEffect::MacosGlassEffect()
 {
     qInfo() << "[macos-glass] loaded. Darkened border active, alpha" << m_borderAlpha;
     reconfigure(ReconfigureAll);
+
+    // Force every window to repaint NOW. Without this, an already-visible window
+    // is never repainted just because an effect was loaded, so paintWindow() is
+    // not called for it and the marker does not appear until something else
+    // happens to trigger a repaint. That is exactly what confused the first
+    // M1.1 measurement: the marker existed but only on windows that repainted
+    // during the effect's 5-second window.
+    effects->addRepaintFull();
 }
 
 MacosGlassEffect::~MacosGlassEffect() = default;
@@ -57,6 +65,21 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
     //
     // That is why ALL paths end up calling effects->paintWindow().
     // ---------------------------------------------------------------------
+    // DIAGNOSTIC: log on entry, unconditionally, and say which guard fails.
+    static int diag = 0;
+    if (diag < 6) {
+        ++diag;
+        qInfo() << "[macos-glass] paintWindow ENTER:"
+                << "w=" << (w ? "yes" : "null")
+                << "normal=" << (w && w->isNormalWindow())
+                << "fullscreen=" << (w && w->isFullScreen())
+                << "transformed=" << bool(mask & PAINT_WINDOW_TRANSFORMED)
+                << "fbo=" << (renderTarget.framebuffer() ? "yes" : "NULL")
+                << "fbosize=" << renderTarget.size()
+                << "scale=" << viewport.scale()
+                << "caption=" << (w ? w->caption() : QString());
+    }
+
     if (w && w->isNormalWindow() && !w->isFullScreen()
         && !(mask & PAINT_WINDOW_TRANSFORMED) && renderTarget.framebuffer()) {
         // ---------------------------------------------------------------

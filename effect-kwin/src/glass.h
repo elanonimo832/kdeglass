@@ -59,9 +59,14 @@ private:
     // A provisional magenta, picked because nothing else in output/ produces it,
     // so a screenshot test can look for it unambiguously.
     // ---------------------------------------------------------------------
-    static constexpr float kMarkerR = 0.70f;   // 0xB3
-    static constexpr float kMarkerG = 0.23f;   // 0x3A
-    static constexpr float kMarkerB = 0.36f;   // 0x5B
+    // Saturated cyan, 0x00E5FF. The first choice was a desaturated magenta
+    // (0xB33A5B) and it was a bad test instrument: the wallpaper contains 1388
+    // pixels within a tolerance of 24 per channel of it, so a screenshot test
+    // could not tell the marker from the background. Cyan is not a colour any
+    // normal desktop produces, so the delta is unambiguous.
+    static constexpr float kMarkerR = 0.00f;   // 0x00
+    static constexpr float kMarkerG = 0.90f;   // 0xE5
+    static constexpr float kMarkerB = 1.00f;   // 0xFF
     static constexpr int kMarkerSize = 48;     // device pixels, square
 };
 

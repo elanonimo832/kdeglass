@@ -29,8 +29,8 @@ try:
     black = sum(1 for r, g, b in px if r < 8 and g < 8 and b < 8)
     # M1.1 marker colour: 0xB3 / 0x3A / 0x5B. The tolerance absorbs compositing
     # and PNG round-tripping; nothing else in output/ is near this colour.
-    mr, mg, mb = 0xB3, 0x3A, 0x5B
-    marker = sum(1 for r, g, b in px if abs(r-mr) < 24 and abs(g-mg) < 24 and abs(b-mb) < 24)
+    mr, mg, mb = 0x00, 0xE5, 0xFF
+    marker = sum(1 for r, g, b in px if abs(r-mr) < 30 and abs(g-mg) < 30 and abs(b-mb) < 30)
     print(f"    {sys.argv[2]:14s} black={100*black/n:5.1f}%  marker={marker} px")
 except Exception as e:
     print(f"    {sys.argv[2]}: could not measure ({e})")
@@ -52,6 +52,12 @@ if ! objdump -d "$SISTEMA" 2>/dev/null | grep -c glScissor >/dev/null; then
   exit 1
 fi
 echo "Effect: $ID (already installed). Nothing is installed by this script."
+
+# The control MUST be captured with the effect OFF. The first M1.1 measurement
+# got this wrong: the effect was already loaded, so the "control" screenshot
+# already contained the marker and both numbers were meaningless.
+echo "Forcing the effect OFF before the control capture..."
+unload; sleep 3
 measure control
 echo "Loading $ID ..."
 timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect "$ID" >/dev/null 2>&1
@@ -64,8 +70,8 @@ from PIL import Image
 def stats(path):
     im = Image.open(path).convert("RGB"); px = list(im.getdata()); n = len(px)
     black = 100 * sum(1 for r, g, b in px if r < 8 and g < 8 and b < 8) / n
-    mr, mg, mb = 0xB3, 0x3A, 0x5B
-    marker = sum(1 for r, g, b in px if abs(r-mr) < 24 and abs(g-mg) < 24 and abs(b-mb) < 24)
+    mr, mg, mb = 0x00, 0xE5, 0xFF
+    marker = sum(1 for r, g, b in px if abs(r-mr) < 30 and abs(g-mg) < 30 and abs(b-mb) < 30)
     return black, marker
 try:
     cb, cm = stats(sys.argv[1])
@@ -75,12 +81,19 @@ try:
     print(f"  loaded  : black={lb:5.1f}%  marker={lm:7d} px")
     delta = lm - cm
     print()
+    # A 48x48 patch at scale 1 is 2304 px; many windows means several patches.
+    # A handful of pixels is NOISE, not evidence -- the first M1.1 run claimed
+    # "DRAWS" on a +6 px delta. Demand an order of magnitude.
+    MIN_EXPECTED = 1500
+    print(f"  delta   : marker {delta:+d} px  (a 48x48 patch is {48*48} px)")
+    print()
     if lb > 90:
         print("VERDICT: BREAKS rendering (black screen)")
-    elif delta <= 0:
-        print(f"VERDICT: does NOT draw -- marker pixels did not rise ({delta:+d})")
+    elif delta < MIN_EXPECTED:
+        print(f"VERDICT: does NOT draw enough -- {delta:+d} px, expected >= {MIN_EXPECTED}")
+        print("  (a few pixels is noise from the wallpaper, not a patch)")
     else:
-        print(f"VERDICT: DRAWS. black={lb:.1f}%, marker pixels {delta:+d} (M1.1 works)")
+        print(f"VERDICT: DRAWS. black={lb:.1f}%, marker {delta:+d} px (M1.1 works)")
 except Exception as e:
     print("could not measure:", e)
 PY
