@@ -20,8 +20,21 @@
 #   effect. This script printed exactly that false alarm and blocked the install.
 #   The dangerous thing to look for is not a MISSING call -- it is an OVERRIDE
 #   that forgets one. So that is what is checked.
+#
+# USAGE
+#   ./verify-chain.sh            full check, includes the INSTALLED plugin
+#   ./verify-chain.sh --source   skip the installed plugin (what install.sh needs)
+#
+# WHY --source EXISTS. install.sh runs this BEFORE copying the new build into
+# place. Checking the installed plugin there is circular: an older installed build
+# fails the check, and that failure blocks the very install that would replace it.
+# The install was blocked exactly that way. So install.sh checks the SOURCE and
+# the BUILD it is about to install; the installed copy is replaced immediately
+# afterwards anyway.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_ONLY=no
+[ "${1:-}" = "--source" ] && SOURCE_ONLY=yes
 SOURCE="$HERE/src/glass.cpp"
 HEADER="$HERE/src/glass.h"
 SO="$HERE/build/plugins/kwin/effects/macosglass2.so"
@@ -73,22 +86,30 @@ else
   fallo=1
 fi
 
-echo
-echo "=== 4. The installed plugin ==="
-if [ ! -f "$SYSTEM_SO" ]; then
-  echo "  (no plugin installed in $SYSTEM_SO)"
-  echo "  Install it with:  ./install.sh"
-elif nm -D --undefined-only "$SYSTEM_SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
-  echo "  OK: the installed plugin links OffscreenEffect"
+if [ "$SOURCE_ONLY" = yes ]; then
+  echo
+  echo "=== 4. The installed plugin: SKIPPED (--source) ==="
+  echo "  install.sh checks the source and the build it is about to install."
 else
-  echo "  WARN: the installed plugin is an older build. Do not activate it."
-  fallo=1
+  echo
+  echo "=== 4. The installed plugin ==="
+  # This is reported but does NOT set the failure flag: a stale installed plugin is
+  # not a broken chain, it is a plugin that needs replacing. Conflating the two is
+  # what made this script block the install.
+  if [ ! -f "$SYSTEM_SO" ]; then
+    echo "  (none installed in $SYSTEM_SO)"
+  elif nm -D --undefined-only "$SYSTEM_SO" 2>/dev/null | grep -q 'OffscreenEffect'; then
+    echo "  OK: the installed plugin links OffscreenEffect"
+  else
+    echo "  NOTE: the installed plugin is an older build (does not link"
+    echo "        OffscreenEffect). Install the current one:  ./install.sh"
+  fi
 fi
 
 echo
 if [ "$fallo" -eq 0 ]; then
   echo "CHAIN OK: nothing overrides the chain without continuing it."
 else
-  echo "CHAIN AT RISK: do NOT activate this effect."
+  echo "CHAIN AT RISK: an override does not continue the chain. Do NOT activate."
 fi
 exit "$fallo"

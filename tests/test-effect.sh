@@ -70,6 +70,11 @@ echo "  -- the chain verifier checks the right thing --"
 afirmar_contiene "the verifier looks for overrides" "$EF/verify-chain.sh" 'does not override'
 afirmar_contiene "the verifier checks the base class" "$EF/verify-chain.sh" 'OffscreenEffect'
 afirmar_contiene "the verifier checks the base is linked" "$EF/verify-chain.sh" 'undefined-only'
+# The installed plugin must NOT set the failure flag: install.sh checks before
+# copying, so a stale installed build would block the install that replaces it.
+# That circularity blocked a real install, twice.
+negar "the verifier does not fail on a stale installed plugin" \
+  grep -qE 'installed plugin is an older build.*$' "$EF/verify-chain.sh"
 negar "the verifier no longer demands our own chain call" \
   grep -qE 'if grep -qE .effects->paintWindow' "$EF/verify-chain.sh"
 

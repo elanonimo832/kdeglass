@@ -11,7 +11,10 @@ DEST=/usr/lib/qt6/plugins/kwin/effects/plugins
 [ -f "$SO" ] || { echo "The .so is missing. Compile first:  ./build.sh"; exit 1; }
 
 # 1. The paint chain: without it KWin draws NO window (black screen).
-if ! "$AQUI/verify-chain.sh" >/dev/null 2>&1; then
+# --source: check the SOURCE and the BUILD being installed, not the installed copy.
+# Checking the installed copy here is circular -- an older installed build would
+# fail and block the install that replaces it. That is exactly what happened.
+if ! "$AQUI/verify-chain.sh" --source >/dev/null 2>&1; then
   echo "ABORTED: the .so does not continue the paint chain -> black screen."
   echo "Detail:  ./verify-chain.sh"
   exit 1
