@@ -53,6 +53,18 @@ into it — an alpha of 0 would still show the window's own black. Showing the
 background requires CAPTURING it with `GLFramebuffer::blitFromRenderTarget`, which
 is exactly what KWin's own blur effect does for the whole window.
 
+**Where it stands.** The capture is written and compiled: `drawWindow` is overridden
+(and `verify-chain.sh` was taught that a correct override is allowed — the ban was
+the wrong rule), the desktop is copied into an owned `GLTexture` over the window's
+expanded geometry, clamped to the render target, and composited in the fragment
+shader. The suite is green and the shaders are validated offline, but **it has not
+been seen on a screen yet**: that needs `./install.sh` and a relogin.
+
+Left for the next step: blur the captured background, tune `kGlassAlpha`, and make
+the shader's sizes use the expanded geometry with an explicit top margin (see the
+risks list in `HANDOFF.md`; the band's current accuracy is an accidental
+cancellation, not a correct calculation).
+
 **The full analysis, the next step in detail, and its risks are in
 [`HANDOFF.md`](HANDOFF.md).** Start there, not here.
 
