@@ -120,6 +120,18 @@ bool MacosGlassEffect::supported()
 
 void MacosGlassEffect::reconfigure(ReconfigureFlags)
 {
+    // Read the settings. KWin gives effects their own config group, so these can be
+    // changed without a rebuild:
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key CsdBarHeight 70
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key FrostRadius 6
+    //   qdbus6 org.kde.KWin /KWin reconfigure
+    const KConfigGroup cfg = effects->config()->group(QStringLiteral("Effect-macosglass2"));
+    m_frostRadius = cfg.readEntry("FrostRadius", kFrostRadius);
+    m_csdBarHeight = cfg.readEntry("CsdBarHeight", 0);
+
+    qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
+            << "csdBarHeight=" << m_csdBarHeight;
+
     m_shader.reset();
     loadShader();
     if (m_active) {
@@ -208,12 +220,22 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
             barHeight = w->clientGeometry().top() - w->frameGeometry().top();
         }
         if (barHeight <= 0.0) {
-            // No decoration, or a client-side one: nothing to cover.
-            barHeight = 0.0;
+            // CLIENT-SIDE DECORATION (CSD), and this is a real limit rather than a
+            // bug. Apps like Zen Browser draw their own title bar INSIDE the client
+            // area, so frameGeometry() and clientGeometry() are identical and their
+            // difference is zero. KWin does not expose that region separately, so
+            // there is nothing to measure and no effect can know where the bar ends
+            // without guessing.
+            //
+            // Guessing geometry is what cost four session restarts in M1.1, so the
+            // guess here is explicit, configurable and documented: a fallback band
+            // height in the kwinrc, defaulting to 0 so the behaviour is unchanged
+            // for anyone who does not ask for it.
+            barHeight = qreal(m_csdBarHeight);
         }
 
         ShaderManager::instance()->pushShader(m_shader.get());
-        m_shader->setUniform("uRadius", float(kFrostRadius));
+        m_shader->setUniform("uRadius", float(m_frostRadius));
         m_shader->setUniform("uTexelSize",
                              QVector2D(1.0f / size.width(), 1.0f / size.height()));
         m_shader->setUniform("uTextureSize",

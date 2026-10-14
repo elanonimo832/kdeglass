@@ -69,10 +69,29 @@ private:
     // 16s describe the outer falloff and belong with the edge work in M1.3/M1.5.
     // ---------------------------------------------------------------------
     static constexpr int kFrostRadius = 6;    // kit: frost 6/16/16
-    static constexpr float kFrostOpacity = 0.25f;  // kit: opacity 25
 
-    // Where the material is applied. Until the shape work (M2) exists, this is
-    // the whole window.
+    // Client-side-decorated windows (Zen Browser and most Electron apps) draw
+    // their own title bar INSIDE the client area, so frameGeometry() and
+    // clientGeometry() are identical and the band height cannot be measured.
+    // KWin does not expose that region, so no effect can locate it without
+    // guessing -- and guessing geometry is what cost four session restarts in M1.1.
+    //
+    // So the guess is explicit, configurable and off by default: a guessed band on
+    // a window that has nothing there would blur content for no reason. Raise it
+    // for CSD apps, e.g. 70 for Zen Browser, and it applies to every window that
+    // reports no measurable title bar.
+    // Configurable from kwinrc, so changing it does not need a rebuild:
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key CsdBarHeight 70
+    //   qdbus6 org.kde.KWin /KWin reconfigure
+    int m_csdBarHeight = 0;
+    int m_frostRadius = kFrostRadius;
+
+    // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
+    // it belongs with the veil work in M1.5.
+    static constexpr float kFrostOpacity = 0.25f;   // kit: opacity 25
+
+    // Whether the material is applied at all. Turning it off leaves the windows
+    // untouched, which is what makes the measurement possible.
     bool m_active = true;
 };
 
