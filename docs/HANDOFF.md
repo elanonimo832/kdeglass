@@ -154,9 +154,9 @@ deliberately, so that a correct override is not another false alarm.
 | Step | Change | State at the end |
 | --- | --- | --- |
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
-| 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | 🟡 **written and compiled** (2026-10-14), **not yet seen on screen**: the desktop is captured across the window's expanded geometry (the region KWin redirects), clamped to the render target, and composited in the fragment shader (unit 1, `uHasBackground`). Needs `./install.sh` + a relogin to verify |
-| 3a | Blur the captured background. Split out from "tune alpha" so that it stays ONE variable: it is a setting (`BackgroundRadius`) whose default of 0 keeps the sharp composite the first relogin verifies. | 🟡 **written and compiled** (2026-10-14): radius 0 is the single-sample path, unchanged; the frost is switched on in the same session with a `kwinrc` key + `reconfigure`, no relogin |
-| 3b | Tune `kGlassAlpha`, and make the shader's sizes use the expanded geometry with an explicit top margin (see the risks in section 5). | not started -- both are visible changes, so they need a screen |
+| 2 | Override `drawWindow`; capture the desktop into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | ✅ **VERIFIED ON SCREEN** (2026-10-14): band moved **73.8** over two backgrounds where 12 is the threshold, `capture: ok=1200 refused=0`. The capture covers the window's expanded geometry, clamped to the render target, composited in the fragment shader (unit 1, `uHasBackground`) |
+| 3a | Blur the captured background. Split out from "tune alpha" so that it stays ONE variable: it is a setting (`BackgroundRadius`) whose default of 0 keeps the sharp composite the relogin verified. | 🟡 **in the verified build, off by default**: radius 0 is the single-sample path; the frost is switched on in the same session with a `kwinrc` key + `reconfigure`, no relogin |
+| 3b | Tune `kGlassAlpha`, make the shader's sizes use the expanded geometry with an explicit top margin, and confine the band horizontally to the frame so it stops painting the 14 px side margins (section 5 has the measured numbers). | not started -- it is a visible geometry change, so it needs a build + relogin + screenshot |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -212,20 +212,29 @@ can see exactly where it stopped.
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.
 - **`uTexelSize`/`uTextureSize` are frame-sized while the texture is expanded-sized.**
-  The texture half of that is settled: KWin redirects the window into
-  `snapToPixels(expandedGeometry(), scale) * scale`, so every size the shader uses is
-  exact ONLY if the decoration's shadow margins are zero. **Whether they are is not
-  established for this theme.** It sets `Shadow=true` in its `KdeMacOSrc` and ships no
-  `shadow.svg`, and what KWin's aurorae library does with that combination has not
-  been read -- so instead of reasoning it out, the effect now logs it: the
-  `title bar band:` line carries `expanded=` and `shadowMargin=`, and the
-  `capture texture` line carries the redirected texture's size. Two lines, and the
-  margin stops being a hypothesis.
-  **State: measured next relogin.** If the margin is 0 the shader's sizes were already
-  exact and the arithmetic below is void; if it is not, the band boundary currently
-  lands at `barHeight * (expandedH / frameH)` and the fix is to carry the margin
-  explicitly -- `(1 - vTexCoord.y) * textureHeight > uMarginTop + uTitleBarHeight` --
-  which is a visible geometry change and therefore step 3b, not this one.
+  **Measured (2026-10-14), so this is no longer a question.** KWin reported
+  `frame= KWin::RectF(1467,669 905x751)` and `expanded= KWin::RectF(1453,662 933x765)`,
+  i.e. `shadowMargin= QPointF(14, 7)`: 14 logical pixels on the left and right, 7 on the
+  top and bottom. The shader's sizes are therefore NOT exact, and the errors are now
+  numbers instead of a shape:
+  - **Vertically**, `yPixelsFromTop = (1 - vTexCoord.y) * 751` measures the distance
+    from the TEXTURE top scaled by 751/765 (0.9817). So the band starts at the texture
+    top -- 7 px ABOVE the frame -- and ends at 38 / 0.9817 = 38.7 px, about 6 px short
+    of the title bar's bottom edge. The fix is
+    `(1 - vTexCoord.y) * textureHeight > uMarginTop + uTitleBarHeight` with
+    textureHeight 765 and uMarginTop 7, which covers texture rows 0..45 = margin 7 +
+    bar 38: the intended band.
+  - **Horizontally there is a second consequence nobody has looked for yet**: the
+    condition tests only y, so the band spans the whole 933 px texture width, and 14 px
+    of that is shadow on each side. The shader writes alpha 1.0 there, so those margins
+    may be painted OPAQUE -- a small rectangular tab sticking out on each side of the
+    title bar. Whether it is visible has not been checked; it is the first thing to
+    look for in the next screenshot, and the fix (a horizontal test against
+    `uMarginLeft` and the frame width) belongs with the same change.
+  - The blur offsets are wrong by the same 1.9% (751 against 765): invisible at frost 6,
+    and free to correct in passing.
+  **State: step 3b.** It is a visible geometry change, so it needs a build + relogin and
+  a screenshot -- not a hot reconfigure.
 - **One capture texture for every window.** The M1.2b hazard (one shader, many
   windows, the last one wins) in a new place. Safe for the two reasons above: the
   capture is never re-entered, and `capture(A) -> draw(A) -> capture(B)` completes
@@ -278,7 +287,9 @@ can see exactly where it stopped.
 | **M1.2b** — the band covers the title bar only, and survives window switches | ✅ verified by the user |
 | **M1.3a** — translucent band by alpha alone | 🔴 **measured OPAQUE**, does not achieve glass (see §2): the shader only ever saw the window's own texture |
 | **M1.3a step 1** — the chain rule accepts a correct override | ✅ done, and the verifier is shown to fail on defective sources |
-| **M1.3a step 2** — the desktop is captured and composited | 🟡 compiled and green in the harness, **not yet seen on screen**: needs `./install.sh` + relogin |
+| **M1.3a step 2** — the desktop is captured and composited | ✅ **VERIFIED ON SCREEN** (2026-10-14): window held still, only the background changed, the band moved by **73.8** where 12 is the threshold (the alpha-only attempt scored 3.2), and the effect's own counter read `capture: ok=1200 refused=0` -- the blit never failed once |
+| **M1.3a step 3a** — the frost over the capture | 🟡 shipped in that same build, off by default; switched on with a config key. See §7 |
+| **M1.3a step 3b** — alpha, and the frame-vs-expanded geometry | ⬜ next, and it starts from a measured margin: `shadowMargin= QPointF(14, 7)` |
 | M1.3 refraction (70), M1.4 dispersion (20), M1.5 specular highlight | not started |
 | M2 squircle clipping, M3 Plasma theme, M4 typography, M5 icons, M6 QStyle | not started |
 

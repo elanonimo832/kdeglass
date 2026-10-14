@@ -86,7 +86,12 @@ else
   echo "  (no 'capture:' line yet: either the effect is not loaded, or it has not"
   echo "   painted 60 times -- move a window a little and run this again)"
 fi
-printf '%s\n' "$diag" | grep -E 'refused|cannot allocate|not valid|failed to load' | tail -4 | sed 's/^/  WARNING: /'
+# Only REAL trouble. The healthy line is "capture: ok=N refused=0", so matching the
+# bare word `refused` printed four alarming WARNINGs about a capture that was working
+# perfectly -- the first version of this filter did exactly that, and a false alarm is
+# worse than no alarm: it teaches the reader to ignore the word. A non-zero refusal is
+# what matters.
+printf '%s\n' "$diag" | grep -E 'refused= *[1-9]|cannot allocate|not valid|failed to load|blit was refused' | tail -3 | sed 's/^/  WARNING: /'
 echo
 
 python3 "$HERE/measure-glass.py" "$OUT/behind-dark.png" "$OUT/behind-light.png" "$x" "$y" "$w" "$bar"

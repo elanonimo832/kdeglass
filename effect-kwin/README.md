@@ -12,7 +12,8 @@ verified working and unusable, because it blurred the text you were reading.
 | Hooks into the paint chain | ✅ `OffscreenEffect` continues it; our own `drawWindow` override continues it explicitly |
 | **Diffusion** — the band is blurred | ✅ M1.2, `frost 6` as a 3x3 kernel |
 | **The band covers the title bar only** | ✅ M1.2b, verified by the user, survives window switching |
-| **Real glass** — the band shows the desktop behind it | 🟡 M1.3a: the desktop is captured into its own `GLTexture` and composited in the shader; **compiled and green in the harness, not yet seen on a screen** |
+| **Real glass** — the band shows the desktop behind it | ✅ **verified on screen** (M1.3a, 2026-10-14): the band moves with the background, 73.8 against a threshold of 12, where the alpha-only attempt scored 3.2 |
+| **Frost over the capture** | 🟡 in the same build, off by default (`BackgroundRadius=0`); switched on with a `kwinrc` key plus `reconfigure`, no relogin |
 | Refraction (70), dispersion (20), specular highlight | ❌ not started |
 
 An alpha alone was measured **OPAQUE**: the shader's only input is the window's own

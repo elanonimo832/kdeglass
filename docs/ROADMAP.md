@@ -53,19 +53,23 @@ into it — an alpha of 0 would still show the window's own black. Showing the
 background requires CAPTURING it with `GLFramebuffer::blitFromRenderTarget`, which
 is exactly what KWin's own blur effect does for the whole window.
 
-**Where it stands.** The capture is written and compiled: `drawWindow` is overridden
-(and `verify-chain.sh` was taught that a correct override is allowed — the ban was
-the wrong rule), the desktop is copied into an owned `GLTexture` over the window's
-expanded geometry, clamped to the render target, and composited in the fragment
-shader. The suite is green and the shaders are validated offline, but **it has not
-been seen on a screen yet**: that needs `./install.sh` and a relogin.
+**Where it stands.** The capture is **verified on screen** (2026-10-14): with the
+window held still and only the background changed, the band moved by **73.8** where 12
+is the threshold — the alpha-only attempt scored 3.2 — and the effect's own counter
+read `capture: ok=1200 refused=0`. The desktop is copied into an owned `GLTexture` over
+the window's expanded geometry, clamped to the render target, and composited in the
+fragment shader.
 
-Left for the next steps: verify the sharp composite on screen, then switch on the
-frost over the captured desktop (`BackgroundRadius`, shipped at 0 so that the first
-relogin stays a one-variable check and the blur is a second observation in the same
-session), and only then tune `kGlassAlpha` and the shader's sizes, which are still
-frame-based while the texture is expanded-based (see the risks list in `HANDOFF.md`;
-the band's current accuracy is an accidental cancellation, not a correct calculation).
+The frost over that capture ships in the same build with `BackgroundRadius` defaulting
+to 0, so the relogin verified one variable (is the desktop there?) before a second one
+changed how it looks. It is switched on with a `kwinrc` key plus `reconfigure`, without
+a relogin.
+
+Left for the next steps: tune `kGlassAlpha`, and correct the shader's sizes, which are
+still frame-based while the texture is expanded-based. That is measured now, not
+guessed: the decoration's shadow margin is `QPointF(14, 7)`, so the band starts 7 px
+above the frame and ends about 6 px short of the title bar, and it may be painting the
+14 px side margins opaque (see the risks list in `HANDOFF.md`).
 
 **The full analysis, the next step in detail, and its risks are in
 [`HANDOFF.md`](HANDOFF.md).** Start there, not here.
