@@ -18,7 +18,7 @@
 | 2. Portable declarative layer | 🟡 **almost** — color, GTK and decoration; the Plasma global theme is missing |
 | 3. Generator | ✅ **done** — reproducible byte for byte |
 | 4. QStyle | ⬜ **not started** |
-| 5. KWin effect | 🟡 **halfway** — it loads and hooks in; **the shader is missing** |
+| 5. KWin effect | 🟡 **in progress** — it draws the material: diffusion and the title-bar band are verified on screen, and the M1.3a desktop capture is implemented and waiting for a relogin |
 
 ## Milestones
 

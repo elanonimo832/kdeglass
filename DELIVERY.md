@@ -223,6 +223,10 @@ Two ways out, both documented:
 
 ### What the effect does today
 
+> **SUPERSEDED the same day (2026-10-14).** This describes the state before M1.2; the
+> material shader was written hours later. Kept as a record. The current state is in
+> [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md).
+
 **Nothing visible yet.** The skeleton is there: the `paintWindow` hook, the kit values
 in `reconfigure()`, and **it loads without drawing**. The material shader is missing.
 
@@ -552,8 +556,9 @@ New tools:
 `build.sh` **no longer activates** the effect (before it could load the old system
 `.so` and repeat the incident).
 
-The effect still **does not draw** (the material shader is the next step),
-but it is safe: it behaves as if it were not loaded.
+The effect at that time still **did not draw** (the material shader was the next step),
+but it was safe: it behaved as if it were not loaded. *(Superseded: it draws since
+M1.2; see §17 and [`docs/ROADMAP.md`](docs/ROADMAP.md).)*
 
 > **HISTORICAL (2026-10-13, old id `macosglass`):** the agent could not install the
 > binary (the sandbox cannot `sudo`), so at that time the system `.so` was still the
@@ -579,7 +584,7 @@ with `macosglass2` it works. The effect is now called `macosglass2`.
 
 **Effect status (2026-10-14):**
 - Installed in the correct path (`kwin/effects/plugins/`) and it loads without breaking anything
-- **It does not draw yet**: the material shader is the next step
+- **It does not draw yet** *(superseded the same day: M1.2, M1.2b and M1.3a followed)*: the material shader is the next step
 - The project is under git, with a test harness at `tests/run.sh`
 - Of the 9 debugging scripts, 4 remain, and the deleted ones pointed to the old id
 
