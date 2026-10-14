@@ -1,5 +1,0 @@
-build/
-src/*.o
-src/moc_*.cpp
-src/qrc_*.cpp
-src/*.so
