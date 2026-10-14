@@ -78,7 +78,10 @@ afirmar_codigo "and it is composited crisp on top of the glass" "$SOURCE" 'mix[(
 # a decision for a screen.
 afirmar_codigo "vibrancy is off by default" "$HEADER" 'kVibrancy = 0'
 afirmar_codigo "and it is a live setting" "$SOURCE" 'Vibrancy'
-afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$SOURCE" 'isColour > 0[.]5'
+afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$SOURCE" 'isColour > 0[.]15'
+# 0.15 and not 0.5: the anti-aliased edge of a button is only PARTLY saturated, and at the
+# looser threshold vibrancy pushed those edge pixels to ~0.86 of luminance -- measured as a
+# light ring of 206-217 around the traffic lights against a band of 117.
 # The wiring: the main path must go through the helper, or vibrancy is a function nobody
 # calls -- the same trap as the `discard;` that could never run.
 afirmar_codigo "and the main path uses it" "$SOURCE" 'chromeWithVibrancy[(]window[.]rgb, glass, chrome, byColour[)]'

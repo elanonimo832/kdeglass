@@ -85,7 +85,15 @@ const vec3 kLuma = vec3(0.2126, 0.7152, 0.0722);
 
 vec3 chromeWithVibrancy(vec3 chromeColour, vec3 backdrop, float isChrome, float isColour)
 {
-    if (uVibrancy <= 0.001 || isChrome < 0.5 || isColour > 0.5) {
+    // `isColour > 0.15` and not `> 0.5`, and the difference is a halo the user could see. The
+    // anti-aliased EDGE of a coloured button is only partly saturated, so at 0.5 those pixels
+    // counted as achromatic chrome and vibrancy pushed them to ~0.86 of luminance -- measured
+    // on their screenshot as a light ring of 206-217 around the red and yellow traffic lights,
+    // against a band of 117 and a theme bar of 246, which is the aiming version's
+    // backdrop + 0.35 exactly. Protecting anything with any measurable chroma keeps the
+    // buttons' edges blending into the glass, where they belong, while the title (chroma ~0)
+    // still gets the contrast it needs.
+    if (uVibrancy <= 0.001 || isChrome < 0.5 || isColour > 0.15) {
         return chromeColour;
     }
     float backdropLuma = dot(backdrop, kLuma);

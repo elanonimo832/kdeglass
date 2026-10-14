@@ -776,6 +776,41 @@ sentence stays because the shape of the mistake is the lesson -- a plausible
 mechanism ("state leaks between files") was written down as a finding before the
 tool that produced the evidence had been verified.
 
+## 9b. What Apple's material actually does, measured from the user's own samples
+
+The user pointed at `muestras/Untitled5.png` -- a macOS Dock -- and described it better than any
+document: "el dock tiene como un borde, no es directa la transparencia, y este toma el color del
+background pero lo hace mas fuerte". Both halves are true, and the numbers say so.
+
+**It is not a blend.** Sampling the dock over two different parts of the wallpaper:
+
+| | backdrop (above the dock) | dock |
+|---|---|---|
+| A | (52, 84, 141) | (191, 194, 208) |
+| B | (9, 31, 128) | (122, 146, 211) |
+
+A plain `dock = a * colour + (1 - a) * backdrop` with one material colour gives
+`(1 - a) = 1.6` from those two points: greater than one, which is impossible. The dock's colour
+tracks the backdrop with a GAIN of about 1.6 -- the material amplifies what is behind it instead
+of veiling it. That is the opposite of what this effect does today, and it is why a quarter-opaque
+white veil looks like grey plastic next to Apple's glass.
+
+**And it has a rim.** The vertical profile over the dock is bright bands at the top
+(215-236) and at the bottom (206-218) with a darker middle (168-190). That is the edge treatment
+the user saw as a border.
+
+**What that means for the roadmap**: this is exactly the unimplemented half of the kit --
+`refraction = 70`, `dispersion = 20`, the specular highlight -- and the measurement is the shape
+of the work: a colour/luminance term that amplifies the captured backdrop, and an edge highlight
+tied to the window's silhouette. Neither is a knob on the existing blend, and pretending otherwise
+would be the mistake this project keeps having to unlearn.
+
+**The halo, meanwhile, was vibrancy and is fixed.** Its pixels measure 206-217 against a band of
+117 and a theme bar of 246: the installed version's `backdrop + 0.35` predicts 219 exactly. The
+cause is that the anti-aliased edge of a coloured button is only PARTLY saturated, so the
+achromatic test let those edge pixels through and vibrancy pushed them to a light grey. The gate
+is `isColour > 0.15` now instead of `> 0.5`.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
