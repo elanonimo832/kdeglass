@@ -16,8 +16,13 @@ CABECERA="$EF/src/glass.h"
 echo "  -- the blur is confined to a band, not the whole window --"
 # The shader must decide per-fragment. A shader that blurs everywhere is what
 # produced the unreadable window.
-afirmar_codigo "the shader measures distance from the top" "$FUENTE" 'vTexCoord\.y \* uTextureSize\.y'
-afirmar_codigo "it compares against the band height" "$FUENTE" 'yPixels > uTitleBarHeight'
+# The v axis of the offscreen texture runs opposite to window coordinates, so the
+# distance from the window's TOP is (1 - vTexCoord.y). Testing vTexCoord.y directly
+# put the band at the BOTTOM of every window -- caught by the user's screenshot,
+# not by any measurement, because the test only asked whether SOME band blurred.
+afirmar_codigo "the shader measures distance from the TOP" "$FUENTE" '1\.0 - vTexCoord\.y'
+negar "the un-flipped expression is gone" grep -q 'float yPixels = vTexCoord.y \* uTextureSize.y' "$FUENTE"
+afirmar_codigo "it compares against the band height" "$FUENTE" 'yPixelsFromTop > uTitleBarHeight'
 afirmar_codigo "outside the band the original texel is used" "$FUENTE" 'texture\(sampler, vTexCoord\)'
 
 echo "  -- the band height comes from the decoration, not from a guess --"

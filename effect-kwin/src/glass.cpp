@@ -63,12 +63,20 @@ void main()
     // the text you are reading. macOS never does that -- its material covers the
     // title bar, toolbars and sidebars, and the content stays sharp.
     //
-    // vTexCoord.y is 0 at the TOP of the window and 1 at the bottom, and
-    // uTextureSize is in device pixels, so this measures distance from the top in
-    // real pixels. Above the title bar: blur. Below it: the original texel,
-    // untouched.
-    float yPixels = vTexCoord.y * uTextureSize.y;
-    if (yPixels > uTitleBarHeight) {
+    // VERTICAL FLIP, and it was measured rather than assumed.
+    //
+    // The first version of this shader tested `vTexCoord.y * uTextureSize.y` as
+    // the distance from the top of the window. The result was a blurred band at
+    // the BOTTOM of every window -- the status bar, about 28 px up from the bottom
+    // edge -- which is exactly where a 28 px band lands if vTexCoord.y is 0 at the
+    // BOTTOM. The user's screenshot showed it plainly.
+    //
+    // OffscreenEffect renders the window into a texture whose v axis runs the
+    // other way from window coordinates, so the distance from the window's top is
+    // (1 - vTexCoord.y). The content sampling is left alone: it already reads the
+    // right texel at the right place, so only the band test needed flipping.
+    float yPixelsFromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
+    if (yPixelsFromTop > uTitleBarHeight) {
         fragColor = texture(sampler, vTexCoord);
         return;
     }
