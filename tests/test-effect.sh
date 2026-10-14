@@ -89,6 +89,80 @@ else
   ok "a stale installed plugin does not set the failure flag"
 fi
 
+echo "  -- the chain verifier is shown to fail on a defective override --"
+# M1.3a has to override drawWindow to capture the desktop (HANDOFF section 3), and
+# the blanket ban on overriding it was the wrong rule: the chain is cut by an
+# override that can LEAVE without calling it, not by an override as such. So the
+# rule is per function and per path, and this proves the verifier rejects the shape
+# that caused the black screens. A verifier that cannot be shown to fail protects
+# nothing; the script accepts GLASS_SOURCE on purpose so this can feed it one.
+BUENO="$(mktemp)"; MALO="$(mktemp)"; MANEJADOR="$(mktemp)"; COMENTADO="$(mktemp)"
+cat > "$BUENO" <<'CPP'
+void MacosGlassEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewport
+        &viewport, EffectWindow *w, int mask, const Region &deviceRegion,
+        WindowPaintData &data)
+{
+    capturarElFondo(deviceRegion);
+    OffscreenEffect::drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
+}
+CPP
+cat > "$MALO" <<'CPP'
+void MacosGlassEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewport
+        &viewport, EffectWindow *w, int mask, const Region &deviceRegion,
+        WindowPaintData &data)
+{
+    if (!w->isPaintingEnabled()) {
+        return;                       // <- leaves without continuing the chain
+    }
+    capturarElFondo(deviceRegion);
+    OffscreenEffect::drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
+}
+CPP
+# The other legitimate form: KWin's own blur effect continues the chain through the
+# handler instead of the base class. Both must be accepted.
+cat > "$MANEJADOR" <<'CPP'
+void MacosGlassEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewport
+        &viewport, EffectWindow *w, int mask, const Region &deviceRegion,
+        WindowPaintData &data)
+{
+    capturarElFondo(deviceRegion);
+    effects->drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
+}
+CPP
+salida_buena="$(GLASS_SOURCE="$BUENO" bash "$EF/verify-chain.sh" --source 2>&1)"
+salida_mala="$(GLASS_SOURCE="$MALO" bash "$EF/verify-chain.sh" --source 2>&1)"
+salida_manejador="$(GLASS_SOURCE="$MANEJADOR" bash "$EF/verify-chain.sh" --source 2>&1)"
+# The trap this project already paid for once: the pattern was in a COMMENT and the
+# check stayed green on broken code. The verifier must strip comments too.
+cat > "$COMENTADO" <<'CPP'
+void MacosGlassEffect::drawWindow(A, B, C)
+{
+    // OffscreenEffect::drawWindow(renderTarget, viewport, w, mask, region, data);
+}
+CPP
+salida_comentario="$(GLASS_SOURCE="$COMENTADO" bash "$EF/verify-chain.sh" --source 2>&1)"
+if grep -q 'OK: overrides drawWindow and continues the chain on every path' <<< "$salida_buena"; then
+  ok "an override that continues the chain on every path is accepted"
+else
+  fallo "a correct drawWindow override was rejected: $(grep -m1 'drawWindow' <<< "$salida_buena")"
+fi
+if grep -q 'OK: overrides drawWindow' <<< "$salida_manejador"; then
+  ok "the effects->drawWindow form (KWin's blur pattern) is accepted too"
+else
+  fallo "the handler form of the chain call was rejected"
+fi
+if grep -q 'FAIL: overrides drawWindow and does NOT continue the chain on every path' <<< "$salida_mala"; then
+  ok "an override with a return before the chain call is rejected"
+else
+  fallo "the verifier accepted an override that can cut the chain (black screen)"
+fi
+if grep -q 'FAIL: overrides drawWindow' <<< "$salida_comentario"; then
+  ok "a chain call that only exists in a comment is rejected"
+else
+  fallo "a COMMENT satisfied the chain check (this exact trap already cost a session)"
+fi
+rm -f "$BUENO" "$MALO" "$MANEJADOR" "$COMENTADO"
+
 echo "  -- no script EXECUTES kwin_wayland --replace --"
 # It leaves the screen black: on Wayland it starts a second compositor that fights
 # for the DRM/GL and kills the live KWin's OpenGL context. We only look at COMMAND

@@ -35,8 +35,11 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_ONLY=no
 [ "${1:-}" = "--source" ] && SOURCE_ONLY=yes
-SOURCE="$HERE/src/glass.cpp"
-HEADER="$HERE/src/glass.h"
+# GLASS_SOURCE/GLASS_HEADER exist so the harness can feed this script a DEFECTIVE
+# source on purpose (tests/test-effect.sh). A verifier that cannot be shown to
+# fail is not a verifier -- the same rule the tests are held to.
+SOURCE="${GLASS_SOURCE:-$HERE/src/glass.cpp}"
+HEADER="${GLASS_HEADER:-$HERE/src/glass.h}"
 SO="$HERE/build/plugins/kwin/effects/macosglass2.so"
 SYSTEM_SO=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
 
@@ -93,16 +96,52 @@ fi
 
 fallo=0
 
+# The body of one of the effect's functions: from the header to the closing brace
+# in column 0. Needed because "the call appears somewhere in the file" is not the
+# property that prevents the black screen.
+cuerpo_de() { # cuerpo_de <function> ; reads $SOURCE
+  awk -v fn="void MacosGlassEffect::$1" \
+    'index($0, fn) { dentro = 1 } dentro { print } dentro && /^}/ { exit }' "$SOURCE"
+}
+
+# The chain is continued on EVERY path only if the body calls the chain AND no
+# `return` can leave before that call. An early return is the exact shape of the
+# two black screens, so it is what this rejects.
+#
+# Two call forms count, because both continue the chain and both are real:
+#   effects->drawWindow(...)        KWin's own blur effect does this after blurring
+#   OffscreenEffect::drawWindow(..) the base class: it redirects the window, runs
+#                                   apply() (the shader) and continues the chain.
+# Accepting only the first would have rejected the M1.3a override for a correct
+# effect -- the false alarm that already blocked one install.
+#
+# The prefix class in the second pattern is load-bearing: without it,
+# `MacosGlassEffect::drawWindow(` in the function's own header matches `Effect::`
+# and the verifier would accept an empty body.
+continua_la_cadena() { # continua_la_cadena <function>
+  cuerpo_de "$1" | awk '
+    {
+      linea = $0
+      sub(/\/\/.*/, "", linea)                         # trailing // comment
+      if (linea ~ /^[[:space:]]*(\*|\/\*)/) next        # block-comment line
+      if (linea ~ /effects->(drawWindow|paintWindow)\(/ && primera == 0) primera = NR
+      if (linea ~ /(^|[^A-Za-z0-9_])(OffscreenEffect|Effect)::(drawWindow|paintWindow)\(/ && primera == 0) primera = NR
+      if (linea ~ /return/ && primera == 0) temprano = 1
+    }
+    END { exit !(primera > 0 && !temprano) }
+  '
+}
+
 echo "=== 1. The effect must not override the chain entry points ==="
 # Overriding either of these means the effect took responsibility for continuing
 # the chain, and must then prove it does. Not overriding is the safe state: the
 # base class handles it.
 for fn in drawWindow paintWindow; do
   if grep -qE "void MacosGlassEffect::$fn" "$SOURCE" 2>/dev/null; then
-    if grep -qE 'effects->(drawWindow|paintWindow)\(' "$SOURCE" 2>/dev/null; then
-      echo "  OK: overrides $fn and calls the chain"
+    if continua_la_cadena "$fn"; then
+      echo "  OK: overrides $fn and continues the chain on every path"
     else
-      echo "  FAIL: overrides $fn and does NOT call the chain -> black screen"
+      echo "  FAIL: overrides $fn and does NOT continue the chain on every path -> black screen"
       fallo=1
     fi
   else

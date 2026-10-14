@@ -131,17 +131,24 @@ MacosGlassEffect::drawWindow(...)     <- screen holds THE DESKTOP. Capture here.
 OffscreenEffect::drawWindow(...)      <- maybeRender() + paint(). Draws the window.
 ```
 
-This requires **overriding `drawWindow`, which is exactly what `verify-chain.sh`
-forbids today**, because overriding it badly was the cause of two black screens.
-The override must call `OffscreenEffect::drawWindow(...)` on every path, and the
-verifier must be taught the new rule: *an override is allowed if it continues the
-chain*, which is a checkable property, not a blanket ban.
+This requires overriding `drawWindow`. `verify-chain.sh` used to **forbid** that
+outright, because overriding it badly was the cause of two black screens; the ban
+was the wrong rule. Since step 1 below it checks the property instead: **an override
+is acceptable if its body continues the chain on every path** -- it must contain an
+`effects->drawWindow(` or `OffscreenEffect::drawWindow(` call, and no `return` that
+can leave before it (comments do not count; that trap already cost a session).
+
+The override itself must call **`OffscreenEffect::drawWindow(...)`**: that base
+implementation redirects the window, runs `apply()` -- our shader -- and continues
+the chain. KWin's own `BlurEffect::drawWindow` calls `effects->drawWindow(...)`
+because it does not derive from `OffscreenEffect`; the verifier accepts both forms,
+deliberately, so that a correct override is not another false alarm.
 
 ## 4. Plan, in steps that each leave the repository working
 
 | Step | Change | State at the end |
 | --- | --- | --- |
-| 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | green, no behaviour change |
+| 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
 | 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | compiles, verifiable |
 | 3 | Blur the captured background, tune alpha, restore `frost 6` and the kit values. | green |
 
