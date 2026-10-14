@@ -62,6 +62,9 @@ uniform float uHasBackground;
 uniform float uBackgroundFlipV;
 uniform float uBackgroundRadius;
 uniform vec2 uBackgroundTexel;
+uniform float uChromeRadius;
+uniform float uChromeLow;
+uniform float uCornerRadius;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -85,6 +88,29 @@ void main()
     // other way from window coordinates, so the distance from the window's top is
     // (1 - vTexCoord.y). The content sampling is left alone: it already reads the
     // right texel at the right place, so only the band test needed flipping.
+    // ROUNDED CORNERS, DRAWN BY US BECAUSE THE DECORATION'S ARE NOT THERE.
+    //
+    // The theme's SVG does contain a 12 px arc for its top corners, but aurorae draws
+    // the corner piece in a cell as narrow as the frame's border, which this theme sets
+    // to 1 px -- so the arc is clipped away and the window's frame is a rectangle. That
+    // was measured, not assumed: in an effect-off capture the title bar's white starts
+    // at the same x on its first row as 15 rows below (a straight edge, no arc), and the
+    // pixels outside it are shadow, not rounding.
+    //
+    // So the shape is ours: a rounded rectangle with uCornerRadius, and `discard` for
+    // what falls outside it. Nothing else is touched -- the shadow lives outside the
+    // frame and survives. Radius 0 disables it and leaves whatever the theme drew.
+    if (uCornerRadius > 0.5) {
+        vec2 pos = vTexCoord * uTextureSize;
+        vec2 d = min(pos, uTextureSize - pos);
+        if (d.x < uCornerRadius && d.y < uCornerRadius) {
+            vec2 esquina = vec2(uCornerRadius) - d;
+            if (dot(esquina, esquina) > uCornerRadius * uCornerRadius) {
+                discard;
+            }
+        }
+    }
+
     float yPixelsFromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
     vec4 window = texture(sampler, vTexCoord);
     if (yPixelsFromTop > uTitleBarHeight) {
@@ -118,12 +144,26 @@ void main()
     // THE CHROME, DRAWN CRISP AND ON TOP OF THE GLASS.
     //
     // macOS keeps the title and the buttons fully readable: the glass is BEHIND the
-    // chrome, not over it. The deviation from the baseline is what tells them apart --
-    // a flat bar deviates by nothing, a glyph or a traffic light deviates a lot --
-    // and it needs no mask drawn by hand. The two thresholds are in luminance
-    // (0..1): below the first it is background, above the second it is chrome.
-    float deviation = abs(dot(window.rgb - baseline, vec3(0.2126, 0.7152, 0.0722)));
-    float chrome = smoothstep(0.05, 0.18, deviation);
+    // chrome, not over it. The deviation from a baseline is what tells them apart -- a
+    // flat bar deviates by nothing, a glyph or a traffic light deviates a lot.
+    //
+    // THE BASELINE FOR THIS MUST BE TIGHT, and the first version got it wrong by using
+    // the 6-texel blur above: a wide average is dragged towards every glyph and every
+    // button, so the bar pixels AROUND them deviate too, get classified as chrome, and
+    // are drawn crisp -- a bright halo around each letter and each traffic light. The
+    // user saw exactly that ("los botones se ven algo extraños"). A 3x3 at
+    // uChromeRadius texels keeps the ring about a pixel wide.
+    vec4 cerca = vec4(0.0);
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            cerca += texture(sampler, vTexCoord + vec2(float(x), float(y)) * uChromeRadius * uTexelSize);
+        }
+    }
+    vec3 tight = (cerca / 9.0).rgb;
+
+    // `high` is derived from `low` (3x) so there is ONE knob to turn on a screen.
+    float deviation = abs(dot(window.rgb - tight, vec3(0.2126, 0.7152, 0.0722)));
+    float chrome = smoothstep(uChromeLow, uChromeLow * 3.0, deviation);
 
     // M1.3a -- THE DESKTOP ITSELF, NOT AN ALPHA.
     //
@@ -175,15 +215,14 @@ void main()
         // not smeared into the glass -- and lets the frosted backdrop through.
         vec3 glass = mix(desktop, baseline, uGlassAlpha);
 
-        // ROUNDED CORNERS, for free and without a corner radius.
-        //
-        // The band used to be an opaque RECTANGLE, so it squared off the window's
-        // rounded top corners: the user saw exactly that. The decoration already knows
-        // its own shape, and it says so in the alpha channel of the redirected texture
-        // -- transparent outside the rounding, and antialiased on the curve. Writing
-        // that alpha out means the band follows the decoration instead of overpainting
-        // it, whatever radius the theme uses, including a theme that has none.
-        fragColor = vec4(mix(glass, window.rgb, chrome), window.a);
+        // PREMULTIPLIED, because that is the convention KWin blends with
+        // (GL_ONE, GL_ONE_MINUS_SRC_ALPHA in OffscreenData::paint). Writing an
+        // unpremultiplied colour with an alpha below 1 adds it to the backdrop instead
+        // of replacing it -- which is what made the first attempt at the corners paint
+        // a BRIGHT square instead of nothing. With alpha 1 inside the frame this is
+        // identical to what was verified, and the shape now comes from the clip above.
+        vec3 salida = mix(glass, window.rgb, chrome);
+        fragColor = vec4(salida * window.a, window.a);
         return;
     }
 
@@ -255,10 +294,21 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // chrome is drawn crisp on top -- so it is free to go lower for more glass.
     m_glassAlpha = float(cfg.readEntry("GlassAlpha", double(kGlassAlpha)));
 
+    // The chrome mask: how wide its baseline is, and how much deviation counts.
+    m_chromeRadius = cfg.readEntry("ChromeRadius", kChromeRadius);
+    m_chromeLow = float(cfg.readEntry("ChromeLow", double(kChromeLow)));
+
+    // The window's rounded corners. The theme's own arc does not survive aurorae's
+    // 1 px corner cells, so this is drawn here; 0 restores whatever the theme drew.
+    m_cornerRadius = cfg.readEntry("CornerRadius", kCornerRadius);
+
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
             << "backgroundRadius=" << m_backgroundRadius
-            << "glassAlpha=" << m_glassAlpha;
+            << "glassAlpha=" << m_glassAlpha
+            << "chromeRadius=" << m_chromeRadius
+            << "chromeLow=" << m_chromeLow
+            << "cornerRadius=" << m_cornerRadius;
 
     m_shader.reset();
     loadShader();
@@ -625,6 +675,9 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
                          QVector2D(float(size.width()), float(size.height())));
     m_shader->setUniform("uTitleBarHeight", float(barHeight));
     m_shader->setUniform("uGlassAlpha", m_glassAlpha);
+    m_shader->setUniform("uChromeRadius", float(m_chromeRadius));
+    m_shader->setUniform("uChromeLow", m_chromeLow);
+    m_shader->setUniform("uCornerRadius", float(m_cornerRadius));
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

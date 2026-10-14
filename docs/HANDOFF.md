@@ -156,7 +156,8 @@ deliberately, so that a correct override is not another false alarm.
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
 | 2 | Override `drawWindow`; capture the desktop into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | ✅ **VERIFIED ON SCREEN** (2026-10-14): band moved **73.8** over two backgrounds where 12 is the threshold, `capture: ok=1200 refused=0`. The capture covers the window's expanded geometry, clamped to the render target, composited in the fragment shader (unit 1, `uHasBackground`) |
 | 3a | Blur the captured background, in two scales so it does not read as ghost copies. | ✅ **done and seen on screen** (2026-10-14): `BackgroundRadius` defaults to the kit's outer 16, the inner scale is 6/16 of it, and 0 still takes the single-sample path. Tuned live with `reconfigureEffect`; the user's eye picked 16 over 6 |
-| 3b | Make the chrome readable again (title and buttons), round the band's corners, and make `kGlassAlpha` tunable. | ✅ **done** (2026-10-14): the bar's blur became the BASELINE that isolates the chrome, which is drawn crisp over the glass; the band takes its shape from the decoration's alpha, so the corners are round without a hard-coded radius; `GlassAlpha` is a setting |
+| 3b | Make the chrome readable again (title and buttons), round the corners, and make the quality knobs tunable. | ✅ **done** (2026-10-14): the bar's blur became the blank that isolates the chrome, which is drawn crisp over the glass; the halo the first version produced was fixed with a TIGHT baseline of its own; `GlassAlpha`, `ChromeRadius` and `ChromeLow` are settings |
+| 3b′ | The rounded corners the user asked for. | ✅ **done in the effect, not in the theme**: this theme's SVG has a 12 px arc but aurorae clips the corner piece into a 1 px cell, so the frame is a rectangle and there was nothing to follow. The effect draws the rounded rectangle itself (`CornerRadius`, default 12; 0 = off) and discards what falls outside. That is the beginning of M2, driven by a real request |
 | 3c | Settle whether the *sampled* background needs the texture's own size and the shadow margins as uniforms (section 5: the band's SHAPE measured correct; only the sampling is unverified, and only against structured content). | not started -- needs text behind the window with `BackgroundRadius=0` |
 
 Each step must be committed before starting the next. If a session runs out of
@@ -366,8 +367,14 @@ none of it needs a second relogin):
 - *Are the traffic lights and the title crisp?* They should read as clearly as with the
   effect off. If they look washed out, `GlassAlpha` is the knob (and if they look
   *smeared*, the baseline/chrome path is broken, not tuned).
-- *Are the window's top corners round?* They follow the decoration now. Square corners
-  mean the band is not taking the decoration's alpha.
+- *Are the window's corners round?* They are drawn by the EFFECT now, because the
+  theme's own arc does not survive aurorae's 1 px corner cells -- measured, not assumed:
+  in an effect-off capture the title bar's white starts at the same x on its first row
+  as fifteen rows below, i.e. no arc, and outside it there is shadow. `CornerRadius`
+  tunes the radius and 0 turns it off.
+- *Do the title and the buttons have a bright halo around them?* Then the chrome mask's
+  baseline is too wide: `ChromeRadius` is that width (default 3 texels) and
+  `ChromeLow` is how much deviation counts (default 0.06).
 - *Is the frost continuous, with no repeated ghost copies of the text behind?* Ghosts
   mean one 3x3 is being used instead of the two scales.
 - *Is there too much or too little glass?* Then `GlassAlpha` (bar opacity, default

@@ -75,6 +75,13 @@ band also takes its alpha from the decoration, so the window's rounded corners a
 rounded in the band too, without a hard-coded radius anywhere. `GlassAlpha` (bar
 opacity) is a setting, like the frost radius.
 
+The corners are done as well, which is the first piece of **M2**: the theme's SVG has a
+12 px arc for its top corners, but aurorae draws that piece in a cell as narrow as the
+frame's border (1 px in this theme), so the arc is clipped away and the frame arrives as a
+rectangle. Rather than patch the theme, the effect draws the rounded rectangle itself --
+`CornerRadius`, default 12, 0 to disable -- and discards what falls outside it, which is
+the same clipping M2 needs anyway.
+
 Left for the next step: settle whether the captured
 background is sampled with the right size and offset — the shader's sizes come from
 `frameGeometry()` while KWin's texture is the expanded geometry, which the decoration

@@ -14,7 +14,8 @@ verified working and unusable, because it blurred the text you were reading.
 | **The band covers the title bar only** | ✅ M1.2b, verified by the user, survives window switching |
 | **Real glass** — the band shows the desktop behind it | ✅ **verified on screen** (M1.3a, 2026-10-14): the band moves with the background, 73.8 against a threshold of 12, where the alpha-only attempt scored 3.2 |
 | **Frost over the capture** | ✅ seen on screen (2026-10-14): the backdrop is blurred in two scales from the kit's `frost 6/16/16` (`BackgroundRadius`, default 16; 0 = sharp) |
-| **Chrome readable, corners round** | ✅ the title and the traffic lights are drawn crisp over the glass, and the band follows the decoration's own alpha, so the rounded corners stay rounded |
+| **Chrome readable** | ✅ the title and the traffic lights are drawn crisp over the glass: the bar's blur is the blank that isolates them, and a tight baseline of its own keeps the halo off them |
+| **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 12). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
 | Refraction (70), dispersion (20), specular highlight | ❌ not started |
 
 An alpha alone was measured **OPAQUE**: the shader's only input is the window's own

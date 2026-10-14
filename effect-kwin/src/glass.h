@@ -208,6 +208,36 @@ private:
 
     float m_glassAlpha = kGlassAlpha;
 
+    // How wide the baseline is that separates the CHROME from the bar. Too wide and
+    // every glyph and button drags its neighbourhood with it, which is drawn crisp and
+    // shows as a bright halo around them; too narrow and the chrome's own interior
+    // starts to read as free background. 3 texels was the first value that behaved on
+    // screen, and it is a setting because this is exactly the sort of trade-off that is
+    // settled with the eye:
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key ChromeRadius 2
+    static constexpr int kChromeRadius = 3;   // texels of the window texture
+    int m_chromeRadius = kChromeRadius;
+
+    // How much deviation counts as chrome, in luminance (0..1). The upper threshold is
+    // three times this. Lower = more of the bar is drawn crisp.
+    static constexpr float kChromeLow = 0.06f;
+    float m_chromeLow = kChromeLow;
+
+    // ---------------------------------------------------------------------
+    // M2 (as much as M1.3a needed): the window's rounded corners.
+    //
+    // This theme's SVG HAS a 12 px arc for its top corners, but aurorae draws the
+    // corner piece inside a cell as narrow as the frame border, and this theme sets
+    // that to 1 px -- so the arc is clipped away and the frame is a rectangle. The
+    // effect therefore draws the shape itself: a rounded rectangle of this radius,
+    // outside which the fragment is discarded, which lets the desktop through and
+    // makes the corner round. The shadow lives outside the frame and is untouched.
+    //
+    // 0 disables it and leaves whatever the decoration drew.
+    static constexpr int kCornerRadius = 12;
+    int m_cornerRadius = kCornerRadius;
+
+
     // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
     // it belongs with the veil work in M1.5.
     static constexpr float kFrostOpacity = 0.25f;   // kit: opacity 25
