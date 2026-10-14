@@ -73,8 +73,14 @@ afirmar_contiene "the verifier checks the base is linked" "$EF/verify-chain.sh" 
 # The installed plugin must NOT set the failure flag: install.sh checks before
 # copying, so a stale installed build would block the install that replaces it.
 # That circularity blocked a real install, twice.
-negar "the verifier does not fail on a stale installed plugin" \
-  grep -qE 'installed plugin is an older build.*$' "$EF/verify-chain.sh"
+# Comments excluded deliberately: the script's own comment explains WHY a stale
+# installed build must not fail, and matching that comment made this assertion
+# fail on correct code. Same trap as before -- a pattern matching prose.
+if grep -vE '^\s*#' "$EF/verify-chain.sh" | grep -qE 'installed plugin is an older build'; then
+  fallo "the verifier fails on a stale installed plugin (circular, blocks install)"
+else
+  ok "the verifier does not fail on a stale installed plugin"
+fi
 negar "the verifier no longer demands our own chain call" \
   grep -qE 'if grep -qE .effects->paintWindow' "$EF/verify-chain.sh"
 
