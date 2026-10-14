@@ -108,3 +108,56 @@ echo "  -- a test that hangs cannot silently truncate the run --"
 # file and reports the timeout as a failure of that file.
 afirmar_contiene "run.sh bounds every test file with a timeout" "$PROY/tests/run.sh" 'timeout'
 afirmar_contiene "run.sh reports a timed-out file as a failure" "$PROY/tests/run.sh" 'TIMED OUT'
+
+echo "  -- no test may touch the live KWin session --"
+# The suite runs while the user is working, and section 10 of the handoff is what it
+# cost to suspect the suite of touching the desktop. It never did -- test-glass.sh and
+# test-titlebar.sh are pure static assertions -- but "it was checked once" is not a
+# guarantee, and the next test file is one import away from loading the effect on the
+# live session. This makes it one: a test that talks to KWin over the session bus,
+# loads or unloads the effect, or grabs the screen fails the suite that runs it.
+malos=$(python3 - "$PROY/tests" <<'PYEOF'
+import glob, os, re, sys
+
+tests = sys.argv[1]
+HERRAMIENTAS = ("qdbus", "qdbus6", "busctl", "gdbus", "dbus-send", "loadEffect",
+                "unloadEffect", "spectacle")
+patron = re.compile(r"\b(" + "|".join(HERRAMIENTAS) + r")\b")
+
+
+def sin_cadenas_y_comentario(linea):
+    """Drop '...' and "..." spans and # comments: quoting a tool is not running it."""
+    fuera, i, n = [], 0, len(linea)
+    while i < n:
+        c = linea[i]
+        if c in "'\"":
+            i += 1
+            while i < n and linea[i] != c:
+                i += 2 if linea[i] == '\\' else 1
+            i += 1
+            continue
+        if c == '#' and (i == 0 or linea[i - 1] in ' \t;&|('):
+            break
+        fuera.append(c)
+        i += 1
+    return ''.join(fuera)
+
+
+malos = []
+for path in sorted(glob.glob(os.path.join(tests, '*.sh'))):
+    for n, linea in enumerate(open(path, encoding='utf-8'), 1):
+        m = patron.search(sin_cadenas_y_comentario(linea))
+        if m:
+            malos.append(f"{os.path.basename(path)}:{n}: {m.group(1)} -> {linea.strip()}")
+for m in malos:
+    print(f"      -> {m}")
+print(len(malos))
+PYEOF
+)
+n="${malos##*$'\n'}"
+if [ "$n" = "0" ]; then
+  ok "no test touches the live session (bus tools, effect load/unload, screenshots)"
+else
+  fallo "a test touches the live session ($n hits)"
+  printf '%s\n' "$malos" | sed '$d' | sed 's/^/      /'
+fi
