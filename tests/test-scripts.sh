@@ -15,11 +15,11 @@ echo "  -- only the essential scripts --"
 # for CALIB lines the effect no longer emits, and test-diffusion.sh measured M1.2's band
 # diffusion, which the design no longer claims. A live script whose verdict is
 # meaningless is worse than no script: it teaches the reader to ignore verdicts.
-expected="build.sh install.sh test-titlebar.sh test-glass.sh tune.sh verify-chain.sh"
+expected="build.sh capture-pair.sh install.sh test-titlebar.sh test-glass.sh tune.sh verify-chain.sh"
 for s in $expected; do afirmar_existe "existe $s" "$EF/$s"; done
 
 n=$(ls "$EF"/*.sh 2>/dev/null | wc -l)
-afirmar_igual "number of scripts (no scaffolding)" "6" "$n"
+afirmar_igual "number of scripts (no scaffolding)" "7" "$n"
 extra=""
 for x in "$EF"/*.sh; do
   [ -f "$x" ] || continue
@@ -127,3 +127,14 @@ negar "tune.sh does not use the command that silently does nothing" \
   codigo_contiene "$EF/tune.sh" 'KWin /KWin reconfigure'
 afirmar_codigo "and it checks the keys against the source, so a typo is not silent" "$EF/tune.sh" 'readEntry'
 afirmar_codigo "it applies once, after writing every key" "$EF/tune.sh" 'and only once'
+
+echo "  -- capture-pair.sh takes both captures and puts the effect back --"
+# The simulator is only usable if its two inputs exist, and producing them by hand is three tools
+# and a guess about the rectangle. This script reads the rectangle from the effect's own journal,
+# unloads the effect for the capture that must show the THEME, and reloads it through a trap --
+# an interrupted run must not leave the user without their glass.
+afirmar_codigo "the effect is unloaded for the theme's capture" "$EF/capture-pair.sh" 'unloadEffect'
+afirmar_codigo "and loaded again" "$EF/capture-pair.sh" 'loadEffect'
+afirmar_codigo "the trap restores it even on interrupt" "$EF/capture-pair.sh" 'trap restaurar EXIT INT TERM'
+afirmar_codigo "the rectangle comes from the effect's own diagnostics" "$EF/capture-pair.sh" "grep 'frame='"
+afirmar_codigo "both captures are cropped to the same strip" "$EF/capture-pair.sh" 'recorte = '

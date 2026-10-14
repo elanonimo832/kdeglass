@@ -901,6 +901,25 @@ things whose answer is known by definition: alpha 0 gives the frosted backdrop, 
 bar's tone, and a glyph's half-covered edge must be PARTIAL rather than crisp. Its knob defaults
 are read from `src/glass.h`, for the same reason the settings table is a test.
 
+## 9g. The simulator's own inputs are a script, not a procedure
+
+The user ran `simulate.py` and got a `FileNotFoundError`: the usage text described the two captures
+it needs and gave no command to produce them. That is the same defect as a knob nobody can reach.
+
+`effect-kwin/capture-pair.sh` takes both in one command:
+
+1. reads the band's rectangle from the effect's own journal (`frame=` and `barHeight=`), which is
+   the rectangle the band actually covers;
+2. unloads the effect -- the capture that must show the THEME cannot show the glass -- waits, and
+   captures the screen;
+3. waits for the window to be moved away from that rectangle, and captures again;
+4. crops both to the same strip and reloads the effect in a trap, so an interrupted run does not
+   leave somebody without their glass.
+
+`simulate.py` says that instead of a traceback when an input is missing, and the script is in the
+suite's list with the properties that matter: it unloads, it loads again, the trap restores on
+interrupt, the rectangle comes from the journal, and both crops are the same strip.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

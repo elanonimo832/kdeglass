@@ -233,6 +233,19 @@ def main():
         return self_test()
     if not args.window or not args.backdrop:
         ap.error("--window and --backdrop are required (or use --self-test)")
+    import os
+    for ruta in (args.window, args.backdrop):
+        if not os.path.exists(ruta):
+            print(f"missing capture: {ruta}")
+            print()
+            print("The two captures are what this reads, and ./capture-pair.sh takes them both in")
+            print("one command: it reads the band's rectangle from the effect's own journal, takes")
+            print("the screen with the effect unloaded, waits while you move the window away, takes")
+            print("it again, crops both to the same strip and reloads the effect.")
+            print()
+            print("  ./capture-pair.sh")
+            print("  python3 simulate.py --window /tmp/titulo.png --backdrop /tmp/fondo.png")
+            return 2
     w = np.asarray(Image.open(args.window).convert("RGB"), dtype=float) / 255.0
     b = np.asarray(Image.open(args.backdrop).convert("RGB"), dtype=float) / 255.0
     if w.shape != b.shape:
