@@ -94,3 +94,54 @@ echo "  -- the remote is prepared --"
 remoto="$(git -C "$PROY" remote get-url origin 2>/dev/null)"
 afirmar_igual "the remote points to kdeglass" "https://github.com/elanonimo832/kdeglass.git" "$remoto"
 afirmar_igual "the branch is main" "main" "$(git -C "$PROY" branch --show-current)"
+
+echo "  -- no build artifacts or ignored files in the repo --"
+# A real failure: after renaming effect-kwin/, the .gitignore patterns still
+# pointed at the old path and 36 files of build/ got committed (44k lines).
+malos=0
+for f in $(git -C "$PROY" ls-files 2>/dev/null); do
+  case "$f" in
+    */build/*|*.so|*.o|*.a|*/node_modules/*|*.fig|kit.json|figma-export/*|fuentes/*)
+      malos=$((malos+1)); ;;
+  esac
+done
+afirmar_igual "no build artifacts or Apple material versioned" "0" "$malos"
+
+# And the .gitignore must reference the CURRENT directory names.
+afirmar_contiene ".gitignore covers effect-kwin/build" "$PROY/.gitignore" 'effect-kwin/build'
+afirmar_contiene ".gitignore covers tools/figma node_modules" "$PROY/.gitignore" 'node_modules'
+
+echo "  -- .gitignore: no pattern that matches nothing --"
+# This is what let the bug through: after renaming effect-kwin/, the pattern
+# `efecto-kwin/build/` matched nothing and 36 build files got committed (44k
+# lines). A rule that matches nothing is a rule that protects nothing.
+#
+# Two legitimate exceptions, and they are category, not convenience:
+#   - `node_modules/`, `__pycache__/` are ECOSYSTEM globs with no leading path:
+#     the directory appears anywhere, at any depth, and may not exist yet.
+#   - `figma-export/`, `fuentes/` are APPLE MATERIAL inputs that only exist on the
+#     author's machine and must never be committed. Their absence is normal.
+# What must be caught is a concrete project path that has been renamed or removed.
+SIN_RUTA_OK="node_modules __pycache__ _npm-cache _tokens figma-export fuentes fig-extraido"
+huerfanos=$(python3 - "$PROY" "$SIN_RUTA_OK" <<'PYEOF'
+import os, sys
+root, permitidos = sys.argv[1], set(sys.argv[2].split())
+bad = []
+for raw in open(os.path.join(root, '.gitignore'), encoding='utf-8'):
+    line = raw.strip()
+    if not line or line.startswith('#') or line.startswith('!'):
+        continue
+    if '/' not in line or any(c in line for c in '*?['):
+        continue
+    path = line.rstrip('/')
+    if os.path.basename(path) in permitidos or path in permitidos:
+        continue
+    if not os.path.exists(os.path.join(root, path)):
+        bad.append(line)
+for b in bad:
+    print(f"      -> matches nothing: {b}")
+print(len(bad))
+PYEOF
+)
+n="${huerfanos##*$'\n'}"
+afirmar_igual "no .gitignore pattern matches nothing" "0" "$n"

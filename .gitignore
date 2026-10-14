@@ -21,8 +21,7 @@ fig-extraido/
 # ---------------------------------------------------------------------------
 # Construccion del efecto KWin (se regenera con cmake; nunca se versiona)
 # ---------------------------------------------------------------------------
-efecto-kwin/build/
-efecto-kwin/bisect/build/
+effect-kwin/build/
 *.so
 *.o
 *.a

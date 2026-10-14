@@ -1,9 +1,0 @@
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/macosglass2.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/edit_cache.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/rebuild_cache.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/list_install_components.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/install.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/install/local.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/install/strip.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/macosglass2_autogen_timestamp_deps.dir
-/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos/effect-kwin/build/CMakeFiles/macosglass2_autogen.dir

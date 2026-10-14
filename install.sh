@@ -41,8 +41,8 @@ MANIFIESTO="$ESTADO/manifest.tsv"
 VERDE=$'\033[32m'; ROJO=$'\033[31m'; AMBAR=$'\033[33m'; AZUL=$'\033[34m'; GRIS=$'\033[90m'; FIN=$'\033[0m'
 
 ok()    { printf '  %sOK%s   %s\n' "$VERDE" "$FIN" "$1"; }
-fallo() { printf '  %sFALLA%s %s\n' "$ROJO" "$FIN" "$1"; }
-aviso() { printf '  %sAVISO%s %s\n' "$AMBAR" "$FIN" "$1"; }
+fallo() { printf '  %sFAIL%s  %s\n' "$ROJO" "$FIN" "$1"; }
+aviso() { printf '  %sWARN%s  %s\n' "$AMBAR" "$FIN" "$1"; }
 info()  { printf '%s%s%s\n' "$AZUL" "$1" "$FIN"; }
 gris()  { printf '%s%s%s\n' "$GRIS" "$1" "$FIN"; }
 

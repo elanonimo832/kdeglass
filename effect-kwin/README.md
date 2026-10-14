@@ -1,116 +1,116 @@
-# Efecto KWin: material estilo macOS
+# KWin effect: macOS-style material
 
-Efecto del compositor que engancha el borde de las ventanas a la cadena de pintado
-de KWin. **Todavía no dibuja el material**: eso es el paso siguiente.
+Compositor effect that hooks the edge of windows into KWin's paint chain.
+**It does not draw the material yet**: that is the next step.
 
-## Estado
+## Status
 
 | | |
 |---|---|
-| Carga sin romper el render | ✅ verificado con capturas (`negro=0.0%`) |
-| Se engancha a la cadena de pintado | ✅ |
-| **Dibuja el material** | ❌ **pendiente: el shader** |
+| Loads without breaking rendering | ✅ verified with screenshots (`negro=0.0%`) |
+| Hooks into the paint chain | ✅ |
+| **Draws the material** | ❌ **pending: the shader** |
 
-## Los tres comandos
-
-```bash
-./build.sh              # compila y verifica la cadena de pintado
-./install.sh        # instala y activa (pide tu contraseña)
-./test-installed.sh    # prueba en vivo: carga, mide y DESCARGA solo
-```
-
-`test-installed.sh` es el banco de pruebas: **no cierra sesión**, no
-reinstala nada, y descarga el efecto siempre con `trap EXIT` aunque el render
-falle. Tarda unos 15 segundos.
-
-Para que el efecto quede cargado **de forma permanente**, cierra sesión.
-
-> ⚠️ **NUNCA `kwin_wayland --replace`.** En Wayland arranca un segundo compositor
-> que compite por el DRM/GL, mata el contexto OpenGL del KWin vivo y deja la
-> pantalla **negra con el cursor visible**. Ocurrió dos veces; ver `../INCIDENT.md`.
-
-## Recuperación
-
-Si algo dejara la pantalla negra:
+## The three commands
 
 ```bash
-bash ~/RECOVER-KDE.sh reanimar     # en caliente, sin cerrar sesión
+./build.sh              # compiles and verifies the paint chain
+./install.sh        # installs and activates (asks for your password)
+./test-installed.sh    # live test: loads, measures and UNLOADS on its own
 ```
 
-## Las cuatro cosas que hay que respetar
+`test-installed.sh` is the test bench: it **does not log you out**, it
+reinstalls nothing, and it always unloads the effect with `trap EXIT` even if
+rendering fails. It takes about 15 seconds.
 
-Las cuatro costaron horas. `verify-chain.sh` y el arnés de pruebas las vigilan.
+For the effect to stay loaded **permanently**, log out.
 
-**1. La ruta.** KWin busca en `<plugins Qt>/kwin/effects/plugins/`, **no** en
-`kwin/effects/`. Un nivel más arriba KWin no lo ve, y **en silencio**.
-*(Fuente: `PluginEffectLoader`, `m_pluginSubDirectory = "kwin/effects/plugins"`.)*
+> ⚠️ **NEVER `kwin_wayland --replace`.** On Wayland it starts a second compositor
+> that competes for the DRM/GL, kills the OpenGL context of the live KWin and leaves
+> the screen **black with the cursor visible**. It happened twice; see `../INCIDENT.md`.
 
-**2. El nombre del fichero es el pluginId.** `macosglass.so` → id `macosglass`.
-El prefijo `lib` de CMake lo rompe (`PREFIX ""` lo evita).
+## Recovery
 
-**3. La cadena de pintado.** `EffectsHandler::paintWindow()` llama a **un solo**
-efecto por invocación, y la cadena avanza porque `Effect::paintWindow()` —la base—
-vuelve a entrar. Si un efecto la sobreescribe y **no llama a la base**, la cadena se
-corta, `finalPaintWindow()` no se ejecuta y **no se dibuja ninguna ventana**: el
-fondo del escritorio de Plasma es una ventana más, así que solo queda negro.
+If anything left the screen black:
 
-Todo camino de `paintWindow()` tiene que acabar así:
+```bash
+bash ~/RECOVER-KDE.sh reanimar     # on the fly, without logging out
+```
+
+## The four things that must be respected
+
+All four cost hours. `verify-chain.sh` and the test harness watch over them.
+
+**1. The path.** KWin looks in `<plugins Qt>/kwin/effects/plugins/`, **not** in
+`kwin/effects/`. One level higher and KWin does not see it, and **silently**.
+*(Source: `PluginEffectLoader`, `m_pluginSubDirectory = "kwin/effects/plugins"`.)*
+
+**2. The file name is the pluginId.** `macosglass.so` → id `macosglass`.
+CMake's `lib` prefix breaks it (`PREFIX ""` avoids it).
+
+**3. The paint chain.** `EffectsHandler::paintWindow()` calls **a single**
+effect per invocation, and the chain advances because `Effect::paintWindow()` —the
+base— re-enters. If an effect overrides it and **does not call the base**, the chain is
+cut, `finalPaintWindow()` does not run and **no window is drawn**: the
+Plasma desktop background is one more window, so all that is left is black.
+
+Every path through `paintWindow()` has to end like this:
 
 ```cpp
 effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
 ```
 
-**4. `supported()`.** Tiene que devolver `true` de verdad. Si devuelve `false`, KWin
-descarta el efecto **sin ningún mensaje**. (La versión que usaba
-`effects != nullptr`, el ejemplo de la doc de KDE, devolvía `false`.)
+**4. `supported()`.** It has to genuinely return `true`. If it returns `false`, KWin
+discards the effect **without any message**. (The version that used
+`effects != nullptr`, the example from the KDE docs, returned `false`.)
 
-## El identificador `macosglass` (por qué el plugin se llama `macosglass2`)
+## The `macosglass` identifier (why the plugin is called `macosglass2`)
 
-El mismo código, byte a byte, **funciona con un id y rompe con otro**:
+The same code, byte for byte, **works with one id and breaks with another**:
 
-| id | negro en pantalla |
+| id | black on screen |
 |---|---|
-| `bisect` (código mínimo) | 0 % ✅ |
-| `testglass2` (código mínimo) | 0 % ✅ |
-| `macosglass` (código completo) | **100 %** ❌ |
-| `macosglass` (código mínimo) | **100 %** ❌ |
-| `macosglass2` (código completo) | 0 % ✅ |
+| `bisect` (minimal code) | 0 % ✅ |
+| `testglass2` (minimal code) | 0 % ✅ |
+| `macosglass` (full code) | **100 %** ❌ |
+| `macosglass` (minimal code) | **100 %** ❌ |
+| `macosglass2` (full code) | 0 % ✅ |
 
-**No sé explicar por qué.** El estado observable era idéntico (misma metadata, mismo
-`isSupported()`, misma ruta). Es una observación reproducible, no un diagnóstico.
-Anotado para el equipo de KWin en `../INCIDENT.md`.
+**I cannot explain why.** The observable state was identical (same metadata, same
+`isSupported()`, same path). It is a reproducible observation, not a diagnosis.
+Noted for the KWin team in `../INCIDENT.md`.
 
-## Herramientas de diagnóstico
+## Diagnostic tools
 
 ```bash
-./verify-chain.sh    # ¿la cadena de pintado está intacta? (fuente + binario)
+./verify-chain.sh    # is the paint chain intact? (source + binary)
 ```
 
-Compilables a mano si hacen falta (usan las cabeceras de KWin y KF6 ya instaladas;
-`_stub/vulkan` evita los 42 MiB de `vulkan-headers`):
+They can be compiled by hand if needed (they use the already-installed KWin and KF6
+headers; `_stub/vulkan` avoids the 42 MiB of `vulkan-headers`):
 
-| Fichero | Para qué |
+| File | What for |
 |---|---|
-| `src/diagnostico.cpp` | reproduce el descubrimiento de plugins de KWin |
-| `src/probar-fabrica.cpp` | instancia la fábrica y pregunta `isSupported()` |
-| `src/verificar-carga.cpp` | hace lo mismo que KWin al arrancar |
+| `src/diagnostico.cpp` | reproduces KWin's plugin discovery |
+| `src/probar-fabrica.cpp` | instantiates the factory and asks `isSupported()` |
+| `src/verificar-carga.cpp` | does the same as KWin at startup |
 
-Estas tres responden «¿por qué KWin no carga mi efecto?» en segundos, que es lo que
-me habría ahorrado la mitad del incidente.
+These three answer «why does KWin not load my effect?» in seconds, which is what
+would have saved me half the incident.
 
-## El paso siguiente: el shader del material
+## The next step: the material shader
 
-Parámetros medidos en `../tokens.toml` (del kit de Figma):
+Parameters measured in `../tokens.toml` (from the Figma kit):
 
-| Parámetro | Valor |
+| Parameter | Value |
 |---|---|
-| refracción | 70 |
-| dispersión | 20 |
-| difusión (frost) | 6 / 16 / 16 |
-| ángulo de luz | 0 |
-| opacidad | 25 |
-| profundidad | 30 |
-| borde oscurecido | alfa 20 (negro al 8 %) |
+| refraction | 70 |
+| dispersion | 20 |
+| diffusion (frost) | 6 / 16 / 16 |
+| light angle | 0 |
+| opacity | 25 |
+| depth | 30 |
+| darkened edge | alpha 20 (black at 8 %) |
 
-Se dibujará con OpenGL sobre `GLFramebuffer` en `paintWindow()`, en pasos pequeños y
-cada uno medido con `test-installed.sh`.
+It will be drawn with OpenGL over `GLFramebuffer` in `paintWindow()`, in small steps,
+each one measured with `test-installed.sh`.

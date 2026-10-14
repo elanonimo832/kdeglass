@@ -62,7 +62,7 @@ from **a single source of truth** (the tokens measured from Apple's Figma kit).
               ▼
       tokens/  +  tokens.toml              SOURCE OF TRUTH
               │
-              │  tools/generar-*.py  generation
+              │  tools/generate-*.py  generation
               ▼
    output/  (schemes, CSS, decoration)     ARTIFACTS
               │
