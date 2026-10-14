@@ -17,7 +17,8 @@ That state has its own verdict and its own exit code (3) now. The blur returns i
 step 3, and then the criterion above applies again.
 
 Exit codes: 0 correct, 1 a problem (or not applied), 2 cannot measure,
-            3 the band changed but kept its detail -- expected in M1.3a step 2.
+            3 the band changed but kept its detail -- what the captured desktop looks
+              like when it is NOT blurred (M1.3a step 2, where BackgroundRadius is 0)
 
 Usage: measure-titlebar.py <off.png> <on.png> <x> <y> <w> <h> <barHeight>
   x y w h are the window's frame geometry in device pixels; barHeight is the
@@ -91,9 +92,11 @@ def main():
     cambio = float(np.abs(band_on - band_off).mean())
     if cambio >= 8.0:
         print(f"  VERDICT: THE BAND CHANGED ({cambio:.1f} mean per-pixel) BUT KEPT ITS DETAIL")
-        print("    This is the EXPECTED state in M1.3a step 2: the captured desktop")
-        print("    shows through the bar, still sharp. Step 3 is the blur. It is not")
-        print("    the same as 'not applied', and it is not a regression.")
+        print("    The effect is drawing something with as much detail as the bar had.")
+        print("    That is what the captured desktop looks like when it is NOT blurred")
+        print("    (M1.3a step 2, and the default: BackgroundRadius = 0). If the band is")
+        print("    supposed to be frosted, this says the blur is not in the path.")
+        print("    It is not the same as 'not applied', and it is not a regression.")
         return 3
 
     print(f"  VERDICT: NOT APPLIED. title bar only fell {band_drop * 100:.1f} %")
