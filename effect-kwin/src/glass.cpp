@@ -101,14 +101,38 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
         // data.xTranslation()/yTranslation() matter: they carry the window's
         // displacement during animations, so ignoring them makes the patch lag.
         // -----------------------------------------------------------------
-        const RectF logicalGlobal = w->frameGeometry().translated(
+        // -----------------------------------------------------------------
+        // CALIBRATION: compute the patch origin BOTH ways and log both, so the
+        // right one can be picked from real numbers instead of from deduction.
+        //
+        // The two candidates differ by a translation that RenderViewport applies:
+        //   mapToDeviceCoordinates() does
+        //       rect.translate(-renderRect.topLeft()).scale(s).translate(renderOffset)
+        // so it first subtracts the screen's corner. If the rect you pass is
+        // ALREADY screen-local, that subtraction shifts the patch by the screen's
+        // own origin -- which is exactly the inversion being observed.
+        //
+        //   A) mapped   = viewport.mapToDeviceCoordinates(globalRect)
+        //   B) direct   = globalRect scaled by viewport.scale()
+        //
+        // Whichever tracks the window on screen is the correct one.
+        // -----------------------------------------------------------------
+        const RectF globalRect = w->frameGeometry().translated(
             QPointF(data.xTranslation(), data.yTranslation()));
-        const RectF deviceRect = viewport.mapToDeviceCoordinates(logicalGlobal);
+        const RectF mappedRect = viewport.mapToDeviceCoordinates(globalRect);
+        const RectF directRect{
+            globalRect.x() * viewport.scale(),
+            globalRect.y() * viewport.scale(),
+            globalRect.width() * viewport.scale(),
+            globalRect.height() * viewport.scale(),
+        };
 
+        // Use the DIRECT one for now; the log will say which is right.
+        const RectF deviceRect = directRect;
         const int x = qRound(deviceRect.x());
         const int y = qRound(deviceRect.y());
         const int size = qRound(static_cast<double>(kMarkerSize) * viewport.scale());
-        const int fbHeight = viewport.deviceSize().height();
+        const int fbHeight = renderTarget.size().height();
 
         if (size > 0 && fbHeight > 0) {
             // Restore KWin's own scissor state instead of blindly disabling it:
@@ -119,8 +143,12 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
             glGetIntegerv(GL_SCISSOR_BOX, previousBox);
 
             glEnable(GL_SCISSOR_TEST);
-            // bottom-left origin: this puts the patch at the window's TOP-left
-            glScissor(x, fbHeight - y - size, size, size);
+            // Direct device coordinates. The earlier version flipped Y
+            // (fbHeight - y - size) on the assumption that glScissor's origin is
+            // bottom-left. That flip is what made the patch move OPPOSITE to its
+            // window: frameGeometry().y() is already measured from the top of the
+            // screen, and the flip turned "down the screen" into "up the screen".
+            glScissor(x, y, size, size);
             glClearColor(kMarkerR, kMarkerG, kMarkerB, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
@@ -130,12 +158,19 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
             }
         }
 
-        static bool warned = false;
-        if (!warned) {
-            qInfo() << "[macos-glass] M1.1 marker drawn for" << w->caption()
-                    << "logical" << logicalGlobal << "device" << deviceRect
-                    << "size" << size;
-            warned = true;
+        // Position logging for calibrating the coordinate space. Every draw is
+        // logged (capped) so a window move can be correlated with the patch.
+        static int logged = 0;
+        if (logged < 40) {
+            ++logged;
+            qInfo() << "[macos-glass] CALIB"
+                    << "cap=" << w->caption().left(12)
+                    << "frameGeom=" << w->frameGeometry()
+                    << "renderRectTL=" << viewport.renderRect().topLeft()
+                    << "MAP=" << mappedRect
+                    << "DIRECT=" << directRect
+                    << "scale=" << viewport.scale()
+                    << "fbH=" << fbHeight;
         }
     }
 
