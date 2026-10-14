@@ -32,6 +32,26 @@ JS
 
 echo "=== M1.3a: does the bar show the background? ==="
 echo
+
+# VERIFY THE OBJECT BEFORE MEASURING IT (methodology rule 4).
+#
+# KWin loaded the INSTALLED .so at login; this directory holds the build we just
+# wrote. If they differ, every number below describes the PREVIOUS effect, and the
+# honest thing is to refuse than to print a verdict nobody can act on. Not
+# hypothetical: when this guard was written, the installed plugin was the
+# pre-capture build, so a relogin without ./install.sh would have measured the old
+# alpha path and the result would have been read as "the capture does not work".
+INSTALADO=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+CONSTRUIDO="$HERE/build/plugins/kwin/effects/macosglass2.so"
+if [ -f "$CONSTRUIDO" ] && [ -f "$INSTALADO" ] && ! cmp -s "$CONSTRUIDO" "$INSTALADO"; then
+  echo "  ABORTED: the INSTALLED effect is not the build in this directory."
+  echo "           installed: $INSTALADO"
+  echo "           built:     $CONSTRUIDO"
+  echo "           Run ./install.sh, log OUT and back IN, then run this again."
+  echo "           Measuring now would describe the previous behaviour."
+  exit 1
+fi
+
 echo "  DO NOT MOVE THE WINDOW during this test."
 read -r -p "  Position it once, then press Enter... " _
 g=$(get_window)

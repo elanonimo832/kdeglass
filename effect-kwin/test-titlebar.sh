@@ -16,6 +16,17 @@ unload() { timeout 10 qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEf
 trap 'unload' EXIT INT TERM
 
 echo "=== M1.2b: title bar only ==="
+
+# The same freshness guard as test-glass.sh: KWin loaded the INSTALLED .so at login,
+# and a verdict about a build that is not installed describes the previous effect.
+INSTALADO=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
+CONSTRUIDO="$HERE/build/plugins/kwin/effects/macosglass2.so"
+if [ -f "$CONSTRUIDO" ] && [ -f "$INSTALADO" ] && ! cmp -s "$CONSTRUIDO" "$INSTALADO"; then
+  echo "  ABORTED: the INSTALLED effect is not the build in this directory."
+  echo "           Run ./install.sh, log OUT and back IN, then run this again."
+  exit 1
+fi
+
 echo "1. Effect OFF; capturing..."
 unload; sleep 4
 spectacle -b -n -o "$OUT/off.png" >/dev/null 2>&1 || true

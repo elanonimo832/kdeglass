@@ -79,6 +79,16 @@ afirmar_codigo "radius 0 keeps the single-sample path" "$FUENTE" 'desktop = text
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
 
+echo "  -- the live test refuses to measure a stale install --"
+# The trap this closes: the installed .so was still the pre-capture build when the
+# guard was written. Relogin without ./install.sh, and the live test would have
+# measured the OLD alpha effect -- an OPAQUE that says nothing about the capture and
+# would have been read as "the capture does not work". Verifying the object before
+# measuring it is rule 4, and the check belongs in the script that does the measuring.
+afirmar_codigo "the live glass test compares build against install" "$EF/test-glass.sh" 'cmp -s'
+afirmar_codigo "and it aborts instead of measuring the wrong build" "$EF/test-glass.sh" 'ABORTED: the INSTALLED effect is not the build'
+afirmar_codigo "the live titlebar test does the same" "$EF/test-titlebar.sh" 'cmp -s'
+
 echo "  -- the shader is validated without a screen --"
 # The failure this prevents: a shader that does not compile is INVISIBLE from here.
 # loadShader() logs a critical, the effect draws nothing, and the only way to find
