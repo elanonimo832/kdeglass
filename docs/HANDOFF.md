@@ -314,6 +314,33 @@ Things to check, in order:
   3. Is there a timeout? Two runs produced no summary, which looks like truncation
      rather than an assertion failure.
 
+### The evidence points at test ISOLATION, not at the patterns
+
+Measured directly, and this narrows it a long way:
+
+    the exact grep, 20 times in a row          -> 20 pass, 0 fail
+    bash tests/run.sh glass   (that file alone) -> 6 runs, 0 failures
+    bash tests/run.sh         (the whole suite) -> fails intermittently
+
+The same assertion, on the same file, with the same pattern, is deterministic on its
+own and unreliable in company. So the fault is almost certainly **state leaking from
+one test file into the next**, not a badly written pattern. That is why several
+assertions in this project appeared to "fail at random" and were patched one by one
+without ever being understood -- and why the failures moved between files on
+successive runs.
+
+Two candidates, both worth checking first because they are the ones that touch
+anything outside the repository:
+
+  - `tests/test-glass.sh` and `tests/test-titlebar.sh` talk to the LIVE KWin session
+    over the session bus. They unload and reload the effect and write into
+    `effect-kwin/build/`. If the suite sources or runs either of them
+    non-interactively, they are modifying the user's desktop from inside an
+    assertion.
+  - `run.sh` caches a check count so tests can cite it without re-running the suite.
+    A cache that is read by the run that writes it is a race, and it would produce
+    exactly this pattern: stable alone, unstable together.
+
 Until this is resolved, treat any "all green" in this repository as unconfirmed.
 
 ## 11. Repository state
