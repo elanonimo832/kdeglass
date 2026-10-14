@@ -60,6 +60,8 @@ uniform float uTitleBarHeight;
 uniform float uGlassAlpha;
 uniform float uHasBackground;
 uniform float uBackgroundFlipV;
+uniform float uBackgroundRadius;
+uniform vec2 uBackgroundTexel;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -116,7 +118,29 @@ void main()
         // window texture's. See glass.h: the default is the one that has to be
         // confirmed on screen.
         vec2 uvBackground = vec2(vTexCoord.x, mix(vTexCoord.y, 1.0 - vTexCoord.y, uBackgroundFlipV));
-        vec3 desktop = texture(background, uvBackground).rgb;
+
+        // STEP 3a -- FROST: the same 3x3 kernel the bar uses, at the CAPTURE's texel
+        // size (a different texture from the window's, so it has its own scale).
+        //
+        // Radius 0 takes the branch below and is the default, so the shipped
+        // behaviour is exactly the sharp composite that step 2 verifies. Both branches
+        // are kept separate on purpose: sampling the same texel nine times is not
+        // literally the same float as sampling it once, and a default that is not
+        // bit-identical to the verified one is a variable nobody asked for.
+        vec3 desktop;
+        if (uBackgroundRadius > 0.5) {
+            vec4 suma = vec4(0.0);
+            for (int x = -1; x <= 1; ++x) {
+                for (int y = -1; y <= 1; ++y) {
+                    vec2 d = vec2(float(x), float(y)) * uBackgroundRadius * uBackgroundTexel;
+                    suma += texture(background, uvBackground + d);
+                }
+            }
+            desktop = (suma / 9.0).rgb;
+        } else {
+            desktop = texture(background, uvBackground).rgb;
+        }
+
         // The bar keeps uGlassAlpha of its own colour and lets the rest through:
         // that is the translucency macOS has.
         fragColor = vec4(mix(desktop, barColour, uGlassAlpha), 1.0);
@@ -169,8 +193,15 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // band shows the desktop upside down, flip it and reconfigure. No relogin.
     m_backgroundFlipV = cfg.readEntry("BackgroundFlipV", false);
 
+    // The frost over the captured desktop, 0 by default: the first relogin verifies
+    // the sharp composite, and this turns the blur on in the same session. See
+    // glass.h for why a blur does not disturb the step-2 measurement (it preserves
+    // the band's mean, which is what measure-glass.py compares).
+    m_backgroundRadius = cfg.readEntry("BackgroundRadius", kBackgroundRadius);
+
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
-            << "backgroundFlipV=" << m_backgroundFlipV;
+            << "backgroundFlipV=" << m_backgroundFlipV
+            << "backgroundRadius=" << m_backgroundRadius;
 
     m_shader.reset();
     loadShader();
@@ -519,6 +550,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uTitleBarHeight", float(barHeight));
     m_shader->setUniform("uGlassAlpha", kGlassAlpha);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
+    m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 
     // The captured desktop goes on texture unit 1: unit 0 is the window's own
     // texture, bound by KWin. The texture is NOT unbound afterwards on purpose --
@@ -531,6 +563,14 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         m_background->bind();
         m_shader->setUniform("background", 1);
         glActiveTexture(GL_TEXTURE0);
+        // The capture's own texel size, so the frost radius is in TEXELS of the
+        // texture it samples. Using the window's uTexelSize here would be a 3% lie
+        // (frame vs expanded) and there is no reason to accept it.
+        if (m_backgroundSize.width() > 0 && m_backgroundSize.height() > 0) {
+            m_shader->setUniform("uBackgroundTexel",
+                                 QVector2D(1.0f / m_backgroundSize.width(),
+                                           1.0f / m_backgroundSize.height()));
+        }
     }
     m_shader->setUniform("uHasBackground", conFondo ? 1.0f : 0.0f);
     ShaderManager::instance()->popShader();

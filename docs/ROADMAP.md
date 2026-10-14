@@ -60,10 +60,12 @@ expanded geometry, clamped to the render target, and composited in the fragment
 shader. The suite is green and the shaders are validated offline, but **it has not
 been seen on a screen yet**: that needs `./install.sh` and a relogin.
 
-Left for the next step: blur the captured background, tune `kGlassAlpha`, and make
-the shader's sizes use the expanded geometry with an explicit top margin (see the
-risks list in `HANDOFF.md`; the band's current accuracy is an accidental
-cancellation, not a correct calculation).
+Left for the next steps: verify the sharp composite on screen, then switch on the
+frost over the captured desktop (`BackgroundRadius`, shipped at 0 so that the first
+relogin stays a one-variable check and the blur is a second observation in the same
+session), and only then tune `kGlassAlpha` and the shader's sizes, which are still
+frame-based while the texture is expanded-based (see the risks list in `HANDOFF.md`;
+the band's current accuracy is an accidental cancellation, not a correct calculation).
 
 **The full analysis, the next step in detail, and its risks are in
 [`HANDOFF.md`](HANDOFF.md).** Start there, not here.

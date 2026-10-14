@@ -155,7 +155,8 @@ deliberately, so that a correct override is not another false alarm.
 | --- | --- | --- |
 | 1 | Teach `verify-chain.sh` that a `drawWindow` override is acceptable when it calls the base class on every path. | ✅ **done** (2026-10-14): the rule is now per function and per path, and four synthetic sources prove it accepts what continues the chain and rejects an early `return` or a commented-out call |
 | 2 | Override `drawWindow`; capture the band rectangle into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | 🟡 **written and compiled** (2026-10-14), **not yet seen on screen**: the desktop is captured across the window's expanded geometry (the region KWin redirects), clamped to the render target, and composited in the fragment shader (unit 1, `uHasBackground`). Needs `./install.sh` + a relogin to verify |
-| 3 | Blur the captured background, tune alpha, restore `frost 6` and the kit values. | not started |
+| 3a | Blur the captured background. Split out from "tune alpha" so that it stays ONE variable: it is a setting (`BackgroundRadius`) whose default of 0 keeps the sharp composite the first relogin verifies. | 🟡 **written and compiled** (2026-10-14): radius 0 is the single-sample path, unchanged; the frost is switched on in the same session with a `kwinrc` key + `reconfigure`, no relogin |
+| 3b | Tune `kGlassAlpha`, and make the shader's sizes use the expanded geometry with an explicit top margin (see the risks in section 5). | not started -- both are visible changes, so they need a screen |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -322,6 +323,22 @@ Two things the instruments CANNOT catch, and both are for the eye:
   is what you see, `BackgroundFlipV` in `kwinrc` (see section 5) is the switch.
 - **a band that shows another window's background** -- the capture texture is one
   object shared by all windows. Check two windows over different backgrounds.
+
+**Then the frost, in the same session.** The blur over the captured desktop is
+`BackgroundRadius`, and it ships at 0 on purpose: the relogin verifies the SHARP
+composite, where a wrong answer is obvious to the eye, and only then is the blur added
+as the second variable:
+
+```bash
+kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 6
+qdbus6 org.kde.KWin /KWin reconfigure     # applied live, no relogin
+```
+
+It does not disturb the measurement above: `measure-glass.py` compares the band's
+**mean** colour over two backgrounds, and a blur preserves the mean. It does change
+what `measure-titlebar.py` reports -- its exit code 3 ("the band changed but kept its
+detail") is what an UNBLURRED capture looks like -- so read its numbers, not just the
+code.
 
 `test-glass.sh` **holds the window still and changes only the background**. Its
 first version asked the user to move the window, which changed two things at once —

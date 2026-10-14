@@ -135,7 +135,15 @@ fragment shader. The capture is the same primitive KWin's own blur effect uses; 
 effect does not depend on that effect and does not reimplement its internals.
 
 Next: verify the capture on screen (it needs a relogin, because KWin never re-reads a
-`.so`), then blur the captured background and tune the alpha. Each step is measured
-with `test-glass.sh` / `measure-glass.py` before the next one starts — one variable at
-a time, because a test that changed two things at once once reported "GLASS" for a
-window that had merely moved.
+`.so`), then switch on the frost over the captured desktop — `BackgroundRadius` in the
+effect's config, **0 by default** precisely so that the first relogin verifies one
+variable (is the desktop there?) before a second one changes how it looks:
+
+```bash
+kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 6
+qdbus6 org.kde.KWin /KWin reconfigure     # applied live
+```
+
+Each step is measured with `test-glass.sh` / `measure-glass.py` before the next one
+starts — one variable at a time, because a test that changed two things at once once
+reported "GLASS" for a window that had merely moved.

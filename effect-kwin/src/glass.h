@@ -138,6 +138,30 @@ private:
     bool m_backgroundFlipV = false;
 
     // ---------------------------------------------------------------------
+    // M1.3a step 3a -- the frost over the captured desktop.
+    //
+    // Step 2 composites the desktop SHARP. macOS shows it frosted, and the kit's
+    // `frost 6` is the radius this uses, at the capture texture's own texel size.
+    //
+    // DEFAULT 0, AND THAT IS DELIBERATE. The value is a setting rather than a
+    // constant because adding the blur changes what the band looks like, and the
+    // project's rule is one variable at a time: the first relogin verifies the SHARP
+    // composite (is the desktop there at all?), and the frost is switched on
+    // afterwards in the same session, without a second relogin:
+    //
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 6
+    //   qdbus6 org.kde.KWin /KWin reconfigure
+    //
+    // Why the blur does not disturb the step-2 measurement: measure-glass.py compares
+    // the band's MEAN colour over two backgrounds, and a blur preserves the mean. So
+    // the GLASS/OPAQUE verdict is unaffected by this knob, which is what makes it safe
+    // to have both in one build.
+    // ---------------------------------------------------------------------
+    static constexpr int kBackgroundRadius = 0;   // 0 = sharp (step 2 behaviour)
+
+    int m_backgroundRadius = kBackgroundRadius;
+
+    // ---------------------------------------------------------------------
     // M1.2 -- diffusion.
     //
     // Values from the kit's Liquid Glass parameters (tokens.toml):
