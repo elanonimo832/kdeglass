@@ -798,6 +798,18 @@ effect: it composites what the theme drew. Two settings, both live:
   theme's own rc may need a reload; if the buttons do not grow, the relogin the pending install
   wants anyway will do it.
 
+**AND THE VERTICAL LAYOUT NEEDED FIXING, measured.** With 16 px buttons the theme's own
+numbers pushed them out of the bar: `PaddingTop=7` plus `ButtonMarginTop=8` is 15 px of
+downward offset in a 28 px bar, so the button's centre landed at 23/28 = 82% and it overflowed
+the bottom. The user saw it immediately ("los botones estan muy abajo"). Their screenshot
+measures it: the glass band is 39 px with its centre at row 73, the buttons (16 px) occupy rows
+72..87 with their centre at 79.5 -- **6.5 px low** -- and the text's centre is **4.5 px low**.
+With `PaddingTop=2`, `PaddingBottom=2` and `ButtonMarginTop=4` the button's centre lands at
+2+4+8 = 14, the exact centre of the 28 px bar, and since the bar is centred in the band, the
+band's centre too. Section 10b's language debt had a piece left in `output/aurorae/`, and the
+GENERATED colour schemes had Spanish headers citing a filename that no longer exists: fixed in
+the generator and regenerated (headers only; the values are byte-identical).
+
 The effect needs no change for either: it samples the window's texture, so a bolder, larger
 title arrives with the theme. Worth writing down because the instinct is to look for the
 button size in the effect, and it is not there.

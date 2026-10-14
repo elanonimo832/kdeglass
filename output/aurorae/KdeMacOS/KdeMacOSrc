@@ -1,6 +1,6 @@
 [General]
-# macOS pone los semaforos a la IZQUIERDA, en este orden: cerrar, minimizar, zoom.
-# El orden de las letras lo entiende KWin: X=cerrar, I=minimizar, A=maximizar.
+# macOS puts the traffic lights on the LEFT, in this order: close, minimise, zoom.
+# KWin understands the letters: X=close, I=minimise, A=maximise.
 LeftButtons=XIA
 RightButtons=
 TitleAlignment=Center
@@ -15,22 +15,28 @@ UseTextShadow=false
 Shadow=true
 
 [Layout]
+# VERTICAL CENTRING, measured. With PaddingTop=7 and ButtonMarginTop=8 a 16 px button started
+# 15 px from the edge and overflowed the bottom of a 28 px bar (its centre at 23/28 = 82%).
+# The glass band is 39 px and its centre sat 6.5 px above the buttons' centre and 4.5 above
+# the text's. With 2/2 and a margin of 4, the button's centre lands at 2+4+8 = 14, which is
+# the exact centre of the 28 px bar -- and since the bar is centred in the band, the band's
+# centre too.
 BorderBottom=1
 BorderLeft=1
 BorderRight=1
-# 16, not macOS's 12: at 1:1 on a 4K 27" panel 12 px reads small,
-# and the user asked for buttons they can aim at. aurorae scales the SVG cell to this.
+# 16, not macOS's 12: at 1:1 on a 4K 27" panel 12 px reads small, and the user asked for
+# buttons they can aim at. aurorae scales the SVG cell to this number.
 ButtonHeight=16
 ButtonWidth=16
-# Separacion generosa: en macOS los semaforos respiran. Este era el problema del
-# tema anterior, que tenia 8.
+# Generous spacing: macOS's traffic lights breathe. The previous theme had 8 and that was
+# one of its problems.
 ButtonSpacing=8
-ButtonMarginTop=8
+ButtonMarginTop=4
 ExplicitButtonSpacer=10
 PaddingLeft=14
 PaddingRight=14
-PaddingTop=7
-PaddingBottom=7
+PaddingTop=2
+PaddingBottom=2
 TitleHeight=28
 TitleEdgeTop=5
 TitleEdgeBottom=5
