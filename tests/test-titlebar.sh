@@ -20,16 +20,16 @@ echo "  -- the blur is confined to a band, not the whole window --"
 # distance from the window's TOP is (1 - vTexCoord.y). Testing vTexCoord.y directly
 # put the band at the BOTTOM of every window -- caught by the user's screenshot,
 # not by any measurement, because the test only asked whether SOME band blurred.
-afirmar_codigo "the shader measures distance from the TOP" "$FUENTE" '1\.0 - vTexCoord\.y'
+afirmar_codigo "the shader measures distance from the TOP" "$FUENTE" '1[.]0 - vTexCoord[.]y'
 negar "the un-flipped expression is gone" grep -q 'float yPixels = vTexCoord.y \* uTextureSize.y' "$FUENTE"
 afirmar_codigo "it compares against the band height" "$FUENTE" 'yPixelsFromTop > uTitleBarHeight'
-afirmar_codigo "outside the band the original texel is used" "$FUENTE" 'texture\(sampler, vTexCoord\)'
+afirmar_codigo "outside the band the original texel is used" "$FUENTE" 'texture[(]sampler, vTexCoord[)]'
 
 echo "  -- the band height comes from the decoration, not from a guess --"
 # A hard-coded height would be wrong for every theme but ours. KWin knows it.
 # Measured, not assumed: the distance from the top of the frame to the top of the
 # client area. Works for any decoration theme; a constant would only suit ours.
-afirmar_codigo "the title bar height is measured from the window" "$FUENTE" 'clientGeometry\(\)\.top\(\) - w->frameGeometry\(\)\.top\(\)'
+afirmar_codigo "the title bar height is measured from the window" "$FUENTE" 'clientGeometry[(][)][.]top[(][)] - w->frameGeometry[(][)][.]top[(][)]'
 afirmar_codigo "it is passed to the shader as a uniform" "$FUENTE" 'uTitleBarHeight'
 
 echo "  -- the uniforms are set while the shader is bound --"

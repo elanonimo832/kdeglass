@@ -12,7 +12,7 @@ echo "  -- the paint chain (cause of the black screen) --"
 # and OffscreenData::paint() when it is. Both paths verified in KWin 6.7's
 # src/effect/offscreeneffect.cpp. See tests/test-diffusion.sh for the assertion.
 afirmar_existe "src/glass.cpp exists" "$SOURCE"
-afirmar_contiene "includes glass.moc (required for the plugin)" "$SOURCE" 'include "glass\.moc"'
+afirmar_contiene "includes glass.moc (required for the plugin)" "$SOURCE" 'include "glass[.]moc"'
 afirmar_codigo "derives from OffscreenEffect" "$EF/src/glass.h" 'public[[:space:]]+OffscreenEffect'
 
 echo "  -- the compiled plugin --"

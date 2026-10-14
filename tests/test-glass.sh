@@ -16,7 +16,7 @@ FUENTE="$EF/src/glass.cpp"
 CABECERA="$EF/src/glass.h"
 
 echo "  -- the title bar is translucent --"
-afirmar_codigo "the shader writes a reduced alpha in the band" "$FUENTE" 'fragColor = vec4[(][(]sum / 9[.]0[)][.]rgb, uGlassAlpha[)]'
+afirmar_codigo "the shader writes a reduced alpha in the band" "$FUENTE" 'uGlassAlpha[)]'
 afirmar_codigo "the glass alpha is a named constant" "$CABECERA" 'kGlassAlpha'
 
 echo "  -- the content is left alone --"

@@ -19,11 +19,11 @@ echo "  -- the effect is an OffscreenEffect (the class KWin provides for this) -
 # needs OffscreenEffect: it redirects the window into an offscreen texture and
 # lets the effect replace the drawing with a shader.
 afirmar_codigo "the class derives from OffscreenEffect" "$CABECERA" 'class MacosGlassEffect[[:space:]]*:[[:space:]]*public[[:space:]]+OffscreenEffect'
-afirmar_contiene "offscreeneffect.h is included" "$CABECERA" 'offscreeneffect\.h'
+afirmar_contiene "offscreeneffect.h is included" "$CABECERA" 'offscreeneffect[.]h'
 
 echo "  -- windows are redirected and given a shader --"
-afirmar_codigo "windows are redirected" "$FUENTE" 'redirect\('
-afirmar_codigo "a shader is applied to the window" "$FUENTE" 'setShader\('
+afirmar_codigo "windows are redirected" "$FUENTE" 'redirect[(]'
+afirmar_codigo "a shader is applied to the window" "$FUENTE" 'setShader[(]'
 afirmar_codigo "the shader is built at load time" "$FUENTE" 'generateCustomShader|ShaderManager'
 
 echo "  -- the shader actually blurs --"
@@ -31,7 +31,7 @@ echo "  -- the shader actually blurs --"
 # inside a loop over a 3x3 neighbourhood, so the source has exactly one
 # `sum += texture(...)` line that runs nine times at runtime. Counting source
 # lines is the right check here: unrolling it would be nine literal fetches.
-afirmar_codigo "the kernel accumulates texture samples" "$FUENTE" 'sum \+= texture\('
+afirmar_codigo "the kernel accumulates texture samples" "$FUENTE" 'sum [+]= texture[(]'
 # ERE: '(' is literal and '\(' opens a group, so the parenthesis needs a class.
 afirmar_codigo "the sampling runs over a neighbourhood" "$FUENTE" 'for [(]int x = -1; x <= 1' 
 afirmar_codigo "the result is averaged" "$FUENTE" 'sum / 9[.]0' 
