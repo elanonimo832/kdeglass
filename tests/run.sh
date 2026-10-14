@@ -48,6 +48,13 @@ for f in "$HERE"/test-*.sh; do
     printf '    \033[1;31m%s\033[0m %s\n' "FAIL" "the process died without reporting a counter (rc=$rc)"
     printf '%s: the test process died without reporting a counter (rc=%s)\n' "$name" "$rc" >> "$fallos"
     FALLAN=$((FALLAN + 1))
+  elif [ ! -s "$cuenta.fin" ]; then
+    # The counter file exists, so the EXIT trap ran -- but the file never reached its last
+    # line. Without this, a file that dies halfway is indistinguishable from one that
+    # finished: it reports the checks it managed to run and nothing fails.
+    printf '    \033[1;31m%s\033[0m %s\n' "FAIL" "the file did not reach its end (rc=$rc): its remaining checks were NOT run"
+    printf '%s: the file did not reach its end (rc=%s); its remaining checks were NOT run\n' "$name" "$rc" >> "$fallos"
+    FALLAN=$((FALLAN + 1))
   fi
   # Partial counts are kept even after a timeout: a file that timed out halfway
   # still passed everything it asserted before that, and hiding those passes

@@ -161,3 +161,12 @@ else
   fallo "a test touches the live session ($n hits)"
   printf '%s\n' "$malos" | sed '$d' | sed 's/^/      /'
 fi
+
+echo "  -- el arnes distingue terminar de morir a medias --"
+# Measured, not theorised: a new check in test-scripts.sh referenced a variable that file
+# never defines, `set -u` killed the file, its EXIT trap still wrote the counter, and the
+# suite printed ALL PASS while the check never ran. The counter alone cannot tell a file
+# that finished from one that died; run-one.sh writes a marker AFTER the file returns, and
+# run.sh requires it.
+afirmar_codigo "the runner marks a file that reached its end" "$HERE/run-one.sh" 'CUENTA[.]fin'
+afirmar_codigo "and the suite requires that mark" "$HERE/run.sh" '! -s "\$cuenta[.]fin"'
