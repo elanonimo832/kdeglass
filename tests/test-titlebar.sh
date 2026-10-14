@@ -65,7 +65,10 @@ if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'uTitleBarHeigh
 else
   fallo "the band height is not set per paint (shared-shader bug is back)"
 fi
-if awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$FUENTE" | grep -q 'setUniform'; then
+# Comments excluded: the comment EXPLAINS why the shared shader must not be
+# written here, and matching that explanation made this assertion fail on correct
+# code. Same trap as several earlier tests in this project.
+if awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$FUENTE" | grep -vE '^[[:space:]]*//' | grep -q 'setUniform'; then
   fallo "slotWindowAdded still sets uniforms on the shared shader"
 else
   ok "slotWindowAdded no longer writes to the shared shader"
