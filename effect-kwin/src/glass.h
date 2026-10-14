@@ -112,11 +112,20 @@ private:
     // Two GL textures are involved: the window's (created by OffscreenEffect) and
     // the capture's (created here). The window's is known to have its v axis
     // inverted relative to window coordinates -- measured in M1.2b, and that is why
-    // the band test uses (1 - vTexCoord.y). Whether the capture, filled by a
-    // framebuffer blit, agrees with it depends on KWin's texture-local convention.
-    // If the band shows the desktop UPSIDE DOWN, this is the switch:
+    // the band test uses (1 - vTexCoord.y), i.e. v = 0 is the BOTTOM of the window.
+    //
+    // The default (false) rests on one argument, not on a coin toss: the capture is
+    // filled by a framebuffer blit whose destination is in texture-local
+    // coordinates, and for an FBO's texture v = 0 is the bottom row of the
+    // framebuffer. So the capture's v axis is ALSO bottom-up, and the two textures
+    // agree -> no flip. What would falsify it is KWin mapping `destination` through
+    // a top-left convention internally, which is not visible from the headers.
+    //
+    // Because that is an argument and not a measurement, it is a setting rather
+    // than a literal in the shader:
     //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundFlipV true
     //   qdbus6 org.kde.KWin /KWin reconfigure
+    // If the band shows the desktop UPSIDE DOWN, that is the switch.
     bool m_backgroundFlipV = false;
 
     // ---------------------------------------------------------------------

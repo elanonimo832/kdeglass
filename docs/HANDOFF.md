@@ -177,11 +177,17 @@ can see exactly where it stopped.
   not from arithmetic by hand.
 - **The offscreen texture's v axis is flipped relative to window coordinates.**
   Established the hard way in M1.2b: the distance from the window's top is
-  `(1.0 - vTexCoord.y)`. **State: a setting, not a guess.** Whether the *capture*
-  agrees with it is the one thing that cannot be settled without a screen, so it is
-  `BackgroundFlipV` in `kwinrc` (default false) and can be flipped with
-  `qdbus6 org.kde.KWin /KWin reconfigure` -- no relogin. If the band shows the
-  desktop upside down, that is the switch.
+  `(1.0 - vTexCoord.y)`, i.e. v = 0 is the window's BOTTOM. **State: a setting, not a
+  guess.** Whether the *capture* agrees with it is the one thing that cannot be
+  settled without a screen, so it is `BackgroundFlipV` in `kwinrc` (default false)
+  and can be flipped with `qdbus6 org.kde.KWin /KWin reconfigure` -- no relogin. If
+  the band shows the desktop upside down, that is the switch.
+  The default rests on an argument, not a coin toss, and it is written down so it can
+  be falsified: the capture is filled by a framebuffer blit whose destination is in
+  texture-local coordinates, and an FBO's texture has v = 0 on its bottom row, so the
+  two textures agree and no flip is due. What would falsify it is KWin mapping that
+  destination through a top-left convention internally -- not visible from the
+  headers, which is why the knob exists.
 - **The window is drawn over the band.** **State: resolved by construction** -- the
   composite happens inside the fragment shader that draws the band, so there is no
   second quad that could end up under the window.
@@ -234,6 +240,24 @@ cd effect-kwin
 ./test-glass.sh     # does the bar take colour from behind it?
 ```
 
+**First, without logging out:** `bash tests/run.sh` validates the embedded shaders
+with `glslangValidator` (`#version 330 core` prepended; KWin prepends its own header
+at runtime, so what this proves is that the shader BODY is well formed, not that
+KWin's preamble matches). A shader that does not compile is otherwise invisible until
+a relogin: `loadShader()` logs a critical, the effect draws nothing, and there is no
+way to see it from here. Skipped, loudly, if the validator is not installed.
+
+**Then, for M1.3a step 2 specifically:** the criterion is that the band shows the
+desktop, so `test-glass.sh` + `measure-glass.py` is the verdict (it reported 3.2,
+OPAQUE, for the alpha-only attempt; a composite at `uGlassAlpha` should move by tens
+because the bar now carries 45% of the background). Two things it CANNOT catch, and
+both are for the eye:
+
+- **the desktop upside down** -- two flat backgrounds look the same flipped. If that
+  is what you see, `BackgroundFlipV` in `kwinrc` (see section 5) is the switch.
+- **a band that shows another window's background** -- the capture texture is one
+  object shared by all windows. Check two windows over different backgrounds.
+
 `test-glass.sh` **holds the window still and changes only the background**. Its
 first version asked the user to move the window, which changed two things at once —
 the pixels being measured and what was behind them — and it reported a difference of
@@ -247,6 +271,7 @@ The instruments:
 | `measure-glass.py` | does the bar change colour when only the background changes |
 | `measure-diffusion.py` | is local contrast lost with brightness preserved |
 | `verify-chain.sh` | does the effect continue KWin's paint chain (black-screen safety) |
+| `tests/run.sh` (glass) | do the embedded shaders compile, without a screen |
 
 ## 8. Lessons this step paid for
 

@@ -55,3 +55,53 @@ afirmar_codigo "the capture orientation is configurable, not assumed" "$FUENTE" 
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
+
+echo "  -- the shader is validated without a screen --"
+# The failure this prevents: a shader that does not compile is INVISIBLE from here.
+# loadShader() logs a critical, the effect draws nothing, and the only way to find
+# out was to install it, log out, log back in and look -- which is exactly the cost
+# every step of M1.3a pays. glslangValidator answers the syntax and type question
+# without a session.
+#
+# It validates the GLSL the effect embeds, with `#version 330 core` prepended:
+# KWin prepends its OWN version header at runtime, so this proves the shader body
+# is well formed, not that KWin's preamble matches. That limit is written down
+# because a check that oversells itself is worse than no check.
+if ! command -v glslangValidator >/dev/null 2>&1; then
+  ok "(SKIPPED: glslangValidator is not installed; the shaders were NOT validated)"
+else
+  malos_shader=$(python3 - "$FUENTE" <<'PYEOF'
+import pathlib, re, subprocess, sys, tempfile
+texto = pathlib.Path(sys.argv[1]).read_text()
+shaders = {}
+for nombre, var in (("vert", "kDiffusionVertex"), ("frag", "kDiffusionFragment")):
+    m = re.search(r'static const char \*' + var + r' = R"\((.*?)\)";', texto, re.S)
+    if m:
+        shaders[nombre] = m.group(1)
+problemas = []
+if len(shaders) != 2:
+    problemas.append(f"only {len(shaders)} of 2 shaders could be extracted from glass.cpp")
+for nombre, src in sorted(shaders.items()):
+    with tempfile.TemporaryDirectory() as d:
+        ruta = pathlib.Path(d) / f"glass.{nombre}"
+        ruta.write_text("#version 330 core\n" + src)
+        r = subprocess.run(["glslangValidator", "-S", nombre, str(ruta)],
+                           capture_output=True, text=True)
+    if r.returncode != 0:
+        problemas.append(f"{nombre}: does not compile")
+        problemas.extend("   " + l for l in r.stdout.splitlines() if l.strip())
+for p in problemas:
+    print("      -> " + p)
+print(len(problemas))
+PYEOF
+)
+  n="${malos_shader##*$'\n'}"
+  if [ "$n" = "0" ]; then
+    ok "the embedded vertex and fragment shaders compile"
+  else
+    fallo "the embedded shaders do not compile ($n problems)"
+    # The compiler's own words, indented: "got 5" on its own sends the reader
+    # looking for the reason instead of showing it.
+    printf '%s\n' "$malos_shader" | sed '$d' | sed 's/^/      /'
+  fi
+fi
