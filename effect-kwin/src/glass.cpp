@@ -242,9 +242,29 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     Q_UNUSED(w)
     Q_UNUSED(mask)
     Q_UNUSED(quads)
-    // The material is applied as a shader over the redirected texture, so the
-    // geometry itself is untouched. M1.3 (refraction) will deform quads here.
+    // The material is a shader over the redirected texture, so the geometry itself
+    // is untouched. M1.3 (refraction) will deform quads here.
     Q_UNUSED(data)
+
+    // RE-ASSERT THE SHADER ON EVERY PAINT.
+    //
+    // setShader() was called once, when the window was added. The effect then
+    // vanished as soon as the window was moved or focus changed: KWin repaints a
+    // window on those events, and the paint path does not necessarily keep the
+    // shader that was registered at add time. apply() is called by
+    // OffscreenEffect::drawWindow on EVERY paint, just before the texture is
+    // drawn, so this is the place that keeps it applied.
+    //
+    // Diagnose counter: if the band disappears while this keeps counting, the
+    // shader is being overwritten elsewhere and that is the place to look.
+    static int applied = 0;
+    if (applied < 6) {
+        ++applied;
+        qInfo() << "[macos-glass] apply() re-asserting the shader for" << w->caption();
+    }
+    if (m_shader) {
+        setShader(w, m_shader.get());
+    }
 }
 
 } // namespace KWin

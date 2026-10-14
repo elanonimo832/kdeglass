@@ -41,3 +41,16 @@ afirmar_codigo "and unbound afterwards" "$FUENTE" 'popShader'
 
 echo "  -- the measurement tool checks a band, not the whole image --"
 afirmar_existe "measure-titlebar.py exists" "$EF/measure-titlebar.py"
+
+echo "  -- the shader is re-asserted on every paint --"
+# setShader() once, at window-add time, was not enough: the band vanished as soon
+# as the window was moved or focus changed, because KWin repaints on those events
+# and the paint path does not keep the shader registered at add time. apply() runs
+# on EVERY paint, so that is where it has to be re-asserted.
+# Checked across lines with awk: the assertion is about what the apply() BODY
+# contains, and grep works line by line, so it cannot see that.
+if awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE" | grep -q 'setShader('; then
+  ok "apply() re-asserts the shader on every paint"
+else
+  fallo "apply() does not re-assert the shader (the band will vanish on repaint)"
+fi'
