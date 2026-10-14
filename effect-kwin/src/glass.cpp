@@ -191,6 +191,7 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
     // redirect() is what makes KWin render this window into an offscreen texture
     // so the shader can read it.
     redirect(w);
+    qInfo() << "[macos-glass] REDIRECT" << w->caption().left(20);
     setShader(w, m_shader.get());
 
     // Tell the shader how big a texel is, so `uRadius` is expressed in texels
@@ -256,6 +257,7 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
 
 void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
 {
+    qInfo() << "[macos-glass] UNREDIRECT (window deleted)" << w->caption().left(20);
     unredirect(w);
 }
 
@@ -288,7 +290,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     const QString key = w->caption();
     ++counts[key];
     ++total;
-    if (total == 200 || (total % 500) == 0) {
+    if (total == 200 || (total % 300) == 0) {
         QString resumen;
         for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) {
             resumen += QStringLiteral("[%1 x%2] ").arg(it.key().left(14)).arg(it.value());
