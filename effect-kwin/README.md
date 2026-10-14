@@ -1,22 +1,31 @@
 # KWin effect: macOS-style material
 
-Compositor effect that hooks the edge of windows into KWin's paint chain.
-**It does not draw the material yet**: that is the next step.
+Compositor effect that draws the material on the window chrome. The band covers the
+**title bar only**, and the content stays sharp: the first full-window version was
+verified working and unusable, because it blurred the text you were reading.
 
 ## Status
 
 | | |
 |---|---|
 | Loads without breaking rendering | ✅ verified with screenshots (`negro=0.0%`) |
-| Hooks into the paint chain | ✅ |
-| **Draws the material** | ❌ **pending: the shader** |
+| Hooks into the paint chain | ✅ `OffscreenEffect` continues it; our own `drawWindow` override continues it explicitly |
+| **Diffusion** — the band is blurred | ✅ M1.2, `frost 6` as a 3x3 kernel |
+| **The band covers the title bar only** | ✅ M1.2b, verified by the user, survives window switching |
+| **Real glass** — the band shows the desktop behind it | 🟡 M1.3a: the desktop is captured into its own `GLTexture` and composited in the shader; **compiled and green in the harness, not yet seen on a screen** |
+| Refraction (70), dispersion (20), specular highlight | ❌ not started |
+
+An alpha alone was measured **OPAQUE**: the shader's only input is the window's own
+texture, and no alpha puts the desktop into a texture that does not contain it. The
+next step is therefore the capture, not a bigger shader; see
+[`../docs/HANDOFF.md`](../docs/HANDOFF.md).
 
 ## The three commands
 
 ```bash
 ./build.sh              # compiles and verifies the paint chain
-./install.sh        # installs and activates (asks for your password)
-./test-installed.sh    # live test: loads, measures and UNLOADS on its own
+./install.sh            # installs and activates (asks for your password)
+./test-installed.sh     # live test: loads, measures and UNLOADS on its own
 ```
 
 `test-installed.sh` is the test bench: it **does not log you out**, it
@@ -60,6 +69,13 @@ Every path through `paintWindow()` has to end like this:
 effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
 ```
 
+The same rule applies to `drawWindow()`, which M1.3a overrides in order to capture the
+desktop before the window is painted over it. There, the call that continues the chain
+is `OffscreenEffect::drawWindow(...)` (the base class: it redirects, runs `apply()` and
+re-enters the chain) or `effects->drawWindow(...)`. `verify-chain.sh` no longer bans the
+override; it checks the property — **every path must continue the chain** — and it is
+shown to fail on a source with an early `return`.
+
 **4. `supported()`.** It has to genuinely return `true`. If it returns `false`, KWin
 discards the effect **without any message**. (The version that used
 `effects != nullptr`, the example from the KDE docs, returned `false`.)
@@ -98,7 +114,7 @@ headers; `_stub/vulkan` avoids the 42 MiB of `vulkan-headers`):
 These three answer «why does KWin not load my effect?» in seconds, which is what
 would have saved me half the incident.
 
-## The next step: the material shader
+## What it draws now, and what is next
 
 Parameters measured in `../tokens.toml` (from the Figma kit):
 
@@ -112,5 +128,14 @@ Parameters measured in `../tokens.toml` (from the Figma kit):
 | depth | 30 |
 | darkened edge | alpha 20 (black at 8 %) |
 
-It will be drawn with OpenGL over `GLFramebuffer` in `paintWindow()`, in small steps,
-each one measured with `test-installed.sh`.
+Drawn today: the diffusion of M1.2 (`frost 6` as a single radius), confined to the
+title-bar band, and — since M1.3a — the desktop captured with
+`GLFramebuffer::blitFromRenderTarget` in `drawWindow()` and composited in the
+fragment shader. The capture is the same primitive KWin's own blur effect uses; this
+effect does not depend on that effect and does not reimplement its internals.
+
+Next: verify the capture on screen (it needs a relogin, because KWin never re-reads a
+`.so`), then blur the captured background and tune the alpha. Each step is measured
+with `test-glass.sh` / `measure-glass.py` before the next one starts — one variable at
+a time, because a test that changed two things at once once reported "GLASS" for a
+window that had merely moved.

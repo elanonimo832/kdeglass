@@ -15,7 +15,12 @@ afirmar_existe "effect-kwin/README.md exists" "$PROY/effect-kwin/README.md"
 afirmar_literal "the README explains the right path" "$PROY/effect-kwin/README.md" 'kwin/effects/plugins'
 afirmar_literal "the README explains the paint chain" "$PROY/effect-kwin/README.md" 'effects->paintWindow'
 afirmar_literal "the README explains the current id" "$PROY/effect-kwin/README.md" 'macosglass2'
-afirmar_literal "the README explains the shader is missing" "$PROY/effect-kwin/README.md" 'shader'
+# It used to assert that the README says "the shader is missing", which was true at
+# M1.1 and stopped being true at M1.2. A test that pins a stale claim keeps the stale
+# claim alive, so this one pins what a reader of the README needs to find now.
+afirmar_literal "the README explains the material shader" "$PROY/effect-kwin/README.md" 'shader'
+afirmar_literal "the README explains the desktop capture" "$PROY/effect-kwin/README.md" 'blitFromRenderTarget'
+afirmar_literal "the README states the rule for the drawWindow override" "$PROY/effect-kwin/README.md" 'OffscreenEffect::drawWindow'
 
 echo "  -- no broken links in the documentation --"
 malos=0
