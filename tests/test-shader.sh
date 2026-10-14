@@ -32,3 +32,23 @@ echo "  -- no GL call may run before the chain is continued --"
 # file must have exactly one effects->paintWindow() call on the normal path.
 n=$(grep -cE '^[[:space:]]*effects->paintWindow\(' "$FUENTE" 2>/dev/null)
 afirmar_igual "exactly one chain call on the normal path" "1" "$n"
+
+echo "  -- the patch is anchored to the window, in the right direction --"
+# Two bugs in a row came from here, and neither was visible to a pixel count:
+#   1. using frameGeometry() as an offset inside the window (patch went the
+#      wrong way when the window moved)
+#   2. flipping Y, on the assumption that glScissor's origin is bottom-left.
+#      frameGeometry().y() is ALREADY measured from the top of the screen, so
+#      the flip inverted the vertical movement. Confirmed on screen: the patch
+#      now stays at the window's top-left corner while it moves.
+afirmar_codigo "the scissor uses the device position directly" "$FUENTE" 'glScissor\(x, y, size, size\)'
+negar "the Y flip is gone" grep -q 'glScissor(x, fbHeight' "$FUENTE"
+afirmar_codigo "the window's global geometry is used" "$FUENTE" 'frameGeometry\(\)\.translated'
+afirmar_codigo "the paint translation is applied" "$FUENTE" 'data\.xTranslation\(\)'
+
+echo "  -- KWin's own GL state is restored --"
+# KWin clips window painting with the scissor test; clobbering it can leave
+# artefacts elsewhere. Both the box and the enabled flag are saved and put back.
+afirmar_codigo "the previous scissor box is saved" "$FUENTE" 'glGetIntegerv\(GL_SCISSOR_BOX'
+afirmar_codigo "the previous scissor box is restored" "$FUENTE" 'glScissor\(previousBox'
+afirmar_codigo "the scissor enabled state is restored" "$FUENTE" 'scissorWasEnabled'

@@ -101,34 +101,21 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
         // data.xTranslation()/yTranslation() matter: they carry the window's
         // displacement during animations, so ignoring them makes the patch lag.
         // -----------------------------------------------------------------
-        // -----------------------------------------------------------------
-        // CALIBRATION: compute the patch origin BOTH ways and log both, so the
-        // right one can be picked from real numbers instead of from deduction.
+        // The window's position in GLOBAL screen coordinates. Verified against
+        // KWin's own reporting: Konsole reported frameGeometry (210, 449) and the
+        // patch landed at (210, 449), its top-left corner.
         //
-        // The two candidates differ by a translation that RenderViewport applies:
-        //   mapToDeviceCoordinates() does
-        //       rect.translate(-renderRect.topLeft()).scale(s).translate(renderOffset)
-        // so it first subtracts the screen's corner. If the rect you pass is
-        // ALREADY screen-local, that subtraction shifts the patch by the screen's
-        // own origin -- which is exactly the inversion being observed.
-        //
-        //   A) mapped   = viewport.mapToDeviceCoordinates(globalRect)
-        //   B) direct   = globalRect scaled by viewport.scale()
-        //
-        // Whichever tracks the window on screen is the correct one.
-        // -----------------------------------------------------------------
+        // mapToDeviceCoordinates() was measured to be an identity here (single
+        // output at 0,0, scale 1), so it adds nothing and is not used.
         const RectF globalRect = w->frameGeometry().translated(
             QPointF(data.xTranslation(), data.yTranslation()));
-        const RectF mappedRect = viewport.mapToDeviceCoordinates(globalRect);
-        const RectF directRect{
-            globalRect.x() * viewport.scale(),
-            globalRect.y() * viewport.scale(),
-            globalRect.width() * viewport.scale(),
-            globalRect.height() * viewport.scale(),
+        const double s = viewport.scale();
+        const RectF deviceRect{
+            globalRect.x() * s,
+            globalRect.y() * s,
+            globalRect.width() * s,
+            globalRect.height() * s,
         };
-
-        // Use the DIRECT one for now; the log will say which is right.
-        const RectF deviceRect = directRect;
         const int x = qRound(deviceRect.x());
         const int y = qRound(deviceRect.y());
         const int size = qRound(static_cast<double>(kMarkerSize) * viewport.scale());
@@ -158,20 +145,6 @@ void MacosGlassEffect::paintWindow(const RenderTarget &renderTarget,
             }
         }
 
-        // Position logging for calibrating the coordinate space. Every draw is
-        // logged (capped) so a window move can be correlated with the patch.
-        static int logged = 0;
-        if (logged < 40) {
-            ++logged;
-            qInfo() << "[macos-glass] CALIB"
-                    << "cap=" << w->caption().left(12)
-                    << "frameGeom=" << w->frameGeometry()
-                    << "renderRectTL=" << viewport.renderRect().topLeft()
-                    << "MAP=" << mappedRect
-                    << "DIRECT=" << directRect
-                    << "scale=" << viewport.scale()
-                    << "fbH=" << fbHeight;
-        }
     }
 
     effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
