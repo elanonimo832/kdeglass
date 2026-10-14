@@ -388,6 +388,11 @@ enabled when the compositor starts.
 
 ### What is NOT done
 
+> **SUPERSEDED (2026-10-14): the material shader was written the same day.** This section
+> describes the state before M1.2; the diffusion, the title-bar band, the desktop capture
+> and the frost all followed. Kept as a record, like the other superseded sections here.
+> The current state is in [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md).
+
 **The material shader.** The effect, when it loads, only writes a message to the log:
 `paintWindow` is hooked but it does not draw. Diffusion, refraction
 (70), dispersion (20) and the specular highlight over `GLFramebuffer` remain to be implemented. The seven parameters

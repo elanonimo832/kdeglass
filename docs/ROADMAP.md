@@ -68,18 +68,19 @@ reads as nine ghost copies of it. It is tuned live with
 note that `/KWin reconfigure` does NOT reach the effects, which cost a session of
 believing a value had been applied when it had not.
 
-The chrome stays readable by construction: the blurred bar is the *baseline*, what
-deviates from it is the title text and the buttons, and those are drawn crisp on top of
-the glass -- the way macOS does it, the glass behind the chrome and not over it. The
-band also takes its alpha from the decoration, so the window's rounded corners are
-rounded in the band too, without a hard-coded radius anywhere. `GlassAlpha` (bar
-opacity) is a setting, like the frost radius.
+The chrome stays readable: the bar's own blur is the *baseline* that isolates the title
+text and the buttons, which are drawn crisp on top of the glass -- the way macOS does it,
+the glass behind the chrome and not over it. An earlier paragraph here said the band took
+its shape from the decoration's alpha; that was tried, did nothing (the frame arrives as a
+rectangle, see below) and was replaced by a clip the effect draws itself. `GlassAlpha`
+(bar opacity), `ChromeRadius` and `ChromeLow` (how the chrome is told apart from the bar)
+are settings, like the frost radius.
 
 The corners are done as well, which is the first piece of **M2**: the theme's SVG has a
 12 px arc for its top corners, but aurorae draws that piece in a cell as narrow as the
 frame's border (1 px in this theme), so the arc is clipped away and the frame arrives as a
 rectangle. Rather than patch the theme, the effect draws the rounded rectangle itself --
-`CornerRadius`, default 12, 0 to disable -- and discards what falls outside it, which is
+`CornerRadius`, default 16, 0 to disable -- and discards what falls outside it, which is
 the same clipping M2 needs anyway.
 
 The frost pre-smooths now instead of sampling: the backdrop is captured already reduced by
@@ -96,6 +97,13 @@ wallpaper cannot show a 1.9% scale error. What is already measured is the band's
 shape, and it is correct: 39 rows from the window's top edge to the client top, the
 window's full width, nothing painted into the shadow (see the risks list in
 `HANDOFF.md`).
+
+**Done when**, so the milestone can be closed instead of drifting: the band follows what
+is behind the window (`measure-glass.py` at or above the threshold, with the window held
+still -- met, 73.8 against 12), the frost AVERAGES the backdrop instead of sampling it, the
+chrome stays legible over it (`Vibrancy` is available for dark backdrops and off by
+default), the corners are round, and `measure-alignment.py` reports either (0, 0) or a
+displacement that has been fixed. The last box is the one still open.
 
 **The full analysis, the next step in detail, and its risks are in
 [`HANDOFF.md`](HANDOFF.md).** Start there, not here.
