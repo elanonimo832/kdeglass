@@ -68,7 +68,7 @@ private:
     // the blur radius, because a single radius is what a box blur takes. The two
     // 16s describe the outer falloff and belong with the edge work in M1.3/M1.5.
     // ---------------------------------------------------------------------
-    static constexpr int kFrostRadius = 6;    // kit: frost 6/16/16
+    static constexpr int kFrostRadius = 40;   // EXPERIMENTO: distinguir sutil de no-aplicado
     static constexpr float kFrostOpacity = 0.25f;  // kit: opacity 25
 
     // Where the material is applied. Until the shape work (M2) exists, this is

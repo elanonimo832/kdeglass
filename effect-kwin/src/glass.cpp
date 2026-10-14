@@ -158,15 +158,26 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
     // Tell the shader how big a texel is, so `uRadius` is expressed in texels
     // rather than in a normalised unit whose meaning changes with window size.
     //
+    // CRITICAL: the shader must be BOUND while the uniforms are set.
+    // GLShader::setUniform() is just glUniform1f(), which writes to whichever
+    // program is currently active. Called without binding, it writes into some
+    // other program and our uniforms stay at their default of zero -- and a blur
+    // radius of zero makes all nine taps sample the SAME texel, so the average is
+    // the original image and nothing changes on screen. That is exactly what was
+    // measured: the mechanism ran, the shader was applied, and the picture was
+    // identical. pushShader/popShader bind and restore.
+    //
     // NOTE: this uses the logical frame size. On a display with scale != 1 the
     // offscreen texture is larger by that factor, so the blur would be
     // proportionally smaller than intended. The output here is scale 1, so it is
     // exact; making it scale-aware is a refinement for when one exists.
     const QSize size = w->frameGeometry().size().toSize();
     if (size.width() > 0 && size.height() > 0) {
+        ShaderManager::instance()->pushShader(m_shader.get());
         m_shader->setUniform("uRadius", float(kFrostRadius));
         m_shader->setUniform("uTexelSize",
                              QVector2D(1.0f / size.width(), 1.0f / size.height()));
+        ShaderManager::instance()->popShader();
     }
 }
 
