@@ -1,0 +1,37 @@
+# tokens-font_theme.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Font theme
+# Modos: Baseline, Wireframe
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de desconocido.
+#  Marcas detectadas: sin marcas reconocibles
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Font theme"
+sistema = "desconocido"
+aplicable_macos = false
+modos = "Baseline, Wireframe"
+tokens = 5
+fecha_export = "2026-10-13"
+
+[static.font]
+# VariableID:dd0a066458fcd3c33e0a4aeaad983b9bc14493df/58148:167
+brand = { baseline = "Roboto", wireframe = "Flow Circular" }
+# VariableID:5299cc4db3dc5c354d8b754153cd130c87574fc1/58148:175
+plain = { baseline = "Roboto", wireframe = "Flow Circular" }
+
+[static.weight]
+# VariableID:149ed7a4608ad5b9b0ce34bffd755fa90ed6923c/58148:179
+bold = { baseline = "SemiBold", wireframe = "Regular" }
+# VariableID:34fb3eae0721f3da646931e478b6c2b43e79da4e/58148:182
+medium = { baseline = "Medium", wireframe = "Regular" }
+# VariableID:14c60d13d1696f70e8f1cf0f2a59dd5c10da9ddc/58148:178
+regular = "Regular"

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="84" viewBox="0 0 400 84">
+  <defs>
+    <linearGradient id="barra" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F6F6"/>
+      <stop offset="1" stop-color="#EDEDED"/>
+    </linearGradient>
+  </defs>
+  <g id="decoration-top">
+    <rect x="0" y="0" width="400" height="28" fill="url(#barra)"/>
+  </g>
+  <g id="decoration-center">
+    <rect x="0" y="28" width="400" height="56" fill="#FFFFFF"/>
+  </g>
+  <g id="decoration-topleft">
+    <path d="M 0 12 A 12 12 0 0 1 12 0 L 0 0 Z" fill="#F6F6F6"/>
+  </g>
+  <g id="decoration-topright">
+    <path d="M 400 12 A 12 12 0 0 1 388 0 L 400 0 Z" fill="#F6F6F6"/>
+  </g>
+</svg>

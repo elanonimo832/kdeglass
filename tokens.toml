@@ -1,0 +1,1813 @@
+# tokens.toml — EL SISTEMA DE DISENO. GENERADO, no editar a mano.
+#
+# Es el fichero que pedia el brief: la fuente unica de verdad de la que se
+# generan los esquemas de KDE, el CSS de GTK, el Tokens.h del QStyle y la
+# configuracion del efecto KWin.
+#
+# Fecha de consolidacion: 2026-10-13
+#
+# LOS CINCO EJES
+#   [color]      61 tokens medidos, claro y oscuro, con alfa exacto
+#   [forma]      radios, squircle, sombras de ventana, borde capilar
+#   [metricas]   tamanos de control por tamano (Mini..XL)
+#   [tipografia] la escala de macOS, de las HIG oficiales de Apple
+#   [material]   Liquid Glass y la escala de difuminados
+#
+# REGLA DE PROCEDENCIA: cada eje lleva su origen en [_procedencia]. Los valores
+# son MEDIDOS o PUBLICADOS, no inventados. Donde no hay dato, no hay token.
+#
+# AVISO sobre la fuente tipografica: macOS usa SF Pro, que Apple no permite
+# redistribuir. El proyecto usa Inter. Los tamanos, interlineados y pesos de
+# [tipografia] se aplican tal cual; el TRACKING es de SF Pro y con otra familia
+# es una aproximacion de partida.
+
+[_meta]
+nombre = "macOS Desktop Layer"
+referencia = "macOS 27 Golden Gate"
+fecha = "2026-10-13"
+unidades = "puntos, salvo donde se indique px"
+
+# ===========================================================================
+# PROCEDENCIA: de donde sale cada eje. Cada valor es trazable a una fuente.
+# ===========================================================================
+[_procedencia]
+color = "figma: export de Variables (Colors.zip), 61 tokens, claro y oscuro"
+forma = "fig: propiedades de nodo, 19011 nodos (radios, sombras, borde)"
+metricas = "figma: export de Variables (Sizes.zip), 5 tamanos de control"
+tipografia = "Apple HIG oficiales (typography.json), tabla macOS built-in text styles"
+material = "fig: efecto GLASS y nodos de difuminado"
+squircle = "fig: cornerSmoothing = 0.6, en 2244 nodos"
+
+# ===========================================================================
+# 1. COLOR
+# ===========================================================================
+[color]
+# 61 tokens del kit. `claro`/`oscuro` es el valor por apariencia. Los tokens
+# cuyo valor es IGUAL en ambos modos llevan una sola pareja hex/alfa.
+# El patron clave es el VELO: el texto es blanco o negro con alfa decreciente,
+# no un gris propio. Es lo que hace que funcione sobre cualquier fondo.
+
+[color.accent]
+
+[color.accent.blue]
+
+[color.accent.blue.dark]
+alfa = 1
+hex = "#0091FF"
+
+[color.accent.blue.light]
+alfa = 1
+hex = "#0088FF"
+
+[color.accent.brown]
+
+[color.accent.brown.dark]
+alfa = 1
+hex = "#B78A66"
+
+[color.accent.brown.light]
+alfa = 1
+hex = "#AC7F5E"
+
+[color.accent.cyan]
+
+[color.accent.cyan.dark]
+alfa = 1
+hex = "#3CD3FE"
+
+[color.accent.cyan.light]
+alfa = 1
+hex = "#00C0E8"
+
+[color.accent.green]
+
+[color.accent.green.dark]
+alfa = 1
+hex = "#30D158"
+
+[color.accent.green.light]
+alfa = 1
+hex = "#34C759"
+
+[color.accent.indigo]
+
+[color.accent.indigo.dark]
+alfa = 1
+hex = "#6D7CFF"
+
+[color.accent.indigo.light]
+alfa = 1
+hex = "#6155F5"
+
+[color.accent.mint]
+
+[color.accent.mint.dark]
+alfa = 1
+hex = "#00DAC3"
+
+[color.accent.mint.light]
+alfa = 1
+hex = "#00C8B3"
+
+[color.accent.orange]
+
+[color.accent.orange.dark]
+alfa = 1
+hex = "#FF9230"
+
+[color.accent.orange.light]
+alfa = 1
+hex = "#FF8D28"
+
+[color.accent.pink]
+
+[color.accent.pink.dark]
+alfa = 1
+hex = "#FF375F"
+
+[color.accent.pink.light]
+alfa = 1
+hex = "#FF2D55"
+
+[color.accent.purple]
+
+[color.accent.purple.dark]
+alfa = 1
+hex = "#DB34F2"
+
+[color.accent.purple.light]
+alfa = 1
+hex = "#CB30E0"
+
+[color.accent.red]
+
+[color.accent.red.dark]
+alfa = 1
+hex = "#FF4245"
+
+[color.accent.red.light]
+alfa = 1
+hex = "#FF383C"
+
+[color.accent.teal]
+
+[color.accent.teal.dark]
+alfa = 1
+hex = "#00D2E0"
+
+[color.accent.teal.light]
+alfa = 1
+hex = "#00C3D0"
+
+[color.accent.yellow]
+
+[color.accent.yellow.dark]
+alfa = 1
+hex = "#FFD600"
+
+[color.accent.yellow.light]
+alfa = 1
+hex = "#FFCC00"
+
+[color.accent_vibrant]
+
+[color.accent_vibrant.blue]
+
+[color.accent_vibrant.blue.dark]
+alfa = 1
+hex = "#0A99FF"
+
+[color.accent_vibrant.blue.light]
+alfa = 1
+hex = "#0078F0"
+
+[color.accent_vibrant.brown]
+
+[color.accent_vibrant.brown.dark]
+alfa = 1
+hex = "#C29672"
+
+[color.accent_vibrant.brown.light]
+alfa = 1
+hex = "#9E7354"
+
+[color.accent_vibrant.cyan]
+
+[color.accent_vibrant.cyan.dark]
+alfa = 1
+hex = "#47D8FC"
+
+[color.accent_vibrant.cyan.light]
+alfa = 1
+hex = "#00ABCF"
+
+[color.accent_vibrant.green]
+
+[color.accent_vibrant.green.dark]
+alfa = 1
+hex = "#3BDB63"
+
+[color.accent_vibrant.green.light]
+alfa = 1
+hex = "#26BF4D"
+
+[color.accent_vibrant.indigo]
+
+[color.accent_vibrant.indigo.dark]
+alfa = 1
+hex = "#7163FF"
+
+[color.accent_vibrant.indigo.light]
+alfa = 1
+hex = "#5C50E6"
+
+[color.accent_vibrant.mint]
+
+[color.accent_vibrant.mint.dark]
+alfa = 1
+hex = "#2DE0CD"
+
+[color.accent_vibrant.mint.light]
+alfa = 1
+hex = "#00BDA9"
+
+[color.accent_vibrant.orange]
+
+[color.accent_vibrant.orange.dark]
+alfa = 1
+hex = "#FF9E33"
+
+[color.accent_vibrant.orange.light]
+alfa = 1
+hex = "#F58625"
+
+[color.accent_vibrant.pink]
+
+[color.accent_vibrant.pink.dark]
+alfa = 1
+hex = "#FF4169"
+
+[color.accent_vibrant.pink.light]
+alfa = 1
+hex = "#F5234B"
+
+[color.accent_vibrant.purple]
+
+[color.accent_vibrant.purple.dark]
+alfa = 1
+hex = "#E647FC"
+
+[color.accent_vibrant.purple.light]
+alfa = 1
+hex = "#B72BC9"
+
+[color.accent_vibrant.red]
+
+[color.accent_vibrant.red.dark]
+alfa = 1
+hex = "#FF4747"
+
+[color.accent_vibrant.red.light]
+alfa = 1
+hex = "#F52F32"
+
+[color.accent_vibrant.teal]
+
+[color.accent_vibrant.teal.dark]
+alfa = 1
+hex = "#2DD7E0"
+
+[color.accent_vibrant.teal.light]
+alfa = 1
+hex = "#00B3BF"
+
+[color.accent_vibrant.yellow]
+
+[color.accent_vibrant.yellow.dark]
+alfa = 1
+hex = "#FFE014"
+
+[color.accent_vibrant.yellow.light]
+alfa = 1
+hex = "#F5C200"
+
+[color.fill]
+
+[color.fill.primary]
+
+[color.fill.primary.dark]
+alfa = 0.1
+hex = "#FFFFFF"
+
+[color.fill.primary.light]
+alfa = 0.1
+hex = "#000000"
+
+[color.fill.quaternary]
+
+[color.fill.quaternary.dark]
+alfa = 0.03
+hex = "#FFFFFF"
+
+[color.fill.quaternary.light]
+alfa = 0.03
+hex = "#000000"
+
+[color.fill.quinary]
+
+[color.fill.quinary.dark]
+alfa = 0.02
+hex = "#FFFFFF"
+
+[color.fill.quinary.light]
+alfa = 0.02
+hex = "#000000"
+
+[color.fill.secondary]
+
+[color.fill.secondary.dark]
+alfa = 0.08
+hex = "#FFFFFF"
+
+[color.fill.secondary.light]
+alfa = 0.08
+hex = "#000000"
+
+[color.fill.tertiary]
+
+[color.fill.tertiary.dark]
+alfa = 0.05
+hex = "#FFFFFF"
+
+[color.fill.tertiary.light]
+alfa = 0.05
+hex = "#000000"
+
+[color.fill_vibrant]
+
+[color.fill_vibrant.primary]
+
+[color.fill_vibrant.primary.dark]
+alfa = 1
+hex = "#242424"
+
+[color.fill_vibrant.primary.light]
+alfa = 1
+hex = "#D9D9D9"
+
+[color.fill_vibrant.quaternary]
+
+[color.fill_vibrant.quaternary.dark]
+alfa = 1
+hex = "#090909"
+
+[color.fill_vibrant.quaternary.light]
+alfa = 1
+hex = "#F7F7F7"
+
+[color.fill_vibrant.quinary]
+
+[color.fill_vibrant.quinary.dark]
+alfa = 1
+hex = "#070707"
+
+[color.fill_vibrant.quinary.light]
+alfa = 1
+hex = "#FBFBFB"
+
+[color.fill_vibrant.secondary]
+
+[color.fill_vibrant.secondary.dark]
+alfa = 1
+hex = "#141414"
+
+[color.fill_vibrant.secondary.light]
+alfa = 1
+hex = "#E6E6E6"
+
+[color.fill_vibrant.tertiary]
+
+[color.fill_vibrant.tertiary.dark]
+alfa = 1
+hex = "#0D0D0D"
+
+[color.fill_vibrant.tertiary.light]
+alfa = 1
+hex = "#F2F2F2"
+
+[color.gray]
+
+[color.gray.black]
+alfa = 1
+hex = "#000000"
+
+[color.gray.gray]
+
+[color.gray.gray.dark]
+alfa = 1
+hex = "#98989F"
+
+[color.gray.gray.light]
+alfa = 1
+hex = "#8E8E93"
+
+[color.gray.white]
+alfa = 1
+hex = "#FFFFFF"
+
+[color.label]
+
+[color.label.primary]
+
+[color.label.primary.dark]
+alfa = 0.85
+hex = "#FFFFFF"
+
+[color.label.primary.light]
+alfa = 0.85
+hex = "#000000"
+
+[color.label.quaternary]
+
+[color.label.quaternary.dark]
+alfa = 0.1
+hex = "#FFFFFF"
+
+[color.label.quaternary.light]
+alfa = 0.1
+hex = "#000000"
+
+[color.label.quinary]
+
+[color.label.quinary.dark]
+alfa = 0.05
+hex = "#FFFFFF"
+
+[color.label.quinary.light]
+alfa = 0.05
+hex = "#000000"
+
+[color.label.secondary]
+
+[color.label.secondary.dark]
+alfa = 0.55
+hex = "#FFFFFF"
+
+[color.label.secondary.light]
+alfa = 0.5
+hex = "#000000"
+
+[color.label.seximal]
+
+[color.label.seximal.dark]
+alfa = 0.03
+hex = "#FFFFFF"
+
+[color.label.seximal.light]
+alfa = 0.03
+hex = "#000000"
+
+[color.label.tertiary]
+
+[color.label.tertiary.dark]
+alfa = 0.25
+hex = "#FFFFFF"
+
+[color.label.tertiary.light]
+alfa = 0.25
+hex = "#000000"
+
+[color.label.white]
+alfa = 1
+hex = "#FFFFFF"
+
+[color.label_vibrant]
+
+[color.label_vibrant.primary]
+
+[color.label_vibrant.primary.dark]
+alfa = 1
+hex = "#F5F5F5"
+
+[color.label_vibrant.primary.light]
+alfa = 1
+hex = "#1A1A1A"
+
+[color.label_vibrant.quaternary]
+
+[color.label_vibrant.quaternary.dark]
+alfa = 1
+hex = "#262626"
+
+[color.label_vibrant.quaternary.light]
+alfa = 1
+hex = "#D9D9D9"
+
+[color.label_vibrant.quinary]
+
+[color.label_vibrant.quinary.dark]
+alfa = 1
+hex = "#111111"
+
+[color.label_vibrant.quinary.light]
+alfa = 1
+hex = "#E6E6E6"
+
+[color.label_vibrant.secondary]
+
+[color.label_vibrant.secondary.dark]
+alfa = 1
+hex = "#8A8A8A"
+
+[color.label_vibrant.secondary.light]
+alfa = 1
+hex = "#727272"
+
+[color.label_vibrant.tertiary]
+
+[color.label_vibrant.tertiary.dark]
+alfa = 1
+hex = "#404040"
+
+[color.label_vibrant.tertiary.light]
+alfa = 1
+hex = "#BFBFBF"
+
+[color.misc]
+
+[color.misc.alert]
+
+[color.misc.alert.overlay]
+
+[color.misc.alert.overlay.dark]
+alfa = 0.62
+hex = "#171717"
+
+[color.misc.alert.overlay.light]
+alfa = 0.6
+hex = "#ABABAB"
+
+[color.misc.progress]
+
+[color.misc.progress.track_stroke]
+
+[color.misc.progress.track_stroke.dark]
+alfa = 0.04
+hex = "#FFFFFF"
+
+[color.misc.progress.track_stroke.light]
+alfa = 0.07
+hex = "#000000"
+
+[color.misc.scrollbar]
+
+[color.misc.scrollbar.dark]
+alfa = 0.55
+hex = "#FFFFFF"
+
+[color.misc.scrollbar.light]
+alfa = 0.5
+hex = "#000000"
+
+[color.misc.sidebar]
+
+[color.misc.sidebar.label_inactive]
+
+[color.misc.sidebar.label_inactive.dark]
+alfa = 1
+hex = "#666666"
+
+[color.misc.sidebar.label_inactive.light]
+alfa = 1
+hex = "#878787"
+
+[color.misc.table]
+
+[color.misc.table.alternating_row_color]
+
+[color.misc.table.alternating_row_color.dark]
+alfa = 0.05
+hex = "#FFFFFF"
+
+[color.misc.table.alternating_row_color.light]
+alfa = 0.05
+hex = "#000000"
+
+[color.misc.table.bg_selected_active]
+
+[color.misc.table.bg_selected_active.dark]
+alfa = 1
+hex = "#0158D2"
+
+[color.misc.table.bg_selected_active.light]
+alfa = 1
+hex = "#0165E2"
+
+[color.misc.table.bg_selected_inactive]
+
+[color.misc.table.bg_selected_inactive.dark]
+alfa = 0.18
+hex = "#FFFFFF"
+
+[color.misc.table.bg_selected_inactive.light]
+alfa = 0.14
+hex = "#000000"
+
+[color.misc.table.column_separator]
+
+[color.misc.table.column_separator.dark]
+alfa = 0.1
+hex = "#FFFFFF"
+
+[color.misc.table.column_separator.light]
+alfa = 0.1
+hex = "#000000"
+
+[color.misc.tooltip]
+
+[color.misc.tooltip.inner_stroke]
+
+[color.misc.tooltip.inner_stroke.dark]
+alfa = 0.15
+hex = "#FFFFFF"
+
+[color.misc.tooltip.inner_stroke.light]
+alfa = 0
+hex = "#FFFFFF"
+
+[color.misc.tooltip.sidebar_bg_active]
+
+[color.misc.tooltip.sidebar_bg_active.dark]
+alfa = 1
+hex = "#141517"
+
+[color.misc.tooltip.sidebar_bg_active.light]
+alfa = 1
+hex = "#DAE6F2"
+
+[color.misc.tooltip.sidebar_bg_inactive]
+
+[color.misc.tooltip.sidebar_bg_inactive.dark]
+alfa = 1
+hex = "#131414"
+
+[color.misc.tooltip.sidebar_bg_inactive.light]
+alfa = 1
+hex = "#EDF4FA"
+
+[color.window_bg]
+
+[color.window_bg.window_bg]
+
+[color.window_bg.window_bg.dark]
+alfa = 1
+hex = "#1E1E1E"
+
+[color.window_bg.window_bg.light]
+alfa = 1
+hex = "#FFFFFF"
+
+# ===========================================================================
+# 2. FORMA: radios, squircle, sombras y borde capilar
+# ===========================================================================
+[forma]
+# Los radios NO son un valor unico: escalan con el tamano del control.
+
+[forma.borde_capilar]
+alfa_borde = 0.08
+alfa_borde_fuerte = 0.1
+grosor = 1
+grosor_fino = 0.5
+
+[forma.material]
+blur_generico = 100
+blur_luminosity = 120
+blur_medium = 60
+blur_medium_bg = 30
+blur_scroll_edge = 6
+blur_selection = 60
+blur_thick = 60
+blur_thin = 60
+blur_tooltip = 20
+blur_ultra_thick = 60
+blur_ultra_thin = 60
+glass_alfa = 0.25
+glass_offset_y = 4
+glass_radio = 26
+glass_radio_sm = 16
+glass_radio_xs = 6
+
+[forma.radio]
+r0_5 = 0.5
+r10_0 = 10
+r12_0 = 12
+r15_0 = 15
+r16_0 = 16
+r1_0 = 1
+r1_5 = 1.5
+r20_0 = 20
+r22_0 = 22
+r26_0 = 26
+r2_0 = 2
+r2_5 = 2.5
+r30_0 = 30
+r34_0 = 34
+r36_0 = 36
+r3_0 = 3
+r3_5 = 3.5
+r4_0 = 4
+r4_5 = 4.5
+r5_0 = 5
+r5_5 = 5.5
+r6_0 = 6
+r8_0 = 8
+
+[forma.radio_proporcional]
+circulo = 100
+pildora = 1000
+
+[forma.squircle]
+smoothing = 0.6
+umbral_circular = 0
+umbral_maximo = 1
+
+[forma.texto_interlineado_auto]
+t10_0 = 25
+t11_0 = 21
+t12_0 = 67
+t13_0 = 149
+t15_0 = 6
+t17_0 = 8
+t24_0 = 1
+t32_0 = 1
+t61_0 = 1
+t6_5 = 2
+t7_0 = 4
+t8_0 = 98
+t9_0 = 6
+
+[forma.texto_por_uso]
+
+[forma.texto_por_uso.t10_0_13_0]
+interlineado = 13
+letter_spacing = 0
+nodos = 77
+tamano = 10
+
+[forma.texto_por_uso.t10_0_16_0]
+interlineado = 16
+letter_spacing = 0
+nodos = 17
+tamano = 10
+
+[forma.texto_por_uso.t10_0_22_0]
+interlineado = 22
+letter_spacing = 0
+nodos = 29
+tamano = 10
+
+[forma.texto_por_uso.t11_0_13_0]
+interlineado = 13
+letter_spacing = 0
+nodos = 22
+tamano = 11
+
+[forma.texto_por_uso.t11_0_14_0]
+interlineado = 14
+letter_spacing = 0
+nodos = 274
+tamano = 11
+
+[forma.texto_por_uso.t11_0_16_0]
+interlineado = 16
+letter_spacing = 0
+nodos = 126
+tamano = 11
+
+[forma.texto_por_uso.t12_0_15_0]
+interlineado = 15
+letter_spacing = 0
+nodos = 25
+tamano = 12
+
+[forma.texto_por_uso.t13_0_16_0]
+interlineado = 16
+letter_spacing = 0
+nodos = 876
+tamano = 13
+
+[forma.texto_por_uso.t13_0_22_0]
+interlineado = 22
+letter_spacing = 0
+nodos = 147
+tamano = 13
+
+[forma.texto_por_uso.t14_0_20_0]
+interlineado = 20
+letter_spacing = 0
+nodos = 16
+tamano = 14
+
+[forma.texto_por_uso.t15_0_20_0]
+interlineado = 20
+letter_spacing = 0
+nodos = 143
+tamano = 15
+
+[forma.texto_por_uso.t16_0_20_0]
+interlineado = 20
+letter_spacing = 0
+nodos = 8
+tamano = 16
+
+[forma.texto_por_uso.t17_0_16_0]
+interlineado = 16
+letter_spacing = 0
+nodos = 10
+tamano = 17
+
+[forma.texto_por_uso.t17_0_22_0]
+interlineado = 22
+letter_spacing = 0
+nodos = 38
+tamano = 17
+
+[forma.texto_por_uso.t20_0_22_0]
+interlineado = 22
+letter_spacing = 0
+nodos = 113
+tamano = 20
+
+[forma.texto_por_uso.t22_0_26_0]
+interlineado = 26
+letter_spacing = 0
+nodos = 26
+tamano = 22
+
+[forma.texto_por_uso.t26_0_32_0]
+interlineado = 32
+letter_spacing = 0
+nodos = 26
+tamano = 26
+
+[forma.texto_por_uso.t9_0_9_0]
+interlineado = 9
+letter_spacing = 0
+nodos = 24
+tamano = 9
+
+[forma.ventana]
+
+[forma.ventana.sombra]
+
+[forma.ventana.sombra.capa_contacto]
+alfa = 0.8
+offset_x = 0
+offset_y = 0
+radio = 1
+
+[forma.ventana.sombra.capa_difusa]
+alfa = 0.3
+offset_x = 0
+offset_y = 18
+radio = 54
+
+[forma.ventana.sombra_estado]
+
+[forma.ventana.sombra_estado.capa_contacto]
+alfa = 0.8
+offset_y = 0
+radio = 1
+
+[forma.ventana.sombra_estado.capa_difusa]
+alfa = 0.3
+offset_y = 18
+radio = 54
+
+[forma.ventana.sombra_interior]
+
+[forma.ventana.sombra_interior.oscuro]
+alfa = 0.2
+offset_y = 0
+radio = 1
+
+# ===========================================================================
+# 3. METRICAS de control, por tamano
+# ===========================================================================
+[metricas]
+# Mini, Small, Medium, Large, XL. Medium es el tamano por defecto del sistema.
+# `global.radius` = 4/5/6/7/9 confirma que el radio escala con el control.
+
+[metricas.arrow_button]
+
+[metricas.arrow_button.font_size]
+large = 13
+medium = 13
+mini = 11
+small = 13
+xl = 13
+
+[metricas.button]
+
+[metricas.button.padding_horizontal]
+large = 16
+medium = 16
+mini = 7
+small = 10
+xl = 16
+
+[metricas.button.radius]
+large = 1000
+medium = 6
+mini = 6
+small = 6
+xl = 1000
+
+[metricas.checkboxes]
+width = 16
+
+[metricas.checkboxes.height_checkmark]
+large = 11.3
+medium = 8.93
+mini = 7.55
+small = 8.93
+xl = 11.3
+
+[metricas.checkboxes.radius]
+large = 6.5
+medium = 5.5
+mini = 3.5
+small = 4.5
+xl = 6.5
+
+[metricas.checkboxes.width_checkmark]
+large = 11.72
+medium = 9.31
+mini = 7.78
+small = 9.31
+xl = 11.72
+
+[metricas.color_well]
+
+[metricas.color_well.height]
+large = 28
+medium = 24
+mini = 16
+small = 20
+xl = 36
+
+[metricas.color_well.width]
+large = 56
+medium = 48
+mini = 32
+small = 40
+xl = 72
+
+[metricas.combo_button]
+
+[metricas.combo_button.font_size_chevron]
+large = 12.5
+medium = 11
+mini = 9
+small = 10
+xl = 13
+
+[metricas.combo_button.inset]
+large = 2
+medium = 2
+mini = 2
+small = 2
+xl = 3
+
+[metricas.combo_button.radius_button]
+large = 5.5
+medium = 4.5
+mini = 2.5
+small = 3.5
+xl = 6.5
+
+[metricas.combo_button.text_inset_right]
+large = 28
+medium = 28
+mini = 20
+small = 24
+xl = 34
+
+[metricas.combo_button.width_button]
+large = 24
+medium = 24
+mini = 16
+small = 20
+xl = 30
+
+[metricas.cursor]
+
+[metricas.cursor.height]
+large = 18
+medium = 18
+mini = 14
+small = 16
+xl = 18
+
+[metricas.dial]
+
+[metricas.dial.height_knob]
+large = 6
+medium = 6
+mini = 4
+small = 5
+xl = 7
+
+[metricas.dial.inset_knob]
+large = 3
+medium = 3
+mini = 2
+small = 2.5
+xl = 3
+
+[metricas.disclosure]
+
+[metricas.disclosure.font_size]
+large = 13
+medium = 13
+mini = 10
+small = 10
+xl = 13
+
+[metricas.disclosure.radius]
+large = 1000
+medium = 6
+mini = 4
+small = 5
+xl = 1000
+
+[metricas.fields]
+
+[metricas.fields.font_size_search_glyph]
+large = 13
+medium = 13
+mini = 11
+small = 13
+xl = 13
+
+[metricas.fields.inset_left]
+large = 8
+medium = 8
+mini = 6
+small = 6
+xl = 10
+
+[metricas.fields.inset_right]
+large = 8
+medium = 8
+mini = 6
+small = 6
+xl = 10
+
+[metricas.fields.leading_search_glyph]
+large = 15
+medium = 15
+mini = 13
+small = 15
+xl = 15
+
+[metricas.global]
+
+[metricas.global.font_size]
+large = 13
+medium = 13
+mini = 10
+small = 11
+xl = 13
+
+[metricas.global.height]
+large = 28
+medium = 24
+mini = 16
+small = 20
+xl = 36
+
+[metricas.global.radius]
+large = 7
+medium = 6
+mini = 4
+small = 5
+xl = 9
+
+[metricas.menu]
+
+[metricas.menu.font_size]
+large = 13
+medium = 13
+mini = 10
+small = 11
+xl = 13
+
+[metricas.menu.font_size_symbol]
+large = 13
+medium = 13
+mini = 11
+small = 11
+xl = 13
+
+[metricas.menu.height]
+large = 24
+medium = 24
+mini = 19
+small = 22
+xl = 24
+
+[metricas.menu.inset_bottom_header]
+large = 4
+medium = 4
+mini = 2
+small = 3
+xl = 4
+
+[metricas.menu.inset_left_header]
+large = 20
+medium = 20
+mini = 14
+small = 18
+xl = 20
+
+[metricas.menu.inset_top_header]
+large = 5
+medium = 5
+mini = 3
+small = 4
+xl = 5
+
+[metricas.menu.width_symbol]
+large = 12
+medium = 12
+mini = 6
+small = 10
+xl = 12
+
+[metricas.mode]
+
+[metricas.mode.mode]
+large = "Large"
+medium = "Medium"
+mini = "Mini"
+small = "Small"
+xl = "XL"
+
+[metricas.popup]
+
+[metricas.popup.font_size_chevron]
+large = 13
+medium = 11
+mini = 10
+small = 11
+xl = 13
+
+[metricas.popup.inset_left]
+large = 14
+medium = 12
+mini = 7
+small = 10
+xl = 18
+
+[metricas.radio]
+
+[metricas.radio.height_dash]
+large = 2
+medium = 2
+mini = 1.7
+small = 2
+xl = 2
+
+[metricas.radio.spacing]
+large = 5
+medium = 3
+mini = 3
+small = 3
+xl = 7
+
+[metricas.radio.width]
+large = 18
+medium = 16
+mini = 12
+small = 14
+xl = 18
+
+[metricas.radio.width_dash]
+large = 8
+medium = 6.5
+mini = 5.5
+small = 6.5
+xl = 8
+
+[metricas.radio.width_dot]
+large = 5
+medium = 4.8
+mini = 4
+small = 4.8
+xl = 5
+
+[metricas.segmented]
+
+[metricas.segmented.height_separator]
+large = 18
+medium = 14
+mini = 10
+small = 12
+xl = 20
+
+[metricas.segmented.margins]
+large = 12
+medium = 10
+mini = 6
+small = 8
+xl = 14
+
+[metricas.slider]
+
+[metricas.slider.knob_non_ticked_slider]
+
+[metricas.slider.knob_non_ticked_slider.height]
+large = 20
+medium = 16
+mini = 12
+small = 14
+xl = 20
+
+[metricas.slider.knob_non_ticked_slider.height_clicked]
+large = 25
+medium = 20
+mini = 15
+small = 18
+xl = 25
+
+[metricas.slider.knob_non_ticked_slider.inset]
+large = -2
+medium = 0
+mini = 2
+small = 1
+xl = -2
+
+[metricas.slider.knob_non_ticked_slider.width]
+large = 24
+medium = 20
+mini = 16
+small = 18
+xl = 24
+
+[metricas.slider.knob_non_ticked_slider.width_clicked]
+large = 30
+medium = 25
+mini = 20
+small = 23
+xl = 30
+
+[metricas.slider.knob_ticked_slider]
+
+[metricas.slider.knob_ticked_slider.height]
+large = 20
+medium = 16
+mini = 16
+small = 18
+xl = 20
+
+[metricas.slider.knob_ticked_slider.height_clicked]
+large = 25
+medium = 20
+mini = 20
+small = 23
+xl = 25
+
+[metricas.slider.knob_ticked_slider.width]
+large = 24
+medium = 20
+mini = 8
+small = 10
+xl = 24
+
+[metricas.slider.knob_ticked_slider.width_clicked]
+large = 30
+medium = 25
+mini = 10
+small = 13
+xl = 30
+
+[metricas.slider.track]
+
+[metricas.slider.track.inset_horizontal]
+large = 0
+medium = 1
+mini = 1
+small = 1
+xl = 0
+
+[metricas.slider.track.inset_vertical]
+large = 0
+medium = 1
+mini = 1
+small = 1
+xl = 0
+
+[metricas.slider.track.tick_spacing]
+large = 3
+medium = 2
+mini = 2
+small = 2
+xl = 3
+
+[metricas.stepper]
+
+[metricas.stepper.font_size]
+large = 12
+medium = 12
+mini = 8
+small = 9
+xl = 12
+
+[metricas.stepper.radius]
+large = 7
+medium = 6
+mini = 4
+small = 5
+xl = 9
+
+[metricas.stepper.width]
+large = 23
+medium = 20
+mini = 13
+small = 17
+xl = 30
+
+[metricas.stepper.width_separator]
+large = 15
+medium = 14
+mini = 9
+small = 11
+xl = 20
+
+[metricas.toggle]
+track_height = 24
+
+[metricas.toggle.knob_clicked_height]
+large = 37
+medium = 31
+mini = 20
+small = 26
+xl = 46
+
+[metricas.toggle.knob_clicked_width]
+large = 59
+medium = 50
+mini = 33
+small = 40
+xl = 73
+
+[metricas.toggle.knob_height]
+large = 24
+medium = 20
+mini = 13
+small = 16
+xl = 30
+
+[metricas.toggle.knob_width]
+large = 38
+medium = 32
+mini = 21
+small = 26
+xl = 47
+
+[metricas.toggle.track_width]
+large = 64
+medium = 54
+mini = 36
+small = 44
+xl = 80
+
+# ===========================================================================
+# 4. TIPOGRAFIA de macOS (HIG oficiales)
+# ===========================================================================
+[tipografia]
+# 11 estilos con tamano, interlineado, peso y tracking. macOS NO tiene Dynamic
+# Type: hay UNA escala, no doce como en iOS.
+
+[tipografia.estilos]
+
+[tipografia.estilos.body]
+interlineado = 16
+interlineado_escala = 1.231
+peso = 400
+peso_enfatizado = 600
+tamano = 13
+
+[tipografia.estilos.callout]
+interlineado = 15
+interlineado_escala = 1.25
+peso = 400
+peso_enfatizado = 600
+tamano = 12
+
+[tipografia.estilos.caption_1]
+interlineado = 13
+interlineado_escala = 1.3
+peso = 400
+peso_enfatizado = 500
+tamano = 10
+
+[tipografia.estilos.caption_2]
+interlineado = 13
+interlineado_escala = 1.3
+peso = 500
+peso_enfatizado = 600
+tamano = 10
+
+[tipografia.estilos.footnote]
+interlineado = 13
+interlineado_escala = 1.3
+peso = 400
+peso_enfatizado = 600
+tamano = 10
+
+[tipografia.estilos.headline]
+interlineado = 16
+interlineado_escala = 1.231
+peso = 700
+peso_enfatizado = 800
+tamano = 13
+
+[tipografia.estilos.large_title]
+interlineado = 32
+interlineado_escala = 1.231
+peso = 400
+peso_enfatizado = 700
+tamano = 26
+
+[tipografia.estilos.subheadline]
+interlineado = 14
+interlineado_escala = 1.273
+peso = 400
+peso_enfatizado = 600
+tamano = 11
+
+[tipografia.estilos.title_1]
+interlineado = 26
+interlineado_escala = 1.182
+peso = 400
+peso_enfatizado = 700
+tamano = 22
+
+[tipografia.estilos.title_2]
+interlineado = 22
+interlineado_escala = 1.294
+peso = 400
+peso_enfatizado = 700
+tamano = 17
+
+[tipografia.estilos.title_3]
+interlineado = 20
+interlineado_escala = 1.333
+peso = 400
+peso_enfatizado = 600
+tamano = 15
+
+[tipografia.tamano_base]
+
+[tipografia.tamano_base.ios]
+minimo = 11
+por_defecto = 17
+
+[tipografia.tamano_base.macos]
+minimo = 10
+por_defecto = 13
+
+[tipografia.tamano_base.tvos]
+minimo = 23
+por_defecto = 29
+
+[tipografia.tamano_base.visionos]
+minimo = 12
+por_defecto = 17
+
+[tipografia.tamano_base.watchos]
+minimo = 12
+por_defecto = 16
+
+[tipografia.tracking]
+
+[tipografia.tracking.10]
+em1000 = 12
+puntos = 0.12
+
+[tipografia.tracking.11]
+em1000 = 6
+puntos = 0.06
+
+[tipografia.tracking.12]
+em1000 = 0
+puntos = 0
+
+[tipografia.tracking.13]
+em1000 = -6
+puntos = -0.08
+
+[tipografia.tracking.14]
+em1000 = -11
+puntos = -0.15
+
+[tipografia.tracking.15]
+em1000 = -16
+puntos = -0.23
+
+[tipografia.tracking.16]
+em1000 = -20
+puntos = -0.31
+
+[tipografia.tracking.17]
+em1000 = -26
+puntos = -0.43
+
+[tipografia.tracking.18]
+em1000 = -25
+puntos = -0.44
+
+[tipografia.tracking.19]
+em1000 = -24
+puntos = -0.45
+
+[tipografia.tracking.20]
+em1000 = -23
+puntos = -0.45
+
+[tipografia.tracking.21]
+em1000 = -18
+puntos = -0.36
+
+[tipografia.tracking.22]
+em1000 = -12
+puntos = -0.26
+
+[tipografia.tracking.23]
+em1000 = -4
+puntos = -0.1
+
+[tipografia.tracking.24]
+em1000 = 3
+puntos = 0.07
+
+[tipografia.tracking.25]
+em1000 = 6
+puntos = 0.15
+
+[tipografia.tracking.26]
+em1000 = 8
+puntos = 0.22
+
+[tipografia.tracking.27]
+em1000 = 11
+puntos = 0.29
+
+[tipografia.tracking.28]
+em1000 = 14
+puntos = 0.38
+
+[tipografia.tracking.29]
+em1000 = 14
+puntos = 0.4
+
+[tipografia.tracking.30]
+em1000 = 14
+puntos = 0.4
+
+[tipografia.tracking.31]
+em1000 = 13
+puntos = 0.39
+
+[tipografia.tracking.32]
+em1000 = 13
+puntos = 0.41
+
+[tipografia.tracking.33]
+em1000 = 12
+puntos = 0.4
+
+[tipografia.tracking.34]
+em1000 = 12
+puntos = 0.4
+
+[tipografia.tracking.35]
+em1000 = 11
+puntos = 0.38
+
+[tipografia.tracking.36]
+em1000 = 10
+puntos = 0.37
+
+[tipografia.tracking.37]
+em1000 = 10
+puntos = 0.36
+
+[tipografia.tracking.38]
+em1000 = 10
+puntos = 0.37
+
+[tipografia.tracking.39]
+em1000 = 10
+puntos = 0.38
+
+[tipografia.tracking.40]
+em1000 = 10
+puntos = 0.37
+
+[tipografia.tracking.41]
+em1000 = 9
+puntos = 0.36
+
+[tipografia.tracking.42]
+em1000 = 9
+puntos = 0.37
+
+[tipografia.tracking.43]
+em1000 = 9
+puntos = 0.38
+
+[tipografia.tracking.44]
+em1000 = 8
+puntos = 0.37
+
+[tipografia.tracking.45]
+em1000 = 8
+puntos = 0.35
+
+[tipografia.tracking.46]
+em1000 = 8
+puntos = 0.36
+
+[tipografia.tracking.47]
+em1000 = 8
+puntos = 0.37
+
+[tipografia.tracking.48]
+em1000 = 8
+puntos = 0.35
+
+[tipografia.tracking.49]
+em1000 = 7
+puntos = 0.33
+
+[tipografia.tracking.50]
+em1000 = 7
+puntos = 0.34
+
+[tipografia.tracking.51]
+em1000 = 7
+puntos = 0.35
+
+[tipografia.tracking.52]
+em1000 = 6
+puntos = 0.31
+
+[tipografia.tracking.53]
+em1000 = 6
+puntos = 0.33
+
+[tipografia.tracking.54]
+em1000 = 6
+puntos = 0.32
+
+[tipografia.tracking.56]
+em1000 = 6
+puntos = 0.3
+
+[tipografia.tracking.58]
+em1000 = 5
+puntos = 0.28
+
+[tipografia.tracking.6]
+em1000 = 41
+puntos = 0.24
+
+[tipografia.tracking.60]
+em1000 = 4
+puntos = 0.26
+
+[tipografia.tracking.62]
+em1000 = 4
+puntos = 0.24
+
+[tipografia.tracking.64]
+em1000 = 4
+puntos = 0.22
+
+[tipografia.tracking.66]
+em1000 = 3
+puntos = 0.19
+
+[tipografia.tracking.68]
+em1000 = 2
+puntos = 0.17
+
+[tipografia.tracking.7]
+em1000 = 34
+puntos = 0.23
+
+[tipografia.tracking.70]
+em1000 = 2
+puntos = 0.14
+
+[tipografia.tracking.72]
+em1000 = 2
+puntos = 0.14
+
+[tipografia.tracking.76]
+em1000 = 1
+puntos = 0.07
+
+[tipografia.tracking.8]
+em1000 = 26
+puntos = 0.21
+
+[tipografia.tracking.80]
+em1000 = 0
+puntos = 0
+
+[tipografia.tracking.84]
+em1000 = 0
+puntos = 0
+
+[tipografia.tracking.88]
+em1000 = 0
+puntos = 0
+
+[tipografia.tracking.9]
+em1000 = 19
+puntos = 0.17
+
+[tipografia.tracking.92]
+em1000 = 0
+puntos = 0
+
+[tipografia.tracking.96]
+em1000 = 0
+puntos = 0
+
+# ===========================================================================
+# 5. MATERIAL: Liquid Glass
+# ===========================================================================
+[material]
+# El material del brief, parametrizado. Tiene SIETE parametros, no tres:
+# refraction y dispersion no aparecian en el brief y son la diferencia entre
+# un cristal esmerilado y un vidrio.
+
+[material.component_fill]
+
+[material.component_fill.component_fill]
+alfa = 0.1
+hex = "#000000"
+
+[material.component_stroke]
+
+[material.component_stroke.component_stroke]
+alfa = 1
+hex = "#C399FF"
+
+[material.link]
+
+[material.link.link]
+alfa = 1
+hex = "#98CCFF"
+
+[material.liquid_glass]
+depth_medium_and_large = 30
+depth_regular = 30
+dispersion = 20
+frost_large = 16
+frost_medium = 16
+frost_regular = 6
+light_angle = 0
+opacity = 25
+refraction = 70
+splay_medium_and_large = 20
+splay_regular = 20
+
+[material.section_fill]
+
+[material.section_fill.section_fill]
+alfa = 0.1
+hex = "#000000"
+
+[material.section_stroke]
+
+[material.section_stroke.section_stroke]
+alfa = 0.4
+hex = "#000000"
+
+[material.subcomponent_fill]
+
+[material.subcomponent_fill.subcomponent_fill]
+alfa = 0.1
+hex = "#000000"
+
+[material.subcomponent_stroke]
+
+[material.subcomponent_stroke.subcomponent_stroke]
+alfa = 0.4
+hex = "#000000"

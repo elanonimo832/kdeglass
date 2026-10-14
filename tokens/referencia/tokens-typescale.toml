@@ -1,0 +1,143 @@
+# tokens-typescale.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Typescale
+# Modos: Baseline
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de Material 3.
+#  Marcas detectadas: Static.Display Large, Static.Headline, Static.Title Large, Static.Label Large
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Typescale"
+sistema = "Material 3"
+aplicable_macos = false
+modos = "Baseline"
+tokens = 45
+fecha_export = "2026-10-13"
+
+[static.body_large]
+# VariableID:5490b9502e21d8b1ccb68f975f64c3725a1409d5/58148:262
+line_height = 24
+# VariableID:647028ae2627ea8834e7ba3e064825a27ba22d36/58148:251
+size = 16
+# VariableID:68651e45f78a1b6341dc194476c10a25da17dc07/58148:258
+tracking = 0.5
+
+[static.body_medium]
+# VariableID:a259a825db370ceef48e797cf4e0724d119da064/58148:240
+line_height = 20
+# VariableID:77635c8b2e9d70354e73d2bb419ecd184c8cace5/58148:276
+size = 14
+# VariableID:8e8becf81bfc757a24ab5bd8892574acdf8fa910/58148:232
+tracking = 0.25
+
+[static.body_small]
+# VariableID:c30ee74e535a2e8b249f1eb863f330c3da11b9d0/58148:254
+line_height = 16
+# VariableID:a7f761d2731022ab7ddb21dbc05c55e858856741/58148:264
+size = 12
+# VariableID:ea34197e6f56887d4c4d4b0c9ed183e87410a7ee/58148:266
+tracking = 0.4
+
+[static.display_large]
+# VariableID:c3afea7762d6882ff5f9828870dd943074fa75e0/58148:215
+line_height = 64
+# VariableID:a0537c8ce19814b83838e851e4e5ddfc8abc9686/58148:214
+size = 57
+# VariableID:c43d032b66c614d6648de7add15dea74b2b8f5c1/58148:216
+tracking = -0.25
+
+[static.display_medium]
+# VariableID:73330eace56a8dd8d1d3aed46035ccde985babba/58148:247
+line_height = 52
+# VariableID:1f2f849b92535a624cd7b1f86122747598212390/58148:246
+size = 45
+# VariableID:586d5ecc6626bdc58ad7670d8862705318f3ba2b/58148:248
+tracking = 0
+
+[static.display_small]
+# VariableID:e2270cda908473919cddd305625c9d48f13a9d12/58148:252
+line_height = 44
+# VariableID:0d9963260bba338b05b40fde776652526d19fdc6/58148:250
+size = 36
+# VariableID:620a37e8028c1c5c36fa83069c36aee0545c5886/58148:253
+tracking = 0
+
+[static.headline_large]
+# VariableID:de634f6d7f1d24dc61fdb4bf84b1c0b74815dd08/58148:261
+line_height = 40
+# VariableID:4487ae9667452e7fa188d1ccadc03fa5bf118298/58148:259
+size = 32
+# VariableID:445723cd6336de30c9e73c4e76db50334528e8cd/58148:263
+tracking = 0
+
+[static.headline_medium]
+# VariableID:016f0b35b6161b7ce007c856b8608bfd0f19c38b/58148:270
+line_height = 36
+# VariableID:b326ce58e2cd637809caa8fa8c3207cf24a70db5/58148:269
+size = 28
+# VariableID:eba38643a701a752774435b1cbe154a6eb465a96/58148:271
+tracking = 0
+
+[static.headline_small]
+# VariableID:3c7c2c0406c07877cd13d30883ca152fa6239821/58148:278
+line_height = 32
+# VariableID:07a5b53bd2553a5c645bccd59eeeb0d27883f524/58148:277
+size = 24
+# VariableID:7b3cb6e7ae15b76d3f73b06652acbe48dd810b6b/58148:279
+tracking = 0
+
+[static.label_large]
+# VariableID:06a6fac560f57cceb4f246c6099d5a692e7328ee/58148:228
+line_height = 20
+# VariableID:05bee16cf3e9828fc96197e72cc49eed7f871454/58148:227
+size = 14
+# VariableID:43032e10066acf5980a0d2bd6cb4f705dcf8f49f/58148:229
+tracking = 0.1
+
+[static.label_medium]
+# VariableID:f2714ceb43e8b68d5b04b510aebdfcd55d482932/58148:221
+line_height = 16
+# VariableID:60a2dd1ba2ac9f92bc7d22d6d94905ec3b50cc2f/58148:235
+size = 12
+# VariableID:ac80574d267b0589dbabb3e45b7a6837ee23b50d/58148:236
+tracking = 0.5
+
+[static.label_small]
+# VariableID:03609636fc3b1ad3924cefcb16877d91c583f947/58148:239
+line_height = 16
+# VariableID:61cedfb840304113492e2ba6e6a2821a56462d76/58148:223
+size = 11
+# VariableID:cef91c69334c5b80c057eb5b46b91b82ab365ef4/58148:233
+tracking = 0.5
+
+[static.title_large]
+# VariableID:3f719fbece5589b2562463cb714af4100a08f028/58148:283
+line_height = 28
+# VariableID:7fcf776207d59debcc668b76f2787f9ff4152c41/58148:282
+size = 22
+# VariableID:9408db80ac5e34d7f97afa1ccf46a6b356355df9/58148:284
+tracking = 0
+
+[static.title_medium]
+# VariableID:708df1653701b6bf973631326dd8892b1c1d432c/58148:288
+line_height = 24
+# VariableID:5ecd68cf5ae69a2cadcdb2b4d55decdddc2e92ff/58148:287
+size = 16
+# VariableID:e8a221acf5a64329745a1f38ccbfc05b00eb9724/58148:289
+tracking = 0.15
+
+[static.title_small]
+# VariableID:b2e9d9092fdf149d984b758ade739fc5f614a115/58148:225
+line_height = 20
+# VariableID:8ed1c3080977a9487f39cb0c251b78476c01a4a2/58148:222
+size = 14
+# VariableID:9d88f0ee3b4415cc501fb3a898c88f02746378ac/58148:231
+tracking = 0.1

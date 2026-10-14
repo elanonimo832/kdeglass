@@ -1,0 +1,313 @@
+# tokens-text_leading.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Text Leading
+# Modos: Default, Loose, Tight
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+# ATENCION: interlineados de iOS; utiles como PROPORCION, no como valor directo
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de Apple iOS.
+#  Marcas detectadas: Large (Default), Caption 2
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Text Leading"
+sistema = "Apple iOS"
+aplicable_macos = false
+modos = "Default, Loose, Tight"
+tokens = 132
+fecha_export = "2026-10-13"
+
+[ax1]
+# VariableID:54c3b3538832c3cadde4a5b311c138ecae1a2295/12466:2182
+body = { default = 34, loose = 36, tight = 32 }
+# VariableID:96543486596678fbaaaeda3ab409145d287fd821/12466:2196
+callout = { default = 32, loose = 34, tight = 30 }
+# VariableID:6aed9715a15b844add6730bd016e9a68d3274dce/12466:2238
+caption_1 = { default = 28, loose = 30, tight = 26 }
+# VariableID:324cc7921d8a9c91960cefa35cdac86d71c0b6b1/12466:2252
+caption_2 = { default = 25, loose = 27, tight = 23 }
+# VariableID:bdf1628dc8a0c493fcf2fa8975ebbfc7e10a3989/12466:2224
+footnote = { default = 29, loose = 31, tight = 27 }
+# VariableID:645a5c45027d2b26c9181051e9c260aa64b5e30e/12466:2168
+headline = { default = 34, loose = 36, tight = 32 }
+# VariableID:bb09e8598625bb3ee0706c0e823c826c6627c3e3/12466:2136
+large_title = { default = 52, loose = 54, tight = 50 }
+# VariableID:fa5fe0b0296f1a5a0023e5c2c77557ad448313b2/12466:2210
+subheadline = { default = 31, loose = 33, tight = 29 }
+# VariableID:e730d7565c77ae53a7db52c440f1e75735cb0dbd/12466:2144
+title_1 = { default = 46, loose = 48, tight = 44 }
+# VariableID:16f4a3e1e72ad5f8c48dd048e194154cbf77a215/12466:2152
+title_2 = { default = 41, loose = 43, tight = 39 }
+# VariableID:f5fe03e01b6be9210193bfeab44973e6f8ccb45b/12466:2160
+title_3 = { default = 38, loose = 40, tight = 36 }
+
+[ax2]
+# VariableID:bf913e8503b02a774ce8f8e5afb95585580da934/12466:2306
+body = { default = 40, loose = 42, tight = 38 }
+# VariableID:57a718d4835f6971bba9035c9c531de87313d435/12466:2320
+callout = { default = 39, loose = 41, tight = 37 }
+# VariableID:8bee3a951d3dc44431be9d7071dc708dbe81fbac/12466:2362
+caption_1 = { default = 32, loose = 34, tight = 30 }
+# VariableID:3f19bb57db3c7bbabd12535d14f933a75848501d/12466:2376
+caption_2 = { default = 30, loose = 32, tight = 28 }
+# VariableID:1602b55d0577a845b8b73fb78ab233dfb074e990/12466:2348
+footnote = { default = 33, loose = 35, tight = 31 }
+# VariableID:f0dc3042d24ef65b327ab6f2654f1a3b8153eee9/12466:2292
+headline = { default = 40, loose = 42, tight = 38 }
+# VariableID:5e6d4a023112536c5515b1996d0fb270eda45c40/12466:2260
+large_title = { default = 57, loose = 59, tight = 55 }
+# VariableID:242d4ff1bb734707e4456d2a3a2124bb3811455e/12466:2334
+subheadline = { default = 37, loose = 39, tight = 35 }
+# VariableID:3ee9d5387de324d7e61ea588f88286e9c34b07f7/12466:2268
+title_1 = { default = 51, loose = 53, tight = 49 }
+# VariableID:14f4af5c2f408e1eec86f5e42a5c9e2a1eac7db7/12466:2276
+title_2 = { default = 51, loose = 53, tight = 49 }
+# VariableID:2e9aeebccbd851f4e3393500633bc44d2e7e82fc/12466:2284
+title_3 = { default = 44, loose = 46, tight = 42 }
+
+[ax3]
+# VariableID:a97d470d8862609848e0add155d2a801fd8bb7c2/12466:2430
+body = { default = 48, loose = 50, tight = 46 }
+# VariableID:ce3935609ec8f4e9890d8c306252ce10772c4258/12466:2444
+callout = { default = 46, loose = 48, tight = 44 }
+# VariableID:b37b991d8d76e55c73ac18f3b520696dbbeab9be/12466:2486
+caption_1 = { default = 39, loose = 41, tight = 37 }
+# VariableID:0fda8d3a4a99bba90014e634b5d525cb5b8fd4f4/12466:2500
+caption_2 = { default = 35, loose = 37, tight = 33 }
+# VariableID:5d68c5363f8b3cf06cc78ece71b4baf4012d12f3/12466:2472
+footnote = { default = 40, loose = 42, tight = 38 }
+# VariableID:fde1d93c9f504af38b1f942eb0ec1e0c6c86cae0/12466:2416
+headline = { default = 48, loose = 50, tight = 46 }
+# VariableID:5121a2046d1fc83eb96580406793ab01224d6357/12466:2384
+large_title = { default = 61, loose = 63, tight = 59 }
+# VariableID:36231fd0dad36bdedcfe7219d0b14c51dc30af7c/12466:2458
+subheadline = { default = 43, loose = 45, tight = 41 }
+# VariableID:73c35c17242bf2403322d4e05bf85ffce0490682/12466:2392
+title_1 = { default = 57, loose = 59, tight = 55 }
+# VariableID:0dfddb10dccbaffd201f01b5e495078469d5fc6f/12466:2400
+title_2 = { default = 52, loose = 54, tight = 50 }
+# VariableID:5d6abaf5da1fdd2675b92a34d9273d7beb23061f/12466:2408
+title_3 = { default = 51, loose = 53, tight = 49 }
+
+[ax4]
+# VariableID:21dff7f05d729e2a0588976e272db254a099fed9/12466:2554
+body = { default = 56, loose = 58, tight = 54 }
+# VariableID:b5788883cddec5b19d7b4fb9b54e1b4e6a3caefc/12466:2568
+callout = { default = 52, loose = 54, tight = 50 }
+# VariableID:6c45a39bd4cbb60b38ef0aa2be8813af7a02d444/12466:2610
+caption_1 = { default = 44, loose = 46, tight = 42 }
+# VariableID:da7cbcf245f759ee1ce4640ee95f4ea9d91b0032/12466:2624
+caption_2 = { default = 41, loose = 43, tight = 39 }
+# VariableID:f5385e70edf646cf9facd8248e1edead41ce72d1/12466:2596
+footnote = { default = 46, loose = 48, tight = 44 }
+# VariableID:ddabbaa12032e788288ca35b7f3d12d6ad8dc42e/12466:2540
+headline = { default = 56, loose = 58, tight = 54 }
+# VariableID:42d8c8438a5624144aa014a8384ca629b077223f/12466:2508
+large_title = { default = 66, loose = 68, tight = 64 }
+# VariableID:1bf344365f50293d81469aa4bd6053f22c44d90f/12466:2582
+subheadline = { default = 50, loose = 52, tight = 48 }
+# VariableID:3bdf2e74650a6e352d996a85a15c65549b327909/12466:2516
+title_1 = { default = 62, loose = 64, tight = 60 }
+# VariableID:c2a16d7e08136d1246f30040b485878bcfba5883/12466:2524
+title_2 = { default = 59, loose = 61, tight = 57 }
+# VariableID:870db95052272fd4727386266c4d18b904572563/12466:2532
+title_3 = { default = 51, loose = 53, tight = 49 }
+
+[ax5]
+# VariableID:375cd510cf80f0104463fc2b2d397c83dc073b4a/12466:2678
+body = { default = 62, loose = 64, tight = 60 }
+# VariableID:6b738de58829ea5f5fca8f8d110305e4ba5f98ee/12466:2692
+callout = { default = 60, loose = 62, tight = 58 }
+# VariableID:c41d0ea3758a97fbd5d7e6292034070e7048fa4b/12466:2734
+caption_1 = { default = 51, loose = 53, tight = 49 }
+# VariableID:140384a130e20e395c71b22226ad80f83e07c420/12466:2748
+caption_2 = { default = 48, loose = 50, tight = 46 }
+# VariableID:e20eff4d640d3ea9ae2da9c78d43fd47edb4ca6f/12466:2720
+footnote = { default = 52, loose = 54, tight = 50 }
+# VariableID:32bee8bcce2828a42a06da4c3c47531c3fdbe357/12466:2664
+headline = { default = 62, loose = 64, tight = 60 }
+# VariableID:65f73d2152e9e005f4a5be19f15e7bb1361a1618/12466:2632
+large_title = { default = 70, loose = 72, tight = 68 }
+# VariableID:b4042be620e726fc541f365fbcd3ac4b697fc2ac/12466:2706
+subheadline = { default = 58, loose = 60, tight = 56 }
+# VariableID:e0f63c043be73e4698062f33f0d820ea3ca2087c/12466:2640
+title_1 = { default = 68, loose = 70, tight = 66 }
+# VariableID:3a2bd00bf29262a37a47f58b325c8e47a61cc663/12466:2648
+title_2 = { default = 66, loose = 68, tight = 64 }
+# VariableID:ac95e8b50cb008e59e5479cc4c0e01ce8469ef4f/12466:2656
+title_3 = { default = 65, loose = 67, tight = 63 }
+
+[large_default]
+# VariableID:80c3d3f7a802edb5e4493fa01d6dcd21807695e1/12466:1427
+body = { default = 22, loose = 24, tight = 20 }
+# VariableID:d94925cb520931a6c71f84a151c117a3debc0442/12466:1441
+callout = { default = 21, loose = 23, tight = 19 }
+# VariableID:41fa15058861a898ec566de0e795efed2d6d8df7/12466:1483
+caption_1 = { default = 16, loose = 18, tight = 14 }
+# VariableID:58cd5fbac6997e57ec407fd72c8c4875ffde34df/12466:1497
+caption_2 = { default = 13, loose = 15, tight = 11 }
+# VariableID:7071ad2869eed740e23d5d59bdaf1073fda37faf/12466:1469
+footnote = { default = 18, loose = 20, tight = 16 }
+# VariableID:d5b1928b5db7acb2bcc32803546ae9802834de80/12466:1413
+headline = { default = 22, loose = 24, tight = 20 }
+# VariableID:31d2e5ec53e0a3b4082964cc8d571b61ad443482/12466:1381
+large_title = { default = 41, loose = 43, tight = 39 }
+# VariableID:767bbca201a9c46cc18897a42ed3d9252fb1efec/12466:1455
+subheadline = { default = 20, loose = 22, tight = 18 }
+# VariableID:d68146b453767058383c03afe3694b751c96563f/12466:1389
+title_1 = { default = 34, loose = 36, tight = 32 }
+# VariableID:751562d8f880024473aaec6172bb0ece349332e1/12466:1397
+title_2 = { default = 28, loose = 30, tight = 26 }
+# VariableID:bbf64ef8b714d58ba2df5d7078937b68539a17c7/12466:1405
+title_3 = { default = 25, loose = 27, tight = 23 }
+
+[medium]
+# VariableID:237f9cf854fe79f014e8b8184b9848014af41a79/12466:1686
+body = { default = 21, loose = 23, tight = 19 }
+# VariableID:9d4e03f0169a06362cd0827d85ec2a9b20db7bdd/12466:1700
+callout = { default = 20, loose = 22, tight = 18 }
+# VariableID:fb15195fde067a9b54362f9061fc899b8b3772ee/12466:1742
+caption_1 = { default = 13, loose = 15, tight = 11 }
+# VariableID:a16448632985bdf13088d1f6d829ade6b62e9d01/12466:1756
+caption_2 = { default = 13, loose = 15, tight = 11 }
+# VariableID:ca9c93d65d10446cfb2b943919d9fed1c8b410dc/12466:1728
+footnote = { default = 16, loose = 18, tight = 14 }
+# VariableID:1d74ecdef9d0d574bec0639e148f2322245667ee/12466:1672
+headline = { default = 21, loose = 23, tight = 19 }
+# VariableID:65d7cb9a688bcea2c98dba94c372b8c4b2350045/12466:1640
+large_title = { default = 40, loose = 42, tight = 38 }
+# VariableID:ef3eee8ab11c52e218652be311d7121d2896518f/12466:1714
+subheadline = { default = 19, loose = 21, tight = 17 }
+# VariableID:c438c46312c9012e08803ba3366b359b46e27a7c/12466:1648
+title_1 = { default = 33, loose = 35, tight = 31 }
+# VariableID:e639920290b749bd6eee01b8c446c6bc3e25efb4/12466:1656
+title_2 = { default = 28, loose = 30, tight = 26 }
+# VariableID:119ed08ec433a1931b43b4a8652ea363bb7a4b47/12466:1664
+title_3 = { default = 24, loose = 26, tight = 22 }
+
+[small]
+# VariableID:0e96f7fddf674987e6d2f4b46c42d15f08398e48/12466:1628
+body = { default = 20, loose = 22, tight = 18 }
+# VariableID:d156e01792f6598c4ebd5f05e8801141f84e2639/12466:1629
+callout = { default = 19, loose = 21, tight = 17 }
+# VariableID:ec1c31422f5e7fb6f68de993221573d09dbf9c16/12466:1632
+caption_1 = { default = 13, loose = 15, tight = 11 }
+# VariableID:e490f73dd158998755fd91d5edbd743f7eea6f0b/12466:1633
+caption_2 = { default = 13, loose = 15, tight = 11 }
+# VariableID:da025eb6c2cbeb4423180547a7ef61beedc65e33/12466:1631
+footnote = { default = 16, loose = 18, tight = 14 }
+# VariableID:2411694413b5737241cbf223df7bdb4f7455c131/12466:1627
+headline = { default = 20, loose = 22, tight = 18 }
+# VariableID:442725969e77a41f56b092e631f844180732f9a1/12466:1623
+large_title = { default = 39, loose = 41, tight = 37 }
+# VariableID:6e33c74859a901610b5d490170ec0abb27848143/12466:1630
+subheadline = { default = 18, loose = 20, tight = 16 }
+# VariableID:550d8c391bec783ece49bbb9264d9963696e2b19/12466:1624
+title_1 = { default = 32, loose = 34, tight = 30 }
+# VariableID:7521e0f7f528650c2510759e94a224026db15ef9/12466:1625
+title_2 = { default = 24, loose = 26, tight = 22 }
+# VariableID:4201bd6ff88a41d5d44190947acd608b48dced67/12466:1626
+title_3 = { default = 23, loose = 25, tight = 21 }
+
+[xlarge]
+# VariableID:56b27be829ab4e28b56c1c0de4f9bf1ae0300d68/12466:1810
+body = { default = 24, loose = 26, tight = 22 }
+# VariableID:bf8c32b6178df3ef397754a4d6f9280b31fc5b2f/12466:1824
+callout = { default = 23, loose = 25, tight = 21 }
+# VariableID:2785b2a5efe092f923d732333a83b067da22d832/12466:1866
+caption_1 = { default = 19, loose = 21, tight = 17 }
+# VariableID:9e3c7b7b23fd447adc91dad8ab0c6b2743c8d609/12466:1880
+caption_2 = { default = 18, loose = 20, tight = 16 }
+# VariableID:e1802b690de1f73ef7fd9fbf38985b2c65fd0810/12466:1852
+footnote = { default = 20, loose = 22, tight = 18 }
+# VariableID:85556e4ff89a092db09481236d8bc4ec0990f12a/12466:1796
+headline = { default = 24, loose = 26, tight = 22 }
+# VariableID:f7cbf37fcb08fe1bc43a6e0f5ae606723fb30969/12466:1764
+large_title = { default = 43, loose = 45, tight = 41 }
+# VariableID:126c79a513589adf1d8ac2b8e7e70bb7738cea86/12466:1838
+subheadline = { default = 22, loose = 24, tight = 20 }
+# VariableID:51311d77b3e3eb50a1181f20481b4fe334ef5666/12466:1772
+title_1 = { default = 36, loose = 38, tight = 34 }
+# VariableID:f2f9b45ad9365cd99fe279b189649fcd7b3e51a3/12466:1780
+title_2 = { default = 30, loose = 32, tight = 28 }
+# VariableID:17a114d116d230da9cfbfbbfdc08173f9b2e95f0/12466:1788
+title_3 = { default = 28, loose = 30, tight = 26 }
+
+[xsmall]
+# VariableID:d0463965cf33b9d63ad621be9ec79b8b6139d3a8/12466:1551
+body = { default = 19, loose = 21, tight = 17 }
+# VariableID:95a7bf1d400ec9ffb3644ebc9fe5d7e6af4dcb50/12466:1565
+callout = { default = 18, loose = 20, tight = 16 }
+# VariableID:6f83b418360601bb908fec26ddf95c1de6958387/12466:1607
+caption_1 = { default = 13, loose = 15, tight = 11 }
+# VariableID:ab801677d4c812a8f75ff69fc82c7af22b9c317a/12466:1621
+caption_2 = { default = 13, loose = 15, tight = 11 }
+# VariableID:f6624a648b3a7095b00f0ffdc1cb8ed99c77a20c/12466:1593
+footnote = { default = 16, loose = 18, tight = 14 }
+# VariableID:0f366dd09cdf1dd2f3570f3d881d5c96f5c296ab/12466:1537
+headline = { default = 19, loose = 21, tight = 17 }
+# VariableID:00b000cc677b46db78756bbd3c387c668a6f89ee/12466:1505
+large_title = { default = 38, loose = 40, tight = 36 }
+# VariableID:c194e3bbb0fb55ff2c05a8b3fa613d49a938399c/12466:1579
+subheadline = { default = 16, loose = 18, tight = 14 }
+# VariableID:4815f86931690903a986e37160d0c1c2ffba6cb9/12466:1513
+title_1 = { default = 31, loose = 33, tight = 29 }
+# VariableID:6026427f37fce274569f3c2d958a23c2160348c6/12466:1521
+title_2 = { default = 23, loose = 25, tight = 21 }
+# VariableID:cedb0cbd8765b643d558de4019d328c9af0fa7a3/12466:1529
+title_3 = { default = 22, loose = 24, tight = 20 }
+
+[xxlarge]
+# VariableID:49296d2cd1c295110cb84aa8ed9f4bb6bdd4b56c/12466:1934
+body = { default = 26, loose = 28, tight = 24 }
+# VariableID:2e133a51c111db7025868230a3209f169c5dd8bf/12466:1948
+callout = { default = 24, loose = 26, tight = 22 }
+# VariableID:86870888b65e53a76de305427edd52db4e0b360c/12466:1990
+caption_1 = { default = 21, loose = 23, tight = 19 }
+# VariableID:8e4a9b369136dff5d750eccbfebde16356752b3a/12466:2004
+caption_2 = { default = 20, loose = 22, tight = 18 }
+# VariableID:147133b630a1e86d01c12d8210f65c21df3e2aeb/12466:1976
+footnote = { default = 22, loose = 24, tight = 20 }
+# VariableID:31633afa48ee0701d735c39dadcbc7679d145751/12466:1920
+headline = { default = 26, loose = 28, tight = 24 }
+# VariableID:43f8857e1bcd4b29b508011b92677a7a956c8be9/12466:1888
+large_title = { default = 46, loose = 48, tight = 44 }
+# VariableID:34071f0887b9182e7beb472984f99aced5186f3e/12466:1962
+subheadline = { default = 24, loose = 26, tight = 22 }
+# VariableID:653ed196905a4190f41343aa51fbea7ed4621884/12466:1896
+title_1 = { default = 39, loose = 41, tight = 37 }
+# VariableID:feb73a1dfacffc700c98849ffded2f9f17f54bbe/12466:1904
+title_2 = { default = 32, loose = 34, tight = 30 }
+# VariableID:f17f185615722a8918a5ef98c2958d6629dd9ff6/12466:1912
+title_3 = { default = 30, loose = 32, tight = 28 }
+
+[xxxlarge]
+# VariableID:6db953c0e930697d7b31006ba07aac8132ae641a/12466:2058
+body = { default = 29, loose = 31, tight = 27 }
+# VariableID:542516d56fa41312e8e488ed4f9da2c6b6202e38/12466:2072
+callout = { default = 28, loose = 30, tight = 26 }
+# VariableID:aba568f8bdef67ef1918cf2e60f361e2cad980de/12466:2114
+caption_1 = { default = 23, loose = 25, tight = 21 }
+# VariableID:84aa792066bb154d8af2157832799d91c7a9528a/12466:2128
+caption_2 = { default = 22, loose = 24, tight = 20 }
+# VariableID:d86de46790bc4022f97111fe67f4da9333862bfd/12466:2100
+footnote = { default = 24, loose = 26, tight = 22 }
+# VariableID:1af0f85e03e80d8d8534692980ea46a7e8184d24/12466:2044
+headline = { default = 29, loose = 31, tight = 27 }
+# VariableID:b95cb73d8d3995b40add6a1578f410f2084c50a9/12466:2012
+large_title = { default = 48, loose = 50, tight = 46 }
+# VariableID:0697467cf33f9d5472298595b956082e678e32c0/12466:2086
+subheadline = { default = 28, loose = 30, tight = 26 }
+# VariableID:44b9a627152764432f0acb1a499153a0599ddf72/12466:2020
+title_1 = { default = 41, loose = 43, tight = 39 }
+# VariableID:ce45bb393ccc66233ee44fffcaa5f768c0fdf421/12466:2028
+title_2 = { default = 34, loose = 36, tight = 32 }
+# VariableID:ba63c2309d9d7af62034b51903cee38bd63a2cec/12466:2036
+title_3 = { default = 32, loose = 34, tight = 30 }

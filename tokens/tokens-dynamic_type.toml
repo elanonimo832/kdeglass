@@ -1,0 +1,49 @@
+# tokens-dynamic_type.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Dynamic Type
+# Modos: AX1, AX2, AX3, AX4, AX5, Large (Default), Medium, Small, xLarge, xSmall, xxLarge, xxxLarge
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+# ATENCION: iOS Dynamic Type — el Body de iOS es 17 pt; el de macOS es 13 pt
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de Apple iOS.
+#  Marcas detectadas: Caption 2
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Dynamic Type"
+sistema = "Apple iOS"
+aplicable_macos = false
+modos = "AX1, AX2, AX3, AX4, AX5, Large (Default), Medium, Small, xLarge, xSmall, xxLarge, xxxLarge"
+tokens = 11
+fecha_export = "2026-10-13"
+
+[size]
+# VariableID:e927ba6a6970b7ef7a93f47d6c20fa8d94be0903/12466:2798
+body = { ax1 = 28, ax2 = 33, ax3 = 40, ax4 = 47, ax5 = 53, large_default = 17, medium = 16, small = 15, xlarge = 19, xsmall = 14, xxlarge = 21, xxxlarge = 23 }
+# VariableID:2c6e46aa03941407a1c3f7de150f7110ee19d682/12466:2811
+callout = { ax1 = 26, ax2 = 32, ax3 = 38, ax4 = 44, ax5 = 51, large_default = 16, medium = 15, small = 14, xlarge = 18, xsmall = 13, xxlarge = 20, xxxlarge = 22 }
+# VariableID:fa01b251106b4730ec44969133a61c8349dca843/12466:2850
+caption_1 = { ax1 = 22, ax2 = 26, ax3 = 32, ax4 = 37, ax5 = 43, large_default = 12, medium = 11, small = 11, xlarge = 14, xsmall = 11, xxlarge = 16, xxxlarge = 18 }
+# VariableID:89dabc1504eaa73852f2785ed77dd27dc8a3c2b0/12466:2863
+caption_2 = { ax1 = 20, ax2 = 24, ax3 = 29, ax4 = 34, ax5 = 40, large_default = 11, medium = 11, small = 11, xlarge = 13, xsmall = 11, xxlarge = 15, xxxlarge = 17 }
+# VariableID:a83c1d1e90a27c8ab5f15fdbd59423227747c8c6/12466:2837
+footnote = { ax1 = 23, ax2 = 27, ax3 = 33, ax4 = 38, ax5 = 44, large_default = 13, medium = 12, small = 12, xlarge = 15, xsmall = 12, xxlarge = 17, xxxlarge = 19 }
+# VariableID:afdb99f4522258f5b6b5586ce2b9f1bde1b0c24a/12466:2784
+headline = { ax1 = 28, ax2 = 33, ax3 = 40, ax4 = 47, ax5 = 53, large_default = 17, medium = 16, small = 15, xlarge = 19, xsmall = 14, xxlarge = 21, xxxlarge = 23 }
+# VariableID:773c4ffd8fc7fccae660762d636324e4620c952f/12466:2756
+large_title = { ax1 = 44, ax2 = 48, ax3 = 52, ax4 = 56, ax5 = 60, large_default = 34, medium = 33, small = 32, xlarge = 36, xsmall = 31, xxlarge = 38, xxxlarge = 40 }
+# VariableID:76238484104d6ae8dc5e84300ca4a2d42df322dc/12466:2824
+subheadline = { ax1 = 25, ax2 = 30, ax3 = 36, ax4 = 42, ax5 = 49, large_default = 15, medium = 14, small = 13, xlarge = 17, xsmall = 12, xxlarge = 19, xxxlarge = 21 }
+# VariableID:091baecb79a4f23ddb6a5bbe74d01d1b708512a8/12466:2763
+title_1 = { ax1 = 38, ax2 = 43, ax3 = 48, ax4 = 53, ax5 = 58, large_default = 28, medium = 27, small = 26, xlarge = 30, xsmall = 25, xxlarge = 32, xxxlarge = 34 }
+# VariableID:8a97badb4bf853e632d6bbeed2af8daa368a7daa/12466:2770
+title_2 = { ax1 = 34, ax2 = 43, ax3 = 44, ax4 = 50, ax5 = 56, large_default = 22, medium = 21, small = 20, xlarge = 24, xsmall = 19, xxlarge = 26, xxxlarge = 28 }
+# VariableID:863ef2d4c35fc576404e65d5330c9dab0e9bf5dc/12466:2777
+title_3 = { ax1 = 31, ax2 = 37, ax3 = 43, ax4 = 43, ax5 = 55, large_default = 20, medium = 19, small = 18, xlarge = 22, xsmall = 17, xxlarge = 24, xxxlarge = 26 }

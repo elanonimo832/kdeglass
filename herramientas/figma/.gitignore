@@ -1,0 +1,9 @@
+# El kit de Figma es material de Apple: NUNCA se commitea ni se redistribuye.
+*.fig
+*.sketch
+*.zip
+*.tokens.json
+kit.json
+documento.json
+_tokens/
+node_modules/

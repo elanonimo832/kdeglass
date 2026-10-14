@@ -1,0 +1,189 @@
+# tokens-sizes.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Sizes
+# Modos: Large, Medium, Mini, Small, XL
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+
+[_meta]
+coleccion = "Sizes"
+sistema = "Apple macOS"
+aplicable_macos = true
+modos = "Large, Medium, Mini, Small, XL"
+tokens = 65
+fecha_export = "2026-10-13"
+
+[arrow_button]
+# VariableID:483:5756
+font_size = { large = 13, medium = 13, mini = 11, small = 13, xl = 13 }
+
+[button]
+# VariableID:465:63
+padding_horizontal = { large = 16, medium = 16, mini = 7, small = 10, xl = 16 }
+# VariableID:465:65
+# ref: medium={Global.Radius}, mini={Global.Radius}, small={Global.Radius} (resueltas)
+radius = { large = 1000, medium = 6, mini = 6, small = 6, xl = 1000 }
+
+[checkboxes]
+# VariableID:497:5194
+height_checkmark = { large = 11.3, medium = 8.93, mini = 7.55, small = 8.93, xl = 11.3 }
+# VariableID:497:5210
+radius = { large = 6.5, medium = 5.5, mini = 3.5, small = 4.5, xl = 6.5 }
+# VariableID:497:3952
+# ref: {Radio Button.Width} (resuelta)
+width = 16
+# VariableID:497:5193
+width_checkmark = { large = 11.72, medium = 9.31, mini = 7.78, small = 9.31, xl = 11.72 }
+
+[color_well]
+# VariableID:4336:13832
+height = { large = 28, medium = 24, mini = 16, small = 20, xl = 36 }
+# VariableID:4336:13831
+width = { large = 56, medium = 48, mini = 32, small = 40, xl = 72 }
+
+[combo_button]
+# VariableID:510:8634
+font_size_chevron = { large = 12.5, medium = 11, mini = 9, small = 10, xl = 13 }
+# VariableID:510:8629
+inset = { large = 2, medium = 2, mini = 2, small = 2, xl = 3 }
+# VariableID:510:8631
+radius_button = { large = 5.5, medium = 4.5, mini = 2.5, small = 3.5, xl = 6.5 }
+# VariableID:4356:9053
+text_inset_right = { large = 28, medium = 28, mini = 20, small = 24, xl = 34 }
+# VariableID:510:8630
+width_button = { large = 24, medium = 24, mini = 16, small = 20, xl = 30 }
+
+[cursor]
+# VariableID:479:5611
+height = { large = 18, medium = 18, mini = 14, small = 16, xl = 18 }
+
+[dial]
+# VariableID:481:4753
+height_knob = { large = 6, medium = 6, mini = 4, small = 5, xl = 7 }
+# VariableID:481:4754
+inset_knob = { large = 3, medium = 3, mini = 2, small = 2.5, xl = 3 }
+
+[disclosure]
+# VariableID:483:4996
+font_size = { large = 13, medium = 13, mini = 10, small = 10, xl = 13 }
+# VariableID:4346:6434
+radius = { large = 1000, medium = 6, mini = 4, small = 5, xl = 1000 }
+
+[fields]
+# VariableID:480:1030
+font_size_search_glyph = { large = 13, medium = 13, mini = 11, small = 13, xl = 13 }
+# VariableID:480:1026
+inset_left = { large = 8, medium = 8, mini = 6, small = 6, xl = 10 }
+# VariableID:480:1027
+inset_right = { large = 8, medium = 8, mini = 6, small = 6, xl = 10 }
+# VariableID:480:1031
+leading_search_glyph = { large = 15, medium = 15, mini = 13, small = 15, xl = 15 }
+
+[global]
+# VariableID:479:5625
+font_size = { large = 13, medium = 13, mini = 10, small = 11, xl = 13 }
+# VariableID:465:61
+height = { large = 28, medium = 24, mini = 16, small = 20, xl = 36 }
+# VariableID:465:62
+radius = { large = 7, medium = 6, mini = 4, small = 5, xl = 9 }
+
+[menu]
+# VariableID:483:7700
+font_size = { large = 13, medium = 13, mini = 10, small = 11, xl = 13 }
+# VariableID:483:7701
+font_size_symbol = { large = 13, medium = 13, mini = 11, small = 11, xl = 13 }
+# VariableID:483:7699
+height = { large = 24, medium = 24, mini = 19, small = 22, xl = 24 }
+# VariableID:483:8689
+inset_bottom_header = { large = 4, medium = 4, mini = 2, small = 3, xl = 4 }
+# VariableID:488:3998
+inset_left_header = { large = 20, medium = 20, mini = 14, small = 18, xl = 20 }
+# VariableID:483:8688
+inset_top_header = { large = 5, medium = 5, mini = 3, small = 4, xl = 5 }
+# VariableID:483:7703
+width_symbol = { large = 12, medium = 12, mini = 6, small = 10, xl = 12 }
+
+[mode]
+# VariableID:4348:11231
+mode = { large = "Large", medium = "Medium", mini = "Mini", small = "Small", xl = "XL" }
+
+[popup]
+# VariableID:483:6056
+font_size_chevron = { large = 13, medium = 11, mini = 10, small = 11, xl = 13 }
+# VariableID:483:6276
+inset_left = { large = 14, medium = 12, mini = 7, small = 10, xl = 18 }
+
+[radio]
+# VariableID:495:6660
+height_dash = { large = 2, medium = 2, mini = 1.7, small = 2, xl = 2 }
+# VariableID:495:6834
+spacing = { large = 5, medium = 3, mini = 3, small = 3, xl = 7 }
+# VariableID:495:5579
+width = { large = 18, medium = 16, mini = 12, small = 14, xl = 18 }
+# VariableID:495:6659
+width_dash = { large = 8, medium = 6.5, mini = 5.5, small = 6.5, xl = 8 }
+# VariableID:495:6658
+width_dot = { large = 5, medium = 4.8, mini = 4, small = 4.8, xl = 5 }
+
+[segmented]
+# VariableID:498:4590
+height_separator = { large = 18, medium = 14, mini = 10, small = 12, xl = 20 }
+# VariableID:498:4508
+margins = { large = 12, medium = 10, mini = 6, small = 8, xl = 14 }
+
+[slider.knob_non_ticked_slider]
+# VariableID:525:15598
+height = { large = 20, medium = 16, mini = 12, small = 14, xl = 20 }
+# VariableID:4350:9705
+height_clicked = { large = 25, medium = 20, mini = 15, small = 18, xl = 25 }
+# VariableID:512:8510
+inset = { large = -2, medium = 0, mini = 2, small = 1, xl = -2 }
+# VariableID:512:364
+width = { large = 24, medium = 20, mini = 16, small = 18, xl = 24 }
+# VariableID:4350:9706
+width_clicked = { large = 30, medium = 25, mini = 20, small = 23, xl = 30 }
+
+[slider.knob_ticked_slider]
+# VariableID:526:2165
+height = { large = 20, medium = 16, mini = 16, small = 18, xl = 20 }
+# VariableID:525:15599
+height_clicked = { large = 25, medium = 20, mini = 20, small = 23, xl = 25 }
+# VariableID:526:2164
+width = { large = 24, medium = 20, mini = 8, small = 10, xl = 24 }
+# VariableID:525:15601
+width_clicked = { large = 30, medium = 25, mini = 10, small = 13, xl = 30 }
+
+[slider.track]
+# VariableID:512:5984
+inset_horizontal = { large = 0, medium = 1, mini = 1, small = 1, xl = 0 }
+# VariableID:512:2985
+inset_vertical = { large = 0, medium = 1, mini = 1, small = 1, xl = 0 }
+# VariableID:533:22553
+tick_spacing = { large = 3, medium = 2, mini = 2, small = 2, xl = 3 }
+
+[stepper]
+# VariableID:538:13204
+font_size = { large = 12, medium = 12, mini = 8, small = 9, xl = 12 }
+# VariableID:538:13038
+radius = { large = 7, medium = 6, mini = 4, small = 5, xl = 9 }
+# VariableID:538:12988
+width = { large = 23, medium = 20, mini = 13, small = 17, xl = 30 }
+# VariableID:538:13205
+width_separator = { large = 15, medium = 14, mini = 9, small = 11, xl = 20 }
+
+[toggle]
+# VariableID:4348:9103
+knob_clicked_height = { large = 37, medium = 31, mini = 20, small = 26, xl = 46 }
+# VariableID:4348:9104
+knob_clicked_width = { large = 59, medium = 50, mini = 33, small = 40, xl = 73 }
+# VariableID:4348:9102
+knob_height = { large = 24, medium = 20, mini = 13, small = 16, xl = 30 }
+# VariableID:468:830
+knob_width = { large = 38, medium = 32, mini = 21, small = 26, xl = 47 }
+# VariableID:468:771
+# ref: {Global.Height} (resuelta)
+track_height = 24
+# VariableID:468:772
+track_width = { large = 64, medium = 54, mini = 36, small = 44, xl = 80 }

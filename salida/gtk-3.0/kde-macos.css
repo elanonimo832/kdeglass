@@ -1,0 +1,241 @@
+
+/* ==========================================================================
+   MACOS DESKTOP LAYER — CLARO
+   GENERADO por herramientas/generar-gtk-css.py. NO EDITAR A MANO.
+   Fuente: tokens/tokens-colors.toml, tokens/tokens-forma-efectos.toml,
+           tokens/tokens-tipografia_macos.toml
+   Fecha: 2026-10-13
+   ========================================================================== */
+
+@define-color km_bg #FFFFFF;
+@define-color km_fg rgba(0, 0, 0, 0.85);
+@define-color km_fg_secondary rgba(0, 0, 0, 0.5);
+@define-color km_fg_tertiary rgba(0, 0, 0, 0.25);
+@define-color km_fg_on_accent #FFFFFF;
+@define-color km_accent #0088FF;
+@define-color km_accent_hover #0078F0;
+@define-color km_error #FF383C;
+@define-color km_success #34C759;
+@define-color km_warning #FF8D28;
+@define-color km_veil_1 rgba(0, 0, 0, 0.1);
+@define-color km_veil_2 rgba(0, 0, 0, 0.08);
+@define-color km_veil_3 rgba(0, 0, 0, 0.05);
+@define-color km_hover rgba(0, 0, 0, 0.1);
+@define-color km_active rgba(0, 0, 0, 0.18);
+@define-color km_border rgba(0, 0, 0, 0.08);
+@define-color km_selection_bg #0165E2;
+@define-color km_selection_fg #FFFFFF;
+@define-color km_bg_alt rgba(0, 0, 0, 0.1);
+@define-color km_radius_xs 3px;
+@define-color km_radius_sm 4px;
+@define-color km_radius 5px;
+@define-color km_radius_md 6px;
+@define-color km_radius_lg 8px;
+@define-color km_radius_xl 10px;
+@define-color km_radius_window 12px;
+@define-color km_radius_pill 9999px;
+@define-color km_border_width 1px;
+@define-color km_smoothing 0.6;
+@define-color km_font "Inter", "SF Pro Text", "Noto Sans", sans-serif;
+@define-color km_font_mono "JetBrains Mono", "Roboto Mono", monospace;
+@define-color km_fs_large_title 26px;
+@define-color km_fs_title1 22px;
+@define-color km_fs_title2 17px;
+@define-color km_fs_title3 15px;
+@define-color km_fs_headline 13px;
+@define-color km_fs_body 13px;
+@define-color km_fs_callout 12px;
+@define-color km_fs_subheadline 11px;
+@define-color km_fs_footnote 10px;
+@define-color km_fs_caption 10px;
+@define-color km_lh_body 16px;
+@define-color km_weight_normal 400;
+@define-color km_weight_headline 700;
+
+* {
+  /* Tipografia */
+  font-family: @km_font;
+  font-size: @km_fs_body;
+  line-height: @km_lh_body;
+  color: @km_fg;
+  /* El "bezel": borde capilar de 1px, la firma de macOS */
+  -gtk-secondary-caret-color: @km_accent;
+}
+
+window, .background {
+  background-color: @km_bg;
+  color: @km_fg;
+}
+
+/* ---------- Controles: el idioma "bezel" ---------- */
+button, .button {
+  background-color: @km_veil_2;
+  background-image: none;
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius_md;
+  color: @km_fg;
+  padding: 3px 12px;
+  min-height: 20px;
+  box-shadow: 0 1px 1px @km_veil_1;
+}
+
+button:hover { background-color: @km_hover; }
+button:active, button:checked { background-color: @km_active; }
+button:disabled { color: @km_fg_tertiary; }
+
+button.suggested-action, button.default {
+  background-color: @km_accent;
+  background-image: none;
+  border-color: transparent;
+  color: @km_fg_on_accent;
+}
+button.suggested-action:hover { background-color: @km_accent_hover; }
+
+button.destructive-action {
+  background-color: @km_error;
+  color: @km_fg_on_accent;
+}
+
+/* ---------- Campos de texto: borde capilar y anillo de foco ---------- */
+entry, spinbutton, searchentry {
+  background-color: @km_veil_2;
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius;
+  color: @km_fg;
+  padding: 3px 8px;
+  min-height: 20px;
+}
+/* macOS: al enfocar NO se engrosa el borde, se dibuja un ANILLO de acento */
+entry:focus, spinbutton:focus, searchentry:focus {
+  border-color: @km_accent;
+  box-shadow: 0 0 0 3px @km_accent;
+}
+
+/* ---------- Seleccion: fondo de acento, texto blanco ---------- */
+*:selected, row:selected, .view:selected {
+  background-color: @km_selection_bg;
+  color: @km_selection_fg;
+}
+selection { background-color: @km_selection_bg; color: @km_selection_fg; }
+
+/* ---------- Listas y barras laterales: seleccion por fila, sin "pildora" ---------- */
+list, listview, treeview, .view {
+  background-color: @km_bg;
+  color: @km_fg;
+}
+row:hover, list row:hover { background-color: @km_hover; }
+row:nth-child(even) { background-color: @km_bg_alt; }
+
+/* ---------- Cabeceras ---------- */
+headerbar, .titlebar {
+  background-color: @km_bg_alt;
+  background-image: none;
+  border-bottom: @km_border_width solid @km_border;
+  box-shadow: none;
+}
+headerbar .title { font-size: @km_fs_headline; font-weight: @km_weight_headline; }
+
+/* ---------- Menus y popovers ---------- */
+menu, .menu, popover, popover.background {
+  background-color: @km_bg;
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius_lg;
+  padding: 4px;
+}
+menuitem:hover, menu item:hover {
+  background-color: @km_accent;
+  color: @km_fg_on_accent;
+}
+
+/* ---------- Controles de seleccion ---------- */
+checkbutton check, checkbox {
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius_sm;
+  background-color: @km_veil_2;
+  min-width: 14px; min-height: 14px;
+}
+checkbutton check:checked, checkbox:checked {
+  background-color: @km_accent;
+  border-color: @km_accent;
+  color: @km_fg_on_accent;
+}
+radiobutton radio, radio {
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius_pill;
+  background-color: @km_veil_2;
+  min-width: 14px; min-height: 14px;
+}
+radiobutton radio:checked, radio:checked {
+  background-color: @km_accent;
+  border-color: @km_accent;
+}
+
+switch {
+  background-color: @km_veil_3;
+  border-radius: @km_radius_pill;
+  border: none;
+}
+/* En macOS el interruptor encendido es del color de ACENTO, no verde (eso es iOS) */
+switch:checked { background-color: @km_accent; }
+
+/* ---------- Pistas de desplazamiento: finas y translucidas ---------- */
+scrollbar {
+  background-color: transparent;
+  border: none;
+}
+scrollbar slider {
+  background-color: @km_fg_tertiary;
+  border-radius: @km_radius_pill;
+  min-width: 6px; min-height: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+scrollbar slider:hover { background-color: @km_fg_secondary; }
+
+/* ---------- Separadores: borde capilar ---------- */
+separator { background-color: @km_border; min-width: 1px; min-height: 1px; }
+
+/* ---------- Barras de progreso y escalas ---------- */
+progressbar trough, levelbar trough {
+  background-color: @km_veil_3;
+  border-radius: @km_radius_pill;
+  min-height: 6px;
+}
+progressbar progress, levelbar block.filled {
+  background-color: @km_accent;
+  border-radius: @km_radius_pill;
+}
+scale trough { background-color: @km_veil_3; border-radius: @km_radius_pill; min-height: 4px; }
+scale highlight { background-color: @km_accent; border-radius: @km_radius_pill; }
+scale slider {
+  background-color: #FFFFFF;
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius_pill;
+  min-width: 16px; min-height: 16px;
+  box-shadow: 0 1px 2px @km_veil_2;
+}
+
+/* ---------- Pestañas como control segmentado ---------- */
+notebook > header tab {
+  background-color: @km_veil_2;
+  border: @km_border_width solid @km_border;
+  color: @km_fg;
+}
+notebook > header tab:checked {
+  background-color: @km_accent;
+  color: @km_fg_on_accent;
+}
+
+/* ---------- Enlaces ---------- */
+link, *:link { color: @km_accent; }
+
+/* ---------- Tooltips ---------- */
+tooltip, tooltip.background {
+  background-color: @km_bg;
+  border: @km_border_width solid @km_border;
+  border-radius: @km_radius_md;
+  color: @km_fg;
+}
+
+/* ---------- Accesibilidad: respetar la reduccion de movimiento ---------- */
+/* El brief pide animaciones, pero no a costa de la accesibilidad. */

@@ -1,0 +1,67 @@
+# tokens-color_primitives.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Color Primitives
+# Modos: Value
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de Escala generica.
+#  Marcas detectadas: Pink / 100, Blue / 100
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Color Primitives"
+sistema = "Escala generica"
+aplicable_macos = false
+modos = "Value"
+tokens = 20
+fecha_export = "2026-10-13"
+
+[blue]
+# VariableID:c561cc6e98957ba7af7c4d36cacaf29b0b71e4c2/4317:885
+100 = { hex = "#F1F6FD", alfa = 1 }
+# VariableID:7813630f29c0229b9a97d1453cb8539ba526a60f/4317:892
+1000 = { hex = "#15253F", alfa = 1 }
+# VariableID:9b2864c777a682d07a4beb6bb020b834f631e42a/4317:917
+200 = { hex = "#E1EBFA", alfa = 1 }
+# VariableID:a8508944a0e771011f97ad4140074f15a7f93c61/4317:815
+300 = { hex = "#C0D4F5", alfa = 1 }
+# VariableID:0410400df797f6a4d56c03f26bbdf125a285b755/4317:863
+400 = { hex = "#9EBEF1", alfa = 1 }
+# VariableID:28d24574286015985997d7ac19337da947d054eb/4317:1009
+500 = { hex = "#3F81EA", alfa = 1 }
+# VariableID:3cd63981226f9904c6875520e994be7743bb172d/4317:805
+600 = { hex = "#3271D7", alfa = 1 }
+# VariableID:e5ce5560a488f9427d5212fdab41e971bb1dfeb0/4317:949
+700 = { hex = "#2A61BA", alfa = 1 }
+# VariableID:ec6f339d188530369c26647a59ad191f9efe23b0/4317:929
+800 = { hex = "#224A8A", alfa = 1 }
+# VariableID:6e78cacd8d3ddda8bed69729534d96fc8a3080b3/4317:925
+900 = { hex = "#183057", alfa = 1 }
+
+[pink]
+# VariableID:ab8a96d42a66ab223ecd5c03802e366a226920a7/4317:934
+100 = { hex = "#FCF1FD", alfa = 1 }
+# VariableID:3995d29999a1c48da8404a23fee1368f1174ab90/4317:961
+1000 = { hex = "#3F1536", alfa = 1 }
+# VariableID:1263828df21ac4cf8c9c6e6976351d46605288d6/4317:976
+200 = { hex = "#FAE1FA", alfa = 1 }
+# VariableID:9b4d70bdd2eaf8341d53560abe79defebf4832b7/4317:902
+300 = { hex = "#F5C0EF", alfa = 1 }
+# VariableID:a604a3fa0f55fd090ce554a29092e7d1c1499fb7/4317:935
+400 = { hex = "#F19EDC", alfa = 1 }
+# VariableID:7bdd3075130ea465428ab9fec0adc0f7f308d9e2/4317:1008
+500 = { hex = "#EA3FB8", alfa = 1 }
+# VariableID:e0889a5fc8c9c859b957bc8601df4c5af685c142/4317:912
+600 = { hex = "#D732A8", alfa = 1 }
+# VariableID:04b4dd2f4e0a3b50c1c75a7884c700653b73b624/4317:957
+700 = { hex = "#BA2A92", alfa = 1 }
+# VariableID:0ba678efad59b72a18844022b24ab84d647ea35c/4317:972
+800 = { hex = "#8A226F", alfa = 1 }
+# VariableID:db58191dc26cee2e7ea9300443193de385a19c3c/4317:954
+900 = { hex = "#57184A", alfa = 1 }

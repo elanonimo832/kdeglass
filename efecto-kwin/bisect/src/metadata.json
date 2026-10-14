@@ -1,0 +1,3 @@
+{ "KPackageStructure": "KWin/Effect",
+  "KPlugin": { "Name": "Bisect", "Description": "prueba", "Version": "0.1.0", "License": "GPL", "EnabledByDefault": false },
+  "X-KDE-Ordering": "60" }

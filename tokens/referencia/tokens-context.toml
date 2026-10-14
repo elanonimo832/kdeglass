@@ -1,0 +1,29 @@
+# tokens-context.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Context
+# Modos: Content Area, Over-glass
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+# ATENCION: coleccion de contexto (string); no aporta valores numericos
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de desconocido.
+#  Marcas detectadas: sin marcas reconocibles
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Context"
+sistema = "desconocido"
+aplicable_macos = false
+modos = "Content Area, Over-glass"
+tokens = 1
+fecha_export = "2026-10-13"
+
+[mode]
+# VariableID:478:858
+mode = { content_area = "Content Area", over_glass = "Over-glass" }

@@ -1,0 +1,21 @@
+/* Solo color — OSCURO. GENERADO por generar-gtk-css.py. */
+@define-color km_bg #1E1E1E;
+@define-color km_fg rgba(255, 255, 255, 0.85);
+@define-color km_fg_secondary rgba(255, 255, 255, 0.55);
+@define-color km_fg_tertiary rgba(255, 255, 255, 0.25);
+@define-color km_fg_on_accent #FFFFFF;
+@define-color km_accent #0091FF;
+@define-color km_accent_hover #0A99FF;
+@define-color km_error #FF4245;
+@define-color km_success #30D158;
+@define-color km_warning #FF9230;
+@define-color km_veil_1 rgba(255, 255, 255, 0.1);
+@define-color km_veil_2 rgba(255, 255, 255, 0.08);
+@define-color km_veil_3 rgba(255, 255, 255, 0.05);
+@define-color km_hover rgba(255, 255, 255, 0.1);
+@define-color km_active rgba(255, 255, 255, 0.18);
+@define-color km_border rgba(255, 255, 255, 0.08);
+@define-color km_selection_bg #0158D2;
+@define-color km_selection_fg #FFFFFF;
+@define-color km_bg_alt rgba(255, 255, 255, 0.1);
+@define-color km_border_width 1px;

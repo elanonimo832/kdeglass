@@ -1,0 +1,37 @@
+# tokens-typography.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Typography
+# Modos: Mode 1
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de desconocido.
+#  Marcas detectadas: sin marcas reconocibles
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Typography"
+sistema = "desconocido"
+aplicable_macos = false
+modos = "Mode 1"
+tokens = 4
+fecha_export = "2026-10-13"
+
+[code]
+# VariableID:97577b3e28958d7e58c27446657798ed19269eaf/716:7
+# ref: {Body.Font Weight Regular} (resuelta)
+font_weight = "{Body.Font Weight Regular}"
+# VariableID:a0841af9e9065a10bf5e0224f25a6bdb3ac658cb/716:41
+# ref: {Body.Size Medium} (resuelta)
+size_base = "{Body.Size Medium}"
+# VariableID:8d6e5dde8d10eb3f3a702708861203dcce6f3f3b/716:35
+# ref: {Body.Size Large} (resuelta)
+size_large = "{Body.Size Large}"
+# VariableID:365481a542f27fa1ae18e04e272ef3593a3b4d42/3017:81
+# ref: {Body.Size Small} (resuelta)
+size_small = "{Body.Size Small}"

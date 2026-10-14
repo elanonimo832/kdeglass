@@ -1,0 +1,99 @@
+# tokens-dimensions.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Dimensions
+# Modos: iPad, iPhone
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+# ATENCION: iPhone/iPad (iOS) — NO son metricas de macOS
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de Apple iOS.
+#  Marcas detectadas: Sheet Top Radius, Grabber Width, Status Bar.Height, Home Indicator
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Dimensions"
+sistema = "Apple iOS"
+aplicable_macos = false
+modos = "iPad, iPhone"
+tokens = 25
+fecha_export = "2026-10-13"
+
+[grabber_height]
+# VariableID:c830afd2ffaf8eb4b9789d88ad6c90db2ebbfced/10442:94
+grabber_height = 4
+
+[grabber_width]
+# VariableID:53df2f5a3aa34a21e958d94abe704f6c007401a4/12791:3
+grabber_width = 60
+
+[home_indicator]
+# VariableID:6aecd2d8214326e19873c683bd20beaf9ff9fbe2/10486:12
+height = { ipad = 5.5, iphone = 5 }
+# VariableID:7e1ed85975b3e0175c342fefdbc8b5b36f23dfae/10486:9
+landscape_width = { ipad = 315, iphone = 226 }
+# VariableID:04c1e8b3bc2e2a06b4451a6f615ae1016dcb91f3/10486:7
+portrait_width = { ipad = 273, iphone = 144 }
+
+[margin]
+# VariableID:5c52f06b3e2194cf7c5502ce8edd114973b0bd2b/10442:87
+margin = { ipad = 20, iphone = 16 }
+
+[menus.control_group]
+# VariableID:a10b50bceba1bab54778a3c4b9e92e8c351a877d/10448:31
+item_spacing = { ipad = 1, iphone = 5 }
+# VariableID:aa81b247140eabf5293d4d602e2789549c6d3fdb/10448:30
+padding_top = { ipad = 9, iphone = 6 }
+# VariableID:5fc280abcc696c5db76e7041592a62ade569726e/10448:35
+symbol_height = { ipad = 19, iphone = 22 }
+
+[menus.menu_items]
+# VariableID:a30f16bb6e1779a8fb83e4399ac43b3eacd451b5/10448:53
+label_and_subtitle_padding_left = { ipad = 4, iphone = 0 }
+# VariableID:039b838a1d8aaef004ed3db4d544286430d41bf6/10448:57
+padding_sides = { ipad = 8, iphone = 16 }
+# VariableID:ede54f6f7815e9d53ff9ea8b487082281251ebed/10448:50
+padding_top_bottom = { ipad = 11, iphone = 10 }
+# VariableID:1400bc204001c56a2b0eefa3c8852c7e6ca1a57d/10448:75
+separator_padding_bottom = { ipad = 9, iphone = 10 }
+# VariableID:01e844abcbd11b7c878d281c1acbecf041c781a3/10448:73
+separator_padding_top = { ipad = 8, iphone = 10 }
+# VariableID:fae90e04f6d60dcc0917bef3b4a939f060486b9c/10448:47
+subtitle_line_height = { ipad = 16, iphone = 18 }
+# VariableID:00ab471ec94fff6419b00a08476b61f237ca75e7/12549:717
+title_font_size = 15
+# VariableID:602d7537f4923b3ee97550266ddbcc10953135e6/10448:61
+title_line_height = { ipad = 18, iphone = 20 }
+
+[menus.section_titles]
+# VariableID:5426086b843b1845412ed2f9a3309aeddb1cfda6/10448:10
+bottom_padding = { ipad = 7, iphone = 10 }
+# VariableID:1b208ee9ab90cf77e2ecbac73558b2e86b77cd96/10448:9
+font_size = { ipad = 12, iphone = 13 }
+# VariableID:502128577e8794fc02567fc794baf8e4bd847788/10448:11
+top_padding = { ipad = 5, iphone = 4 }
+
+[popover_corner_radius]
+# VariableID:e28726e0ac1be1c66ad3568e178fe27b5a21a82f/12642:124
+popover_corner_radius = 38
+
+[readable_content_margin]
+# VariableID:79722b7cc2e596ba9439364d05b815c402305f8d/10482:4
+readable_content_margin = 260
+
+[sheet_bottom_radius]
+# VariableID:3c11af319ced49403a7d6c558f27582cc382bd7a/12792:17
+sheet_bottom_radius = { ipad = 32, iphone = 58 }
+
+[sheet_top_radius]
+# VariableID:244b4dfc00450e2095195f84e3ef0799765a4f7b/12792:21
+sheet_top_radius = { ipad = 32, iphone = 38 }
+
+[status_bar]
+# VariableID:9d9447be8fdb146b297c750a9ad0ad03afc60169/10478:3
+height = { ipad = 32, iphone = 62 }

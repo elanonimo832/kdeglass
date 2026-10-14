@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------------------
+# Material de Apple: NUNCA se commitea ni se redistribuye.
+# El kit de Figma, las fuentes SF Pro y los .fig son propiedad de Apple.
+# ---------------------------------------------------------------------------
+figma-export/
+fuentes/
+*.fig
+*.sketch
+kit.json
+_tokens/
+
+# ---------------------------------------------------------------------------
+# Intermedios regenerables
+# ---------------------------------------------------------------------------
+node_modules/
+_npm-cache/
+__pycache__/
+*.pyc
+fig-extraido/
+
+# ---------------------------------------------------------------------------
+# Construccion del efecto KWin (se regenera con cmake; nunca se versiona)
+# ---------------------------------------------------------------------------
+efecto-kwin/build/
+efecto-kwin/bisect/build/
+*.so
+*.o
+*.a
+
+# ---------------------------------------------------------------------------
+# Lo que SI se versiona:
+#   salida/        -> los temas generados (trabajo propio)
+#   evidencia/     -> capturas de NUESTRO escritorio (no de Apple)
+#   tokens/        -> los tokens extraidos, con su procedencia
+# ---------------------------------------------------------------------------

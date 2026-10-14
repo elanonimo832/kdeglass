@@ -1,0 +1,23 @@
+/* Solo color — OSCURO. GENERADO por generar-gtk-css.py. */
+:root {
+  --km-bg: #1E1E1E;
+  --km-fg: rgba(255, 255, 255, 0.85);
+  --km-fg-secondary: rgba(255, 255, 255, 0.55);
+  --km-fg-tertiary: rgba(255, 255, 255, 0.25);
+  --km-fg-on-accent: #FFFFFF;
+  --km-accent: #0091FF;
+  --km-accent-hover: #0A99FF;
+  --km-error: #FF4245;
+  --km-success: #30D158;
+  --km-warning: #FF9230;
+  --km-veil-1: rgba(255, 255, 255, 0.1);
+  --km-veil-2: rgba(255, 255, 255, 0.08);
+  --km-veil-3: rgba(255, 255, 255, 0.05);
+  --km-hover: rgba(255, 255, 255, 0.1);
+  --km-active: rgba(255, 255, 255, 0.18);
+  --km-border: rgba(255, 255, 255, 0.08);
+  --km-selection-bg: #0158D2;
+  --km-selection-fg: #FFFFFF;
+  --km-bg-alt: rgba(255, 255, 255, 0.1);
+  --km-border-width: 1px;
+}

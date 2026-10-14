@@ -1,0 +1,35 @@
+# tokens-color.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Color
+# Modos: SDS Dark, SDS Light
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de Salesforce (SDS).
+#  Marcas detectadas: Utilities.Scrim, Utilities.Blanket, Border.Utilities
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Color"
+sistema = "Salesforce (SDS)"
+aplicable_macos = false
+modos = "SDS Dark, SDS Light"
+tokens = 4
+fecha_export = "2026-10-13"
+
+[background.utilities]
+# VariableID:4ebbe6ad9a08e75544c698ba30a1237a9872092b/5613:368
+blanket = { hex = "#000000", alfa = 0.7 }
+# VariableID:5723811f09a791b97f4cc9003975c8e71cc12f79/5613:451
+overlay = { hex = "#000000", alfa = 0.5 }
+# VariableID:6137b8a6f2ca44bad94748cc1151a3487a82eb0e/5613:450
+scrim = { sds_dark = { hex = "#000000", alfa = 0.8 }, sds_light = { hex = "#FFFFFF", alfa = 0.8 } }
+
+[border.utilities]
+# VariableID:9cd0e2c42ae2c94adf665b8f9cd0eb7fd1cd1c18/5613:357
+swatch = { sds_dark = { hex = "#FFFFFF", alfa = 0.24 }, sds_light = { hex = "#000000", alfa = 0.24 } }

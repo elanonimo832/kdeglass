@@ -1,0 +1,129 @@
+# tokens-tipografia_macos.toml — GENERADO. No editar a mano.
+#
+# TIPOGRAFIA DE macOS, extraida de las Human Interface Guidelines oficiales.
+# Fuente: https://developer.apple.com/design/human-interface-guidelines/typography
+# Datos:   https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json
+# Fecha:   2026-10-13
+#
+# Esto CIERRA el hueco de tipografia del proyecto: son valores publicados por
+# Apple, no medidos ni inferidos. Cada uno es trazable a las HIG.
+#
+# AVISO SOBRE LA FUENTE TIPOGRAFICA: macOS usa SF Pro, que Apple NO permite
+# redistribuir. El proyecto usara Inter (SIL OFL). Los tamanos, interlineados y
+# pesos de este fichero se aplican tal cual; el TRACKING es especifico de SF Pro,
+# asi que con otra familia es una aproximacion de partida a ajustar a ojo.
+#
+# AVISO: macOS NO soporta Dynamic Type (lo dicen las propias HIG). Por eso aqui
+# hay UNA sola escala, no doce como en iOS. No hay que buscar variantes.
+
+[_meta]
+fuente = "https://developer.apple.com/design/human-interface-guidelines/typography"
+plataforma = "macOS"
+tokens = 80
+fecha_extraccion = "2026-10-13"
+
+[tamano_base]
+# Tamano recomendado por Apple para cada plataforma.
+ios = { por_defecto = 17, minimo = 11 }
+macos = { por_defecto = 13, minimo = 10 }
+tvos = { por_defecto = 29, minimo = 23 }
+visionos = { por_defecto = 17, minimo = 12 }
+watchos = { por_defecto = 16, minimo = 12 }
+
+[estilos]
+# ESTILOS DE TEXTO DE macOS. Tabla oficial de las HIG.
+# `peso` y `peso_enfatizado` son valores numericos CSS/fontconfig.
+# `interlineado` es el leading en puntos. `interlineado_escala` su relacion.
+# Large Title: Regular 26pt / leading 32pt
+large_title = { tamano = 26, interlineado = 32, interlineado_escala = 1.231, peso = 400, peso_enfatizado = 700 }
+# Title 1: Regular 22pt / leading 26pt
+title_1 = { tamano = 22, interlineado = 26, interlineado_escala = 1.182, peso = 400, peso_enfatizado = 700 }
+# Title 2: Regular 17pt / leading 22pt
+title_2 = { tamano = 17, interlineado = 22, interlineado_escala = 1.294, peso = 400, peso_enfatizado = 700 }
+# Title 3: Regular 15pt / leading 20pt
+title_3 = { tamano = 15, interlineado = 20, interlineado_escala = 1.333, peso = 400, peso_enfatizado = 600 }
+# Headline: Bold 13pt / leading 16pt
+headline = { tamano = 13, interlineado = 16, interlineado_escala = 1.231, peso = 700, peso_enfatizado = 800 }
+# Body: Regular 13pt / leading 16pt
+body = { tamano = 13, interlineado = 16, interlineado_escala = 1.231, peso = 400, peso_enfatizado = 600 }
+# Callout: Regular 12pt / leading 15pt
+callout = { tamano = 12, interlineado = 15, interlineado_escala = 1.25, peso = 400, peso_enfatizado = 600 }
+# Subheadline: Regular 11pt / leading 14pt
+subheadline = { tamano = 11, interlineado = 14, interlineado_escala = 1.273, peso = 400, peso_enfatizado = 600 }
+# Footnote: Regular 10pt / leading 13pt
+footnote = { tamano = 10, interlineado = 13, interlineado_escala = 1.3, peso = 400, peso_enfatizado = 600 }
+# Caption 1: Regular 10pt / leading 13pt
+caption_1 = { tamano = 10, interlineado = 13, interlineado_escala = 1.3, peso = 400, peso_enfatizado = 500 }
+# Caption 2: Medium 10pt / leading 13pt
+caption_2 = { tamano = 10, interlineado = 13, interlineado_escala = 1.3, peso = 500, peso_enfatizado = 600 }
+
+[tracking]
+# Tracking de macOS por tamano, de las HIG.
+# Valores en 1/1000 em (el estandar de las herramientas) y en puntos.
+# Necesario para que el texto parezca de macOS: el espaciado entre
+# letras cambia con el tamano, no es constante.
+#   em1000 = valor para usar como letter-spacing en CSS/QSS
+6 = { em1000 = 41, puntos = 0.24 }
+7 = { em1000 = 34, puntos = 0.23 }
+8 = { em1000 = 26, puntos = 0.21 }
+9 = { em1000 = 19, puntos = 0.17 }
+10 = { em1000 = 12, puntos = 0.12 }
+11 = { em1000 = 6, puntos = 0.06 }
+12 = { em1000 = 0, puntos = 0 }
+13 = { em1000 = -6, puntos = -0.08 }
+14 = { em1000 = -11, puntos = -0.15 }
+15 = { em1000 = -16, puntos = -0.23 }
+16 = { em1000 = -20, puntos = -0.31 }
+17 = { em1000 = -26, puntos = -0.43 }
+18 = { em1000 = -25, puntos = -0.44 }
+19 = { em1000 = -24, puntos = -0.45 }
+20 = { em1000 = -23, puntos = -0.45 }
+21 = { em1000 = -18, puntos = -0.36 }
+22 = { em1000 = -12, puntos = -0.26 }
+23 = { em1000 = -4, puntos = -0.1 }
+24 = { em1000 = 3, puntos = 0.07 }
+25 = { em1000 = 6, puntos = 0.15 }
+26 = { em1000 = 8, puntos = 0.22 }
+27 = { em1000 = 11, puntos = 0.29 }
+28 = { em1000 = 14, puntos = 0.38 }
+29 = { em1000 = 14, puntos = 0.4 }
+30 = { em1000 = 14, puntos = 0.4 }
+31 = { em1000 = 13, puntos = 0.39 }
+32 = { em1000 = 13, puntos = 0.41 }
+33 = { em1000 = 12, puntos = 0.4 }
+34 = { em1000 = 12, puntos = 0.4 }
+35 = { em1000 = 11, puntos = 0.38 }
+36 = { em1000 = 10, puntos = 0.37 }
+37 = { em1000 = 10, puntos = 0.36 }
+38 = { em1000 = 10, puntos = 0.37 }
+39 = { em1000 = 10, puntos = 0.38 }
+40 = { em1000 = 10, puntos = 0.37 }
+41 = { em1000 = 9, puntos = 0.36 }
+42 = { em1000 = 9, puntos = 0.37 }
+43 = { em1000 = 9, puntos = 0.38 }
+44 = { em1000 = 8, puntos = 0.37 }
+45 = { em1000 = 8, puntos = 0.35 }
+46 = { em1000 = 8, puntos = 0.36 }
+47 = { em1000 = 8, puntos = 0.37 }
+48 = { em1000 = 8, puntos = 0.35 }
+49 = { em1000 = 7, puntos = 0.33 }
+50 = { em1000 = 7, puntos = 0.34 }
+51 = { em1000 = 7, puntos = 0.35 }
+52 = { em1000 = 6, puntos = 0.31 }
+53 = { em1000 = 6, puntos = 0.33 }
+54 = { em1000 = 6, puntos = 0.32 }
+56 = { em1000 = 6, puntos = 0.3 }
+58 = { em1000 = 5, puntos = 0.28 }
+60 = { em1000 = 4, puntos = 0.26 }
+62 = { em1000 = 4, puntos = 0.24 }
+64 = { em1000 = 4, puntos = 0.22 }
+66 = { em1000 = 3, puntos = 0.19 }
+68 = { em1000 = 2, puntos = 0.17 }
+70 = { em1000 = 2, puntos = 0.14 }
+72 = { em1000 = 2, puntos = 0.14 }
+76 = { em1000 = 1, puntos = 0.07 }
+80 = { em1000 = 0, puntos = 0 }
+84 = { em1000 = 0, puntos = 0 }
+88 = { em1000 = 0, puntos = 0 }
+92 = { em1000 = 0, puntos = 0 }
+96 = { em1000 = 0, puntos = 0 }

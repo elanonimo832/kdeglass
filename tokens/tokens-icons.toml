@@ -1,0 +1,29 @@
+# tokens-icons.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Icons
+# Modos: Clear Light, Dark, Light
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+# ATENCION: coleccion de contexto (string); no aporta valores numericos
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de desconocido.
+#  Marcas detectadas: sin marcas reconocibles
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Icons"
+sistema = "desconocido"
+aplicable_macos = false
+modos = "Clear Light, Dark, Light"
+tokens = 1
+fecha_export = "2026-10-13"
+
+[mode]
+# VariableID:2b1957f7cb9d79fbfc375b333787c81d7a082c77/5915:27
+mode = { dark = "Dark", light = "Light" }

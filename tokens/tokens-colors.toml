@@ -1,0 +1,174 @@
+# tokens-colors.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Colors
+# Modos: Dark, Light
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+
+[_meta]
+coleccion = "Colors"
+sistema = "Apple macOS"
+aplicable_macos = true
+modos = "Dark, Light"
+tokens = 63
+fecha_export = "2026-10-13"
+
+[accent]
+# VariableID:207:14837
+blue = { dark = { hex = "#0091FF", alfa = 1 }, light = { hex = "#0088FF", alfa = 1 } }
+# VariableID:207:14842
+brown = { dark = { hex = "#B78A66", alfa = 1 }, light = { hex = "#AC7F5E", alfa = 1 } }
+# VariableID:207:14836
+cyan = { dark = { hex = "#3CD3FE", alfa = 1 }, light = { hex = "#00C0E8", alfa = 1 } }
+# VariableID:207:14833
+green = { dark = { hex = "#30D158", alfa = 1 }, light = { hex = "#34C759", alfa = 1 } }
+# VariableID:207:14838
+indigo = { dark = { hex = "#6D7CFF", alfa = 1 }, light = { hex = "#6155F5", alfa = 1 } }
+# VariableID:207:14834
+mint = { dark = { hex = "#00DAC3", alfa = 1 }, light = { hex = "#00C8B3", alfa = 1 } }
+# VariableID:207:14831
+orange = { dark = { hex = "#FF9230", alfa = 1 }, light = { hex = "#FF8D28", alfa = 1 } }
+# VariableID:207:14840
+pink = { dark = { hex = "#FF375F", alfa = 1 }, light = { hex = "#FF2D55", alfa = 1 } }
+# VariableID:207:14839
+purple = { dark = { hex = "#DB34F2", alfa = 1 }, light = { hex = "#CB30E0", alfa = 1 } }
+# VariableID:207:14830
+red = { dark = { hex = "#FF4245", alfa = 1 }, light = { hex = "#FF383C", alfa = 1 } }
+# VariableID:207:14835
+teal = { dark = { hex = "#00D2E0", alfa = 1 }, light = { hex = "#00C3D0", alfa = 1 } }
+# VariableID:207:14832
+yellow = { dark = { hex = "#FFD600", alfa = 1 }, light = { hex = "#FFCC00", alfa = 1 } }
+
+[accent_vibrant]
+# VariableID:484:9559
+blue = { dark = { hex = "#0A99FF", alfa = 1 }, light = { hex = "#0078F0", alfa = 1 } }
+# VariableID:484:9563
+brown = { dark = { hex = "#C29672", alfa = 1 }, light = { hex = "#9E7354", alfa = 1 } }
+# VariableID:484:9558
+cyan = { dark = { hex = "#47D8FC", alfa = 1 }, light = { hex = "#00ABCF", alfa = 1 } }
+# VariableID:484:9555
+green = { dark = { hex = "#3BDB63", alfa = 1 }, light = { hex = "#26BF4D", alfa = 1 } }
+# VariableID:484:9560
+indigo = { dark = { hex = "#7163FF", alfa = 1 }, light = { hex = "#5C50E6", alfa = 1 } }
+# VariableID:484:9556
+mint = { dark = { hex = "#2DE0CD", alfa = 1 }, light = { hex = "#00BDA9", alfa = 1 } }
+# VariableID:484:9553
+orange = { dark = { hex = "#FF9E33", alfa = 1 }, light = { hex = "#F58625", alfa = 1 } }
+# VariableID:484:9562
+pink = { dark = { hex = "#FF4169", alfa = 1 }, light = { hex = "#F5234B", alfa = 1 } }
+# VariableID:484:9561
+purple = { dark = { hex = "#E647FC", alfa = 1 }, light = { hex = "#B72BC9", alfa = 1 } }
+# VariableID:484:9552
+red = { dark = { hex = "#FF4747", alfa = 1 }, light = { hex = "#F52F32", alfa = 1 } }
+# VariableID:484:9557
+teal = { dark = { hex = "#2DD7E0", alfa = 1 }, light = { hex = "#00B3BF", alfa = 1 } }
+# VariableID:484:9554
+yellow = { dark = { hex = "#FFE014", alfa = 1 }, light = { hex = "#F5C200", alfa = 1 } }
+
+[fill]
+# VariableID:207:14843
+primary = { dark = { hex = "#FFFFFF", alfa = 0.1 }, light = { hex = "#000000", alfa = 0.1 } }
+# VariableID:207:14846
+quaternary = { dark = { hex = "#FFFFFF", alfa = 0.03 }, light = { hex = "#000000", alfa = 0.03 } }
+# VariableID:207:14847
+quinary = { dark = { hex = "#FFFFFF", alfa = 0.02 }, light = { hex = "#000000", alfa = 0.02 } }
+# VariableID:207:14844
+secondary = { dark = { hex = "#FFFFFF", alfa = 0.08 }, light = { hex = "#000000", alfa = 0.08 } }
+# VariableID:207:14845
+tertiary = { dark = { hex = "#FFFFFF", alfa = 0.05 }, light = { hex = "#000000", alfa = 0.05 } }
+
+[fill_vibrant]
+# VariableID:207:14848
+primary = { dark = { hex = "#242424", alfa = 1 }, light = { hex = "#D9D9D9", alfa = 1 } }
+# VariableID:207:14851
+quaternary = { dark = { hex = "#090909", alfa = 1 }, light = { hex = "#F7F7F7", alfa = 1 } }
+# VariableID:207:14852
+quinary = { dark = { hex = "#070707", alfa = 1 }, light = { hex = "#FBFBFB", alfa = 1 } }
+# VariableID:207:14849
+secondary = { dark = { hex = "#141414", alfa = 1 }, light = { hex = "#E6E6E6", alfa = 1 } }
+# VariableID:207:14850
+tertiary = { dark = { hex = "#0D0D0D", alfa = 1 }, light = { hex = "#F2F2F2", alfa = 1 } }
+
+[gray]
+# VariableID:464:2410
+black = { hex = "#000000", alfa = 1 }
+# VariableID:465:698
+gray = { dark = { hex = "#98989F", alfa = 1 }, light = { hex = "#8E8E93", alfa = 1 } }
+# VariableID:464:2411
+white = { hex = "#FFFFFF", alfa = 1 }
+
+[label]
+# VariableID:207:14853
+primary = { dark = { hex = "#FFFFFF", alfa = 0.85 }, light = { hex = "#000000", alfa = 0.85 } }
+# VariableID:207:14856
+quaternary = { dark = { hex = "#FFFFFF", alfa = 0.1 }, light = { hex = "#000000", alfa = 0.1 } }
+# VariableID:207:14857
+quinary = { dark = { hex = "#FFFFFF", alfa = 0.05 }, light = { hex = "#000000", alfa = 0.05 } }
+# VariableID:207:14854
+secondary = { dark = { hex = "#FFFFFF", alfa = 0.55 }, light = { hex = "#000000", alfa = 0.5 } }
+# VariableID:464:2726
+seximal = { dark = { hex = "#FFFFFF", alfa = 0.03 }, light = { hex = "#000000", alfa = 0.03 } }
+# VariableID:207:14855
+tertiary = { dark = { hex = "#FFFFFF", alfa = 0.25 }, light = { hex = "#000000", alfa = 0.25 } }
+# VariableID:207:14858
+white = { hex = "#FFFFFF", alfa = 1 }
+
+[label_vibrant]
+# VariableID:207:14859
+primary = { dark = { hex = "#F5F5F5", alfa = 1 }, light = { hex = "#1A1A1A", alfa = 1 } }
+# VariableID:207:14862
+quaternary = { dark = { hex = "#262626", alfa = 1 }, light = { hex = "#D9D9D9", alfa = 1 } }
+# VariableID:207:14863
+quinary = { dark = { hex = "#111111", alfa = 1 }, light = { hex = "#E6E6E6", alfa = 1 } }
+# VariableID:207:14860
+secondary = { dark = { hex = "#8A8A8A", alfa = 1 }, light = { hex = "#727272", alfa = 1 } }
+# VariableID:207:14861
+tertiary = { dark = { hex = "#404040", alfa = 1 }, light = { hex = "#BFBFBF", alfa = 1 } }
+
+[misc]
+# VariableID:4336:13186
+scrollbar = { dark = { hex = "#FFFFFF", alfa = 0.55 }, light = { hex = "#000000", alfa = 0.5 } }
+
+[misc.alert]
+# VariableID:4335:705
+overlay = { dark = { hex = "#171717", alfa = 0.62 }, light = { hex = "#ABABAB", alfa = 0.6 } }
+
+[misc.progress]
+# VariableID:4347:9852
+track_stroke = { dark = { hex = "#FFFFFF", alfa = 0.04 }, light = { hex = "#000000", alfa = 0.07 } }
+
+[misc.sidebar]
+# VariableID:4377:59360
+label_inactive = { dark = { hex = "#666666", alfa = 1 }, light = { hex = "#878787", alfa = 1 } }
+
+[misc.table]
+# VariableID:4356:10116
+alternating_row_color = { dark = { hex = "#FFFFFF", alfa = 0.05 }, light = { hex = "#000000", alfa = 0.05 } }
+# VariableID:4356:10117
+bg_selected_active = { dark = { hex = "#0158D2", alfa = 1 }, light = { hex = "#0165E2", alfa = 1 } }
+# VariableID:4356:10110
+bg_selected_inactive = { dark = { hex = "#FFFFFF", alfa = 0.18 }, light = { hex = "#000000", alfa = 0.14 } }
+# VariableID:4356:13917
+column_separator = { dark = { hex = "#FFFFFF", alfa = 0.1 }, light = { hex = "#000000", alfa = 0.1 } }
+
+[misc.tooltip]
+# VariableID:4331:12130
+inner_stroke = { dark = { hex = "#FFFFFF", alfa = 0.15 }, light = { hex = "#FFFFFF", alfa = 0 } }
+# VariableID:4362:1749
+sidebar_bg_active = { dark = { hex = "#141517", alfa = 1 }, light = { hex = "#DAE6F2", alfa = 1 } }
+# VariableID:4362:1750
+sidebar_bg_inactive = { dark = { hex = "#131414", alfa = 1 }, light = { hex = "#EDF4FA", alfa = 1 } }
+
+[mode]
+# VariableID:256:300
+mode = { dark = "Dark", light = "Light" }
+
+[string]
+# VariableID:4394:22511
+string = "String value"
+
+[window_bg]
+# VariableID:4311:12202
+window_bg = { dark = { hex = "#1E1E1E", alfa = 1 }, light = { hex = "#FFFFFF", alfa = 1 } }

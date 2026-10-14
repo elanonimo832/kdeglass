@@ -1,0 +1,42 @@
+[General]
+# macOS pone los semaforos a la IZQUIERDA, en este orden: cerrar, minimizar, zoom.
+# El orden de las letras lo entiende KWin: X=cerrar, I=minimizar, A=maximizar.
+LeftButtons=XIA
+RightButtons=
+TitleAlignment=Center
+TitleVerticalAlignment=Center
+ActiveTextColor=64,64,64
+InactiveTextColor=140,140,140
+ActiveFocusedTabColor=246,246,246
+ActiveUnfocusedTabColor=230,230,230
+InactiveFocusedTabColor=230,230,230
+InactiveUnfocusedTabColor=230,230,230
+UseTextShadow=false
+Shadow=true
+
+[Layout]
+BorderBottom=1
+BorderLeft=1
+BorderRight=1
+ButtonHeight=12
+ButtonWidth=12
+# Separacion generosa: en macOS los semaforos respiran. Este era el problema del
+# tema anterior, que tenia 8.
+ButtonSpacing=8
+ButtonMarginTop=8
+ExplicitButtonSpacer=10
+PaddingLeft=14
+PaddingRight=14
+PaddingTop=7
+PaddingBottom=7
+TitleHeight=28
+TitleEdgeTop=5
+TitleEdgeBottom=5
+TitleEdgeLeft=5
+TitleEdgeRight=5
+TitleEdgeTopMaximized=3
+TitleEdgeBottomMaximized=3
+TitleEdgeLeftMaximized=5
+TitleEdgeRightMaximized=5
+TitleBorderLeft=1
+TitleBorderRight=1

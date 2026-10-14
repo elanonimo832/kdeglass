@@ -1,0 +1,198 @@
+# tokens-forma-efectos.toml — GENERADO. No editar a mano.
+#
+# LO QUE FALTABA: forma de ventana, sombras, borde capilar y material.
+# Extraido de las PROPIEDADES DE NODO del .fig, que es donde viven estos valores.
+# No son variables, por eso no salian en la exportacion de Variables de Figma.
+#
+# Fuente: macOS 27 (Community).fig, version de esquema 106, 19011 nodos.
+# Herramienta: herramientas/figma/extraer-fig.py
+#
+# AVISO: los radios 100 y 1000 del kit son PROPORCIONES de Figma (circulo y
+# pildora), no puntos. Estan en [radio_proporcional].
+
+[_meta]
+fuente = "macOS 27 (Community).fig"
+nodos = 19011
+esquema_version = 106
+tokens = 150
+
+[radio]
+# Escala completa de radios de esquina, en puntos. `n` = nodos que lo usan.
+# Los de n alto son los del sistema: 5 (n=1315), 6 (n=1172) y 8 (n=1142) dominan.
+# n=41
+r0_5 = 0.5
+# n=58
+r1_0 = 1
+# n=4
+r1_5 = 1.5
+# n=99
+r2_0 = 2
+# n=19
+r2_5 = 2.5
+# n=77
+r3_0 = 3
+# n=24
+r3_5 = 3.5
+# n=129
+r4_0 = 4
+# n=4
+r4_5 = 4.5
+# n=698
+r5_0 = 5
+# n=46
+r5_5 = 5.5
+# n=950
+r6_0 = 6
+# n=571
+r8_0 = 8
+# n=118
+r10_0 = 10
+# n=12
+r12_0 = 12
+# n=9
+r15_0 = 15
+# n=96
+r16_0 = 16
+# n=100
+r20_0 = 20
+# n=1
+r22_0 = 22
+# n=1
+r26_0 = 26
+# n=8
+r30_0 = 30
+# n=8
+r34_0 = 34
+# n=3
+r36_0 = 36
+
+[radio_proporcional]
+# Valores que en Figma significan proporcion, no puntos:
+circulo = 100    # radio = mitad del lado
+pildora = 1000   # radio = mitad de la altura (forma de pastilla)
+
+[squircle]
+# EL DATO DEL BRIEF: 'squircle obligatorio'. Asi se declara en Figma.
+# cornerSmoothing = 0 -> esquina circular normal (un arco).
+# cornerSmoothing > 0 -> superelipse: curva CONTINUA, sin el cambio brusco de
+# curvatura donde el arco se junta con el lado recto. Es lo que hace que las
+# esquinas de Apple no parezcan 'cortadas'. 2244 nodos del kit lo usan.
+
+smoothing = 0.6
+umbral_circular = 0.0
+umbral_maximo = 1.0
+
+[ventana.sombra]
+# La sombra de ventana de macOS son DOS capas superpuestas, no una:
+#   1) difusa y amplia  -> da la elevacion
+#   2) de contacto, minima y mas opaca -> 'asienta' el borde y lo mantiene nitido
+# Esa pareja es la razon de que la ventana se vea elevada Y definida a la vez.
+# Una sola sombra da o bien un borde sucio o bien una elevacion falsa.
+# [Window BG] n=1
+capa_difusa = { radio = 54, offset_x = 0, offset_y = 18, alfa = 0.3 }
+# [Window BG] n=1
+capa_contacto = { radio = 1, offset_x = 0, offset_y = 0, alfa = 0.8 }
+
+[ventana.sombra_interior]
+# Sombra interior del marco de ventana. Distinta en claro y oscuro:
+# [Shadows - Dark/Window Inner Shadow]
+oscuro = { radio = 1, offset_y = 0, alfa = 0.2 }
+
+[ventana.sombra_estado]
+# [Mode=Light, Active=True, Window Type=Unified Toolbar + Title] n=1
+capa_difusa = { radio = 54, offset_y = 18, alfa = 0.3 }
+capa_contacto = { radio = 1, offset_y = 0, alfa = 0.8 }
+
+[material]
+# El kit define un TIPO DE EFECTO propio: GLASS. Su parametro principal es el radio.
+# No es un blur: es una capa de vidrio con su propio desplazamiento y opacidad.
+glass_radio    = 26    # valor de referencia (24 usos en el kit)
+glass_radio_sm = 16
+glass_radio_xs = 6
+glass_offset_y = 4
+glass_alfa     = 0.25
+
+# Difuminados de fondo. El NOMBRE del nodo codifica el grosor del material:
+# el kit tiene Ultra Thin / Thin / Medium / Thick / Ultra Thick, y todos
+# comparten radio 60. La diferencia de grosor NO es el radio del difuminado.
+blur_ultra_thin  = 60
+blur_thin        = 60
+blur_medium      = 60
+blur_thick       = 60
+blur_ultra_thick = 60
+blur_selection   = 60
+blur_medium_bg   = 30
+blur_luminosity  = 120
+blur_generico    = 100
+blur_tooltip     = 20
+blur_scroll_edge = 6
+
+[borde_capilar]
+# El borde de 1 pt es la firma del 'bezel' de macOS. El color NO es un gris
+# propio: es el primitivo de velo con alfa bajo, que es lo que lo hace
+# funcionar sobre cualquier fondo.
+grosor            = 1
+grosor_fino       = 0.5    # pantallas @2x
+alfa_borde        = 0.08   # = Fills - Opaque / Secondary
+alfa_borde_fuerte = 0.1
+
+[texto_por_uso]
+# Combinaciones tamano/interlineado mas usadas en el kit, por numero de nodos.
+# COINCIDEN CON LA TABLA OFICIAL DE LAS HIG, lo cual valida las dos fuentes:
+#   13/16 = Body     11/14 = Subheadline   15/20 = Title 3
+#   10/13 = Footnote 17/22 = Title 2       22/26 = Title 1   26/32 = Large Title
+# Interior: si el interlineado del kit fuera inventado, no cuadraria con las HIG.
+# El unico valor frecuente que NO es un estilo de las HIG es 13/22 (iconos).
+# n=876
+t13_0_16_0 = { tamano = 13, interlineado = 16, letter_spacing = 0, nodos = 876 }
+# n=274
+t11_0_14_0 = { tamano = 11, interlineado = 14, letter_spacing = 0, nodos = 274 }
+# n=147
+t13_0_22_0 = { tamano = 13, interlineado = 22, letter_spacing = 0, nodos = 147 }
+# n=143
+t15_0_20_0 = { tamano = 15, interlineado = 20, letter_spacing = 0, nodos = 143 }
+# n=126
+t11_0_16_0 = { tamano = 11, interlineado = 16, letter_spacing = 0, nodos = 126 }
+# n=113
+t20_0_22_0 = { tamano = 20, interlineado = 22, letter_spacing = 0, nodos = 113 }
+# n=77
+t10_0_13_0 = { tamano = 10, interlineado = 13, letter_spacing = 0, nodos = 77 }
+# n=38
+t17_0_22_0 = { tamano = 17, interlineado = 22, letter_spacing = 0, nodos = 38 }
+# n=29
+t10_0_22_0 = { tamano = 10, interlineado = 22, letter_spacing = 0, nodos = 29 }
+# n=26
+t22_0_26_0 = { tamano = 22, interlineado = 26, letter_spacing = 0, nodos = 26 }
+# n=26
+t26_0_32_0 = { tamano = 26, interlineado = 32, letter_spacing = 0, nodos = 26 }
+# n=25
+t12_0_15_0 = { tamano = 12, interlineado = 15, letter_spacing = 0, nodos = 25 }
+# n=24
+t9_0_9_0 = { tamano = 9, interlineado = 9, letter_spacing = 0, nodos = 24 }
+# n=22
+t11_0_13_0 = { tamano = 11, interlineado = 13, letter_spacing = 0, nodos = 22 }
+# n=17
+t10_0_16_0 = { tamano = 10, interlineado = 16, letter_spacing = 0, nodos = 17 }
+# n=16
+t14_0_20_0 = { tamano = 14, interlineado = 20, letter_spacing = 0, nodos = 16 }
+# n=10
+t17_0_16_0 = { tamano = 17, interlineado = 16, letter_spacing = 0, nodos = 10 }
+# n=8
+t16_0_20_0 = { tamano = 16, interlineado = 20, letter_spacing = 0, nodos = 8 }
+
+[texto_interlineado_auto]
+# Nodos con interlineado 'auto' (Figma lo guarda como 100). NO es un valor de
+# diseno: son iconos y simbolos, donde el interlineado no aplica.
+t13_0 = 149   # 13pt, 149 nodos
+t8_0 = 98   # 8pt, 98 nodos
+t12_0 = 67   # 12pt, 67 nodos
+t10_0 = 25   # 10pt, 25 nodos
+t11_0 = 21   # 11pt, 21 nodos
+t17_0 = 8   # 17pt, 8 nodos
+t9_0 = 6   # 9pt, 6 nodos
+t15_0 = 6   # 15pt, 6 nodos
+t7_0 = 4   # 7pt, 4 nodos
+t6_5 = 2   # 6.5pt, 2 nodos
+t61_0 = 1   # 61pt, 1 nodos
+t32_0 = 1   # 32pt, 1 nodos
+t24_0 = 1   # 24pt, 1 nodos

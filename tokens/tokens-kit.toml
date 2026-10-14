@@ -1,0 +1,68 @@
+# tokens-kit.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Kit
+# Modos: Mode 1
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+
+[_meta]
+coleccion = "Kit"
+sistema = "Apple macOS"
+aplicable_macos = true
+modos = "Mode 1"
+tokens = 18
+fecha_export = "2026-10-13"
+
+[component_fill]
+# VariableID:474:106
+component_fill = { hex = "#000000", alfa = 0.1 }
+
+[component_stroke]
+# VariableID:475:941
+component_stroke = { hex = "#C399FF", alfa = 1 }
+
+[link]
+# VariableID:4311:12205
+link = { hex = "#98CCFF", alfa = 1 }
+
+[liquid_glass]
+# VariableID:2447:301
+depth_medium_and_large = 30
+# VariableID:2447:294
+depth_regular = 30
+# VariableID:2447:295
+dispersion = 20
+# VariableID:2447:302
+frost_large = 16
+# VariableID:2447:300
+frost_medium = 16
+# VariableID:2447:296
+frost_regular = 6
+# VariableID:2447:298
+light_angle = 0
+# VariableID:2486:12628
+opacity = 25
+# VariableID:2447:299
+refraction = 70
+# VariableID:2447:303
+splay_medium_and_large = 20
+# VariableID:2447:297
+splay_regular = 20
+
+[section_fill]
+# VariableID:475:944
+section_fill = { hex = "#000000", alfa = 0.1 }
+
+[section_stroke]
+# VariableID:475:945
+section_stroke = { hex = "#000000", alfa = 0.4 }
+
+[subcomponent_fill]
+# VariableID:475:942
+subcomponent_fill = { hex = "#000000", alfa = 0.1 }
+
+[subcomponent_stroke]
+# VariableID:475:943
+subcomponent_stroke = { hex = "#000000", alfa = 0.4 }

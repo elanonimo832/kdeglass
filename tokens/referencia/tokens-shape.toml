@@ -1,0 +1,41 @@
+# tokens-shape.toml — GENERADO. No editar a mano.
+#
+# Coleccion de Figma: Shape
+# Modos: Baseline
+# Fecha: 2026-10-13
+#
+# Cada token lleva su variableId de Figma para poder re-verificar la cifra.
+# Las referencias del kit ya estan resueltas (se anota el destino original).
+#
+#====================================================================
+#  NO APLICABLE AL TEMA macOS: esta coleccion es de desconocido.
+#  Marcas detectadas: sin marcas reconocibles
+#  Aplicar estos valores al escritorio de macOS daria un resultado
+#  incoherente. Se conserva solo como referencia.
+#====================================================================
+
+[_meta]
+coleccion = "Shape"
+sistema = "desconocido"
+aplicable_macos = false
+modos = "Baseline"
+tokens = 8
+fecha_export = "2026-10-13"
+
+[corner]
+# VariableID:484efbb72c3ff6c990f4c546bbc6d22daf4e3ed4/55067:99
+extra_large = 28
+# VariableID:a1edb055efed94c66ee20fd2e7e9de8521565506/55067:103
+extra_small = 4
+# VariableID:22cecfb7483738694e6a5dea4737c1e892d29f3c/55067:98
+full = 1000
+# VariableID:a9a10aea3147aafd53eac1afe93005032b727d12/55067:102
+large = 16
+# VariableID:da6b905de805501c70b43728e1622de74f38bd47/58694:1
+large_increased = 20
+# VariableID:456d41a4999f543955ca6b9f406c1295615b4e04/55067:100
+medium = 12
+# VariableID:014cd5a9d4bb83b3024fd85723073a1c8195ef4a/55067:104
+none = 0
+# VariableID:c15e1badb18458209d16da6c413c58ee3e19dd83/55067:101
+small = 8

@@ -1,0 +1,11 @@
+{
+  "name": "kde-macos-figma-extraer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extrae los valores de diseno de un kit de Figma (.fig) para tokens.toml",
+  "dependencies": {
+    "fzstd": "^0.1.1",
+    "kiwi-schema": "^0.5.0",
+    "pako": "^2.0.4"
+  }
+}
