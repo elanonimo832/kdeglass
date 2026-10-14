@@ -34,8 +34,12 @@ fi
 
 echo "  -- the installed plugin --"
 if [ -f "$SO_SYSTEM" ]; then
-  objdump -d --demangle "$SO_SYSTEM" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null \
-    && ok "the installed .so continues the chain" || fallo "the INSTALLED .so does not continue the chain"
+    # The chain is continued by OffscreenEffect, so what proves the
+    # installed plugin is safe is that it links it. Searching for our own
+    # paintWindow call was the M1.1 criterion and is wrong now.
+    nm -D --undefined-only "$SO_SYSTEM" 2>/dev/null | grep -c 'OffscreenEffect' >/dev/null \
+      && ok "the installed .so links OffscreenEffect (chain safe)" \
+      || fallo "the INSTALLED .so does not link OffscreenEffect"
 else
   fallo "macosglass2.so is not installed"
 fi
