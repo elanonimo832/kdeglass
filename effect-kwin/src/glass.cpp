@@ -132,10 +132,17 @@ void main()
     // So it is no longer the band's colour; it is the band's BASELINE. Averaged over a
     // radius larger than a glyph stroke, it is what the bar would look like without
     // any chrome, and `window - baseline` is therefore the chrome itself.
+    // ...AND IT IS AVERAGED OVER THE BAR'S OWN SCALE, not over six pixels. The glass
+    // carries this baseline as the bar's colour, so any chrome left in it shows as a
+    // GHOST of the title behind the crisp title -- which is what the user saw. A 6 px
+    // average keeps about 11 levels of a 2 px stroke; averaging over half the bar's
+    // height leaves about 4, which is invisible. `uRadius` stays as a floor, so the kit's
+    // frost figure still means something if it is ever set wider than the bar.
+    float tonoRadio = max(uRadius, uTitleBarHeight * 0.5);
     vec4 sum = vec4(0.0);
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
-            vec2 d = vec2(float(x), float(y)) * uRadius * uTexelSize;
+            vec2 d = vec2(float(x), float(y)) * tonoRadio * uTexelSize;
             sum += texture(sampler, vTexCoord + d);
         }
     }
@@ -290,6 +297,11 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // the band's mean, which is what measure-glass.py compares).
     m_backgroundRadius = cfg.readEntry("BackgroundRadius", kBackgroundRadius);
 
+    // 0 = derive it from the radius (radius/4). A positive value is the reduction factor
+    // the backdrop is captured at, which is what makes the frost an average instead of a
+    // sample. Bigger = smoother and blurrier, and it costs nothing to try.
+    m_backgroundDownsample = cfg.readEntry("FrostDownsample", 0);
+
     // How much of the bar's own colour stays. Not a readability knob any more -- the
     // chrome is drawn crisp on top -- so it is free to go lower for more glass.
     m_glassAlpha = float(cfg.readEntry("GlassAlpha", double(kGlassAlpha)));
@@ -305,6 +317,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
             << "backgroundRadius=" << m_backgroundRadius
+            << "frostDownsample=" << m_backgroundDownsample
             << "glassAlpha=" << m_glassAlpha
             << "chromeRadius=" << m_chromeRadius
             << "chromeLow=" << m_chromeLow
@@ -503,12 +516,30 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
         return false;
     }
 
-    if (!m_background || m_backgroundSize != size) {
-        m_background = GLTexture::allocate(GL_RGBA8, size);
+    // THE CAPTURE IS TAKEN ALREADY REDUCED, and that is the frost, not an optimisation.
+    //
+    // Nine samples 16 px apart do not AVERAGE the backdrop, they SAMPLE it: text behind
+    // the window stayed recognisable as text, with ghost copies of itself, which is what
+    // the user saw on a busy wallpaper. Blurring properly needs samples every pixel or
+    // so over the whole footprint, which is hundreds of fetches.
+    //
+    // The cheap and correct way is the one KWin's own blur uses: reduce first. The blit
+    // can scale (its header says so, and the filter argument is GL_LINEAR), so the
+    // texture is allocated at region/factor and the blit copies the whole region into
+    // it. Every texel of that texture is then already the average of factor x factor
+    // screen pixels, and the kernel on top only has to be wide, not dense.
+    const int factor = m_backgroundDownsample > 0
+        ? m_backgroundDownsample
+        : std::clamp(m_backgroundRadius / 4, 1, 16);
+    const QSize reducido(std::max(1, size.width() / factor),
+                         std::max(1, size.height() / factor));
+
+    if (!m_background || m_backgroundSize != reducido || m_backgroundFactor != factor) {
+        m_background = GLTexture::allocate(GL_RGBA8, reducido);
         if (!m_background) {
             m_backgroundFbo.reset();
             m_backgroundSize = QSize();
-            qWarning() << "[macos-glass] cannot allocate the capture texture" << size;
+            qWarning() << "[macos-glass] cannot allocate the capture texture" << reducido;
             return false;
         }
         m_background->setFilter(GL_LINEAR);
@@ -521,13 +552,19 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
             qWarning() << "[macos-glass] the capture framebuffer is not valid";
             return false;
         }
-        m_backgroundSize = size;
-        qInfo() << "[macos-glass] capture texture" << size
-                << "for" << w->caption().left(20);
+        m_backgroundSize = reducido;
+        m_backgroundFactor = factor;
+        m_backgroundRegion = size;
+        qInfo() << "[macos-glass] capture texture" << reducido
+                << "(1/" << factor << "de" << size << ") for" << w->caption().left(20);
     }
 
     const Rect sourceDevice = viewport.mapToRenderTargetTexture(source);
-    const Rect destination(sourceDevice.topLeft() - regionDevice.topLeft(), sourceDevice.size());
+    const Rect completo(sourceDevice.topLeft() - regionDevice.topLeft(), sourceDevice.size());
+    // El destino va a la MISMA escala reducida, asi que el blit promedia el bloque.
+    const Rect destination(QPoint(completo.x() / factor, completo.y() / factor),
+                           QSize(std::max(1, completo.width() / factor),
+                                 std::max(1, completo.height() / factor)));
 
     // blitFromFramebuffer reads from the CURRENT framebuffer. It already is the
     // source while the scene is drawn; pushing it says so instead of assuming it.
@@ -695,10 +732,13 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         // The capture's own texel size, so the frost radius is in TEXELS of the
         // texture it samples. Using the window's uTexelSize here would be a 3% lie
         // (frame vs expanded) and there is no reason to accept it.
-        if (m_backgroundSize.width() > 0 && m_backgroundSize.height() > 0) {
+        // The kernel's spacing is expressed in SCREEN pixels, so this is the texel of
+        // the full-size region -- not of the reduced texture, which is factor times
+        // bigger per texel and would multiply every radius by that factor.
+        if (m_backgroundRegion.width() > 0 && m_backgroundRegion.height() > 0) {
             m_shader->setUniform("uBackgroundTexel",
-                                 QVector2D(1.0f / m_backgroundSize.width(),
-                                           1.0f / m_backgroundSize.height()));
+                                 QVector2D(1.0f / m_backgroundRegion.width(),
+                                           1.0f / m_backgroundRegion.height()));
         }
     }
     m_shader->setUniform("uHasBackground", conFondo ? 1.0f : 0.0f);

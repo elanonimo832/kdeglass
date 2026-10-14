@@ -158,7 +158,8 @@ deliberately, so that a correct override is not another false alarm.
 | 3a | Blur the captured background, in two scales so it does not read as ghost copies. | ✅ **done and seen on screen** (2026-10-14): `BackgroundRadius` defaults to the kit's outer 16, the inner scale is 6/16 of it, and 0 still takes the single-sample path. Tuned live with `reconfigureEffect`; the user's eye picked 16 over 6 |
 | 3b | Make the chrome readable again (title and buttons), round the corners, and make the quality knobs tunable. | ✅ **done** (2026-10-14): the bar's blur became the blank that isolates the chrome, which is drawn crisp over the glass; the halo the first version produced was fixed with a TIGHT baseline of its own; `GlassAlpha`, `ChromeRadius` and `ChromeLow` are settings |
 | 3b′ | The rounded corners the user asked for. | ✅ **done in the effect, not in the theme**: this theme's SVG has a 12 px arc but aurorae clips the corner piece into a 1 px cell, so the frame is a rectangle and there was nothing to follow. The effect draws the rounded rectangle itself (`CornerRadius`, default 12; 0 = off) and discards what falls outside. That is the beginning of M2, driven by a real request |
-| 3c | Settle whether the *sampled* background needs the texture's own size and the shadow margins as uniforms (section 5: the band's SHAPE measured correct; only the sampling is unverified, and only against structured content). | not started -- needs text behind the window with `BackgroundRadius=0` |
+| 3c | A frost that AVERAGES instead of sampling, so text behind the window dissolves into a haze. | ✅ **done** (2026-10-14): the backdrop is captured already reduced (a scaled blit) and the kernel only has to be wide, not dense; the tone of the bar in the glass is averaged over half the bar's height so the title leaves no ghost |
+| 3d | Settle whether the reduced capture's region and the shader's own sizes agree (the reason the sampling question existed at all). | not started -- the pixel comparison that would answer it is written down in section 5 |
 
 Each step must be committed before starting the next. If a session runs out of
 context, the repository is left in a working, committed state and the next session
@@ -375,8 +376,13 @@ none of it needs a second relogin):
 - *Do the title and the buttons have a bright halo around them?* Then the chrome mask's
   baseline is too wide: `ChromeRadius` is that width (default 3 texels) and
   `ChromeLow` is how much deviation counts (default 0.06).
-- *Is the frost continuous, with no repeated ghost copies of the text behind?* Ghosts
-  mean one 3x3 is being used instead of the two scales.
+- *Is the frost a smooth haze, with no recognisable text behind?* Nine samples 16 px
+  apart do not average the backdrop, they SAMPLE it, and text stays readable through the
+  band with ghost copies of itself. The capture is therefore taken ALREADY REDUCED (a
+  scaled blit, the way KWin's own blur does it), so every texel is an average of a block
+  of screen; `FrostDownsample` overrides the factor and 0 derives it from the radius.
+- *Is there a ghost of the title itself?* Then the bar's tone in the glass still has
+  chrome in it: it is averaged over half the bar's height for exactly that reason.
 - *Is there too much or too little glass?* Then `GlassAlpha` (bar opacity, default
   0.55) and `BackgroundRadius` (frost, default 16) are the two knobs, both live:
   `kwriteconfig6 ... --key GlassAlpha 0.4` then

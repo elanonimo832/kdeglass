@@ -67,6 +67,10 @@ echo "  -- the chrome stays readable, and the corners stay round --"
 # chrome, which is drawn crisp over the glass -- the way macOS does it: the glass is
 # behind the chrome, not over it.
 afirmar_codigo "the chrome is found by its deviation from a baseline" "$FUENTE" 'abs[(]dot[(]window.rgb - tight'
+# The glass carries the bar's TONE, so any chrome left in it is a ghost of the title
+# behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
+# bar's height keeps ~4, which cannot be seen.
+afirmar_codigo "the bar's tone is averaged over the bar's own scale" "$FUENTE" 'max[(]uRadius, uTitleBarHeight [*] 0[.]5[)]'
 afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, window.rgb, chrome[)]'
 # THE BASELINE MUST BE TIGHT. The first version measured the deviation against the
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar

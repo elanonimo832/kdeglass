@@ -113,7 +113,9 @@ private:
     // ---------------------------------------------------------------------
     std::unique_ptr<GLTexture> m_background;
     std::unique_ptr<GLFramebuffer> m_backgroundFbo;
-    QSize m_backgroundSize;
+    QSize m_backgroundSize;      // the reduced texture
+    QSize m_backgroundRegion;    // the region it covers, in screen pixels
+    int m_backgroundFactor = 1;  // how much it was reduced by
     bool m_hasBackground = false;
 
     // THE ONE THING THAT CANNOT BE SETTLED WITHOUT A SCREEN.
@@ -163,6 +165,10 @@ private:
     static constexpr int kBackgroundRadius = 16;   // kit: frost outer 16; 0 = sharp
 
     int m_backgroundRadius = kBackgroundRadius;
+
+    // The factor the backdrop is CAPTURED at, which is what turns the frost from a
+    // sample into an average (see captureBackground). 0 derives it from the radius.
+    int m_backgroundDownsample = 0;
 
     // ---------------------------------------------------------------------
     // M1.2 -- diffusion.
@@ -234,7 +240,7 @@ private:
     // makes the corner round. The shadow lives outside the frame and is untouched.
     //
     // 0 disables it and leaves whatever the decoration drew.
-    static constexpr int kCornerRadius = 12;
+    static constexpr int kCornerRadius = 16;   // 12 read small on a 4K 27" panel
     int m_cornerRadius = kCornerRadius;
 
 
