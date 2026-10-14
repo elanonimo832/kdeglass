@@ -57,4 +57,9 @@ fi
 
 echo
 echo "=== RESULT ==="
+# CAVEAT: the difference measurement is spoiled if you MOVE windows, because the
+# windows themselves change. In the first hot run, dragging produced 2,764,537
+# changed pixels against 2304 for one patch, and the verdict was meaningless.
+# For a trustworthy number, damage a window WITHOUT moving it: click its title
+# bar, resize by a pixel, or switch focus between two windows.
 python3 "$HERE/measure-marker.py" "$OUT/hot-control.png" "$OUT/hot-loaded.png" "$((48*48))"

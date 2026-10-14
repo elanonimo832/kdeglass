@@ -2,17 +2,19 @@
 EF="$PROY/effect-kwin"
 
 echo "  -- solo los scripts esenciales --"
-# Nueve scripts de depuracion fueron andamiaje de la biseccion; su valor (la tabla
-# de variantes) ya esta en INCIDENT.md. Quedan cuatro con un proposito claro:
-#   build.sh          compila y verifica la cadena
-#   install.sh    instala y activa (necesita sudo)
-#   test-installed.sh prueba en vivo sin sudo (carga, mide, descarga)
-#   verify-chain.sh   la comprobacion que evita la pantalla negra
-esperados="build.sh install.sh test-installed.sh verify-chain.sh"
+# Nine debug scripts were scaffolding for the bisection; their value (the variant
+# table) is in INCIDENT.md. Six remain, each with a clear purpose:
+#   build.sh            builds and verifies the paint chain
+#   install.sh          installs and activates (needs sudo)
+#   test-installed.sh   live test: load, measure, unload
+#   test-hot.sh         the same WITHOUT logging out (damages windows on purpose)
+#   calibrate.sh        derives the coordinate transform from two known positions
+#   verify-chain.sh     the check that prevents the black screen
+esperados="build.sh install.sh test-installed.sh test-hot.sh calibrate.sh verify-chain.sh"
 for s in $esperados; do afirmar_existe "existe $s" "$EF/$s"; done
 
 n=$(ls "$EF"/*.sh 2>/dev/null | wc -l)
-afirmar_igual "numero de scripts (sin andamiaje)" "4" "$n"
+afirmar_igual "number of scripts (no scaffolding)" "6" "$n"
 sobran=""
 for x in "$EF"/*.sh; do
   [ -f "$x" ] || continue
