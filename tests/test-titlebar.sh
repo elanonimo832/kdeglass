@@ -76,3 +76,57 @@ if grep -q 'setUniform' <<< "$(awk '/void MacosGlassEffect::slotWindowAdded/,/^}
 else
   ok "slotWindowAdded no longer writes to the shared shader"
 fi
+
+echo "  -- the measurement separates 'not applied' from 'applied but not blurred' --"
+# M1.3a step 2 puts the SHARP captured desktop in the band, so the M1.2b criterion
+# ("the band loses edge energy") is legitimately not met while the effect works.
+# The tool used to call that "NOT APPLIED": a false alarm aimed straight at the next
+# relogin, and this project has already paid for an instrument that answered the
+# wrong question. Synthetic images, so the instrument is checked without a screen.
+if ! python3 -c 'import PIL, numpy' >/dev/null 2>&1; then
+  ok "(SKIPPED: Pillow/numpy are not installed; measure-titlebar.py was NOT exercised)"
+else
+  CAJA="$(mktemp -d)"
+  python3 - "$CAJA" <<'PYEOF'
+import pathlib, sys
+import numpy as np
+from PIL import Image
+
+d = pathlib.Path(sys.argv[1])
+X, Y, W, H, BAR = 20, 20, 160, 120, 30
+FILA, COL = slice(Y + 3, Y + BAR - 3), slice(X + 3, X + W - 3)
+
+
+def con_banda(banda):
+    img = np.full((240, 240, 3), 30, dtype=np.uint8)
+    # the content: a checkerboard that must stay sharp in all three cases
+    idx = np.indices((H - BAR - 6, W - 6)).sum(axis=0)
+    img[Y + BAR + 3:Y + H - 3, X + 3:X + W - 3] = np.where(((idx // 4) % 2)[..., None] == 0, 200, 40)
+    img[FILA, COL] = banda[..., None]
+    return img
+
+
+rayas_v = np.where(((np.indices((BAR - 6, W - 6))[1] // 3) % 2) == 0, 240, 20)
+rayas_h = np.where(((np.indices((BAR - 6, W - 6))[0] // 3) % 2) == 0, 240, 20)
+uniforme = np.full((BAR - 6, W - 6), 130)
+
+Image.fromarray(con_banda(rayas_v)).save(d / "off.png")
+Image.fromarray(con_banda(uniforme)).save(d / "blurred.png")   # a real blur
+Image.fromarray(con_banda(rayas_h)).save(d / "changed.png")    # step 2: sharp, different
+Image.fromarray(con_banda(rayas_v)).save(d / "same.png")       # nothing happened
+PYEOF
+  ver() { python3 "$EF/measure-titlebar.py" "$CAJA/off.png" "$CAJA/$1" 20 20 160 120 30; }
+  salida_bien="$(ver blurred.png)"; rc_bien=$?
+  salida_cambio="$(ver changed.png)"; rc_cambio=$?
+  salida_igual="$(ver same.png)"; rc_igual=$?
+
+  afirmar_igual "a blurred band is still CORRECT (0)" "0" "$rc_bien"
+  afirmar_igual "a band that changed but kept its detail is 3, not 1" "3" "$rc_cambio"
+  afirmar_igual "an untouched band is still NOT APPLIED (1)" "1" "$rc_igual"
+  if grep -q 'M1.3a step 2' <<< "$salida_cambio"; then
+    ok "the step-2 verdict says WHICH state it is, instead of blaming the effect"
+  else
+    fallo "the 'changed but not blurred' verdict does not explain itself"
+  fi
+  rm -rf "${CAJA:?}"
+fi

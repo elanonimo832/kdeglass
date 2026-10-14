@@ -252,6 +252,15 @@ desktop, so `test-glass.sh` + `measure-glass.py` is the verdict (it reported 3.2
 OPAQUE, for the alpha-only attempt; a composite at `uGlassAlpha` should move by tens
 because the bar now carries 45% of the background).
 
+**`test-titlebar.sh` will NOT say CORRECT yet, and that is not a regression.** Its
+criterion is M1.2b's -- the band loses edge energy -- and in step 2 the band shows the
+captured desktop, which is still SHARP (step 3 is the blur). What the tool must do is
+say *which* state it is, so it now has a third verdict and its own exit code:
+
+    0 CORRECT (band blurred, content intact)   -- expected again after step 3
+    3 THE BAND CHANGED BUT KEPT ITS DETAIL     -- the expected state in step 2
+    1 NOT APPLIED (the band did not change)    -- a real problem
+
 **And the journal says which problem you have**, which saves a second relogin:
 
 ```bash

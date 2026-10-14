@@ -10,6 +10,15 @@ window's geometry. It checks the two halves separately:
 A single whole-window measurement cannot tell these apart, which is why the
 full-window version passed its test and still made the window unreadable.
 
+M1.3a STEP 2 CHANGES WHAT "APPLIED" LOOKS LIKE, so read the verdict carefully.
+In step 2 the band shows the CAPTURED DESKTOP, which is sharp: edge energy does not
+fall, and this used to print "NOT APPLIED" for an effect that was plainly working.
+That state has its own verdict and its own exit code (3) now. The blur returns in
+step 3, and then the criterion above applies again.
+
+Exit codes: 0 correct, 1 a problem (or not applied), 2 cannot measure,
+            3 the band changed but kept its detail -- expected in M1.3a step 2.
+
 Usage: measure-titlebar.py <off.png> <on.png> <x> <y> <w> <h> <barHeight>
   x y w h are the window's frame geometry in device pixels; barHeight is the
   title bar height, printed by the effect as "barHeight=" in the journal.
@@ -75,6 +84,18 @@ def main():
     if band_drop >= 0.25 and body_drop >= 0.15:
         print(f"  VERDICT: TOO WIDE. content is blurred too ({body_drop * 100:.1f} %)")
         return 1
+
+    # Distinguish "nothing happened" from "something happened that is not a blur".
+    # The per-pixel difference is the robust question here: two different sharp
+    # images differ everywhere, an untouched band differs nowhere.
+    cambio = float(np.abs(band_on - band_off).mean())
+    if cambio >= 8.0:
+        print(f"  VERDICT: THE BAND CHANGED ({cambio:.1f} mean per-pixel) BUT KEPT ITS DETAIL")
+        print("    This is the EXPECTED state in M1.3a step 2: the captured desktop")
+        print("    shows through the bar, still sharp. Step 3 is the blur. It is not")
+        print("    the same as 'not applied', and it is not a regression.")
+        return 3
+
     print(f"  VERDICT: NOT APPLIED. title bar only fell {band_drop * 100:.1f} %")
     return 1
 
