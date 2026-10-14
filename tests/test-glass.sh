@@ -414,8 +414,11 @@ afirmar_codigo "windows that reach the screen edge are not rounded" "$SOURCE" '&
 afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touchesEdge = frameRect.left'
 # Vibrancy must DELIVER the minimum contrast, not approach it: aim at a luminance that far
 # from the glass and shift, which is exact, instead of mixing towards black or white.
-afirmar_codigo "vibrancy aims at the promised contrast" "$SOURCE" 'targetLuma = [(]backdropLuma <= 0[.]5[)]'
-afirmar_codigo "and shifts the chrome's luminance to it" "$SOURCE" 'chromeColour [+] vec3[(]targetLuma - chromeLuma[)]'
+# CHANGED: aiming at the minimum contrast produced a mid-grey glyph on a mid-grey glass,
+# which the user read as "borroso o de mala calidad". The chrome is FLIPPED to the far end now,
+# which is what macOS does, over a short ramp so a moving backdrop cannot flicker it.
+afirmar_codigo "vibrancy flips the chrome to the far end" "$SOURCE" 'vec3[(]backdropLuma > 0[.]5 [?] 0[.]0 : 1[.]0[)]'
+afirmar_codigo "over a ramp, not an instant jump" "$SOURCE" 'falta = clamp'
 
 echo "  -- the sampling sub-rectangle is a live switch, off by default --"
 # The last open question of M1.3a: the capture covers the window's EXPANDED geometry while

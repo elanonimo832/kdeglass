@@ -9,16 +9,17 @@ echo "  -- only the essential scripts --"
 #   verify-chain.sh     the check that prevents the black screen
 #   test-glass.sh       live test: the band follows the background
 #   test-titlebar.sh    live test: the title bar only, read from KWin's geometry
+#   tune.sh             sets the live settings and applies them in ONE call
 # The four that were retired to tests/archive/ had stopped being able to say anything:
 # test-installed.sh looked for M1.1's flat marker, test-hot.sh and calibrate.sh waited
 # for CALIB lines the effect no longer emits, and test-diffusion.sh measured M1.2's band
 # diffusion, which the design no longer claims. A live script whose verdict is
 # meaningless is worse than no script: it teaches the reader to ignore verdicts.
-expected="build.sh install.sh test-titlebar.sh test-glass.sh verify-chain.sh"
+expected="build.sh install.sh test-titlebar.sh test-glass.sh tune.sh verify-chain.sh"
 for s in $expected; do afirmar_existe "existe $s" "$EF/$s"; done
 
 n=$(ls "$EF"/*.sh 2>/dev/null | wc -l)
-afirmar_igual "number of scripts (no scaffolding)" "5" "$n"
+afirmar_igual "number of scripts (no scaffolding)" "6" "$n"
 extra=""
 for x in "$EF"/*.sh; do
   [ -f "$x" ] || continue
@@ -115,3 +116,14 @@ for s in "$EF"/*.sh; do
   done
 done
 afirmar_igual "every journal tag a live script waits for still exists" "" "${missing# }"
+
+echo "  -- tune.sh calls the command that actually reaches an effect --"
+# The silent trap this project paid a whole session for: /KWin reconfigure re-parses kwinrc and
+# never calls the effect's reconfigure(), so the value is written, the command reports success
+# and the effect keeps its old one. tune.sh must call reconfigureEffect, and must NOT call the
+# other, or it would be an automation of the bug.
+afirmar_codigo "tune.sh uses reconfigureEffect" "$EF/tune.sh" 'Effects[.]reconfigureEffect'
+negar "tune.sh does not use the command that silently does nothing" \
+  codigo_contiene "$EF/tune.sh" 'KWin /KWin reconfigure'
+afirmar_codigo "and it checks the keys against the source, so a typo is not silent" "$EF/tune.sh" 'readEntry'
+afirmar_codigo "it applies once, after writing every key" "$EF/tune.sh" 'and only once'

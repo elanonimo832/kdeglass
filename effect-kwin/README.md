@@ -27,9 +27,16 @@ Every one of these is read from `[Effect-macosglass2]` in `kwinrc`, and every on
 changed WITHOUT a relogin:
 
 ```bash
-kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key <name> <value>
-qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
+./tune.sh GlassAlpha=0.25 BackgroundRadius=16 Vibrancy=0.35   # writes them and applies ONCE
+./tune.sh --preset apple                                      # the numbers in tokens-kit.toml
+./tune.sh --reset                                             # back to the defaults
+./tune.sh                                                     # what is set right now
 ```
+
+`tune.sh` is the short way and the safe way: it checks every key against the ones the effect
+actually reads (a typo would otherwise be written, reported as success and ignored), calls the
+one D-Bus method that reaches an effect's `reconfigure()`, and reads the journal back so that
+"applied" means measured. By hand it is the same two commands:
 
 `/KWin reconfigure` looks like the obvious command and is the wrong one: it re-parses
 `kwinrc` but never calls the effects' `reconfigure()`, so the effect keeps its old values

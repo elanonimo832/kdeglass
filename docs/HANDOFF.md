@@ -264,6 +264,14 @@ can see exactly where it stopped.
   construction "the bar's own colour": a glyph deviates from it, a bar pixel beside the glyph
   does not, a traffic light does. One kernel and one knob fewer: `ChromeRadius` is GONE, and
   the settings-table test made that impossible to forget.
+- **Vibrancy aimed at the minimum contrast, which looks blurry.** **FIXED in the source
+  (2026-10-14), waiting for the next build.** Aiming at exactly the threshold produced a
+  MID-GREY glyph on a mid-grey glass, and the user described the symptom before the cause: "el
+  texto como que es borroso o se ve de mala calidad". macOS does not aim, it FLIPS the content
+  -- near-white on a dark material, near-black on a light one -- and so does this now, over a
+  short ramp (a quarter of the threshold) so that a moving backdrop cannot flicker it. This is
+  the third version of that function: mixing by the shortfall overshot and undershot, aiming
+  undershot in the case the knob exists for, and aiming is also the wrong *idea*.
 - **Transient lines inside the bar while a window moves.** **State: hypothesis, not fixed.**
   The frost kernel reaches up to `BackgroundRadius` (16-24 px) beyond the fragment while the
   capture extends only the decoration's shadow margin (7 px) beyond the frame, so the samples

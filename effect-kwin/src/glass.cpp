@@ -94,21 +94,19 @@ vec3 chromeWithVibrancy(vec3 chromeColour, vec3 backdrop, float isChrome, float 
     if (contraste >= uVibrancy) {
         return chromeColour;
     }
-    // SHIFT THE LUMINANCE; do not mix towards black or white. The first version mixed by
-    // the shortfall's fraction, which reads well and is wrong at both ends: it OVERSHOOTS
-    // when the chrome is far from the extreme, and UNDERSHOOTS when it is close to it --
-    // a near-white title on a mid-grey glass came out at 0.33 of contrast where the knob
-    // promised 0.35, and that is exactly the case the knob exists for. Aiming at a
-    // luminance exactly uVibrancy away and adding the difference to all three channels
-    // delivers the promise and keeps the chrome's own hue, because kLuma sums to 1.
+    // FLIP THE CHROME; do not aim at the minimum. The third version of this function, and the
+    // first two were wrong in opposite directions: mixing by the shortfall overshot and
+    // undershot, and then aiming at EXACTLY the minimum contrast produced a MID-GREY glyph on
+    // a mid-grey glass -- which the user described by its symptom: "el texto como que es
+    // borroso o se ve de mala calidad". A half-shifted glyph has no crispness left, and they
+    // were right.
     //
-    // The clamp can only bind for a colour that is already at an end of the range, and the
-    // caller only sends achromatic chrome here, whose channels are within a few hundredths
-    // of each other -- so it clamps all three together and does not tint the chrome.
-    float targetLuma = (backdropLuma <= 0.5)
-        ? min(1.0, backdropLuma + uVibrancy)
-        : max(0.0, backdropLuma - uVibrancy);
-    return clamp(chromeColour + vec3(targetLuma - chromeLuma), 0.0, 1.0);
+    // macOS does not aim either: it FLIPS the content, near-white on a dark material and
+    // near-black on a light one. The ramp is short on purpose -- going to the extreme the
+    // instant the threshold is crossed would flicker as a backdrop moves, and a quarter of the
+    // threshold is enough to keep the change crisp without the flicker.
+    float falta = clamp((uVibrancy - contraste) / max(uVibrancy * 0.25, 0.001), 0.0, 1.0);
+    return mix(chromeColour, vec3(backdropLuma > 0.5 ? 0.0 : 1.0), falta);
 }
 
 void main()
