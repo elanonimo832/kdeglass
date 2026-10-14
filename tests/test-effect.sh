@@ -7,14 +7,23 @@ SO_BUILD="$EF/build/plugins/kwin/effects/macosglass2.so"
 SO_SYSTEM=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
 
 echo "  -- the paint chain (cause of the black screen) --"
+# The effect derives from OffscreenEffect, which continues the chain itself:
+# its drawWindow() calls effects->drawWindow() when the window is not redirected
+# and OffscreenData::paint() when it is. Both paths verified in KWin 6.7's
+# src/effect/offscreeneffect.cpp. See tests/test-diffusion.sh for the assertion.
 afirmar_existe "src/glass.cpp exists" "$SOURCE"
-afirmar_codigo "paintWindow calls effects->paintWindow()" "$SOURCE" "^[[:space:]]*effects->paintWindow\("
 afirmar_contiene "includes glass.moc (required for the plugin)" "$SOURCE" 'include "glass\.moc"'
+afirmar_codigo "derives from OffscreenEffect" "$EF/src/glass.h" 'public[[:space:]]+OffscreenEffect'
 
 echo "  -- the compiled plugin --"
 if [ -f "$SO_BUILD" ]; then
-  objdump -d --demangle "$SO_BUILD" 2>/dev/null | grep -cE 'EffectsHandler::paintWindow' >/dev/null \
-    && ok "the compiled .so continues the chain" || fallo "the compiled .so does NOT continue the chain"
+  # The chain is not continued by OUR code any more: OffscreenEffect does it.
+  # So the check is that the base class is really linked in, which is what proves
+  # the chain will be reached. Searching for EffectsHandler::paintWindow in our
+  # own binary was right for M1.1 and is wrong now.
+  nm -D --undefined-only "$SO_BUILD" 2>/dev/null | grep -q 'OffscreenEffect' \
+    && ok "the compiled .so links OffscreenEffect (which continues the chain)" \
+    || fallo "the compiled .so does NOT link OffscreenEffect"
   nm -D "$SO_BUILD" 2>/dev/null | grep -q 'qt_plugin_instance' \
     && ok "the .so exports qt_plugin_instance" || fallo "qt_plugin_instance is missing"
   strings "$SO_BUILD" 2>/dev/null | grep -q 'KWin/Effect' \

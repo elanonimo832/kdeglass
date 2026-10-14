@@ -3,23 +3,35 @@
 #include <effect/effect.h>
 #include <effect/effecthandler.h>
 #include <effect/effectwindow.h>
+#include <effect/offscreeneffect.h>
+
+#include <memory>
 
 namespace KWin
 {
 
+class GLShader;
+
 /**
- * macOS-style material: border darkened inside the window frame.
+ * macOS-style material for windows.
  *
- * The material shader (diffusion, refraction, dispersion, specular highlight) is
- * the next step. Right now the effect only hooks into the paint chain
- * and draws nothing.
+ * M1.1 proved pixels can be put on screen. M1.2 is diffusion: the window's own
+ * content is blurred, so it visibly softens.
  *
- * IMPORTANT HISTORY (INCIDENT.md): this effect left the screen black twice.
- * The cause was NOT the code, but the identifier: the same code compiled as
- * `macosglass` broke rendering, and with a new name (`testglass2`) it worked.
- * That is why the plugin is now installed as `macosglass2`.
+ * WHY OffscreenEffect AND NOT Effect
+ *   A plain Effect receives the SCREEN's framebuffer and can only clear regions
+ *   of it -- enough for M1.1's flat patch, not enough to blur a window. Blurring
+ *   needs the window's own texture, so the effect derives from OffscreenEffect:
+ *   KWin renders the window into an offscreen texture, and the effect replaces
+ *   the drawing with a shader that samples that texture. This is the same base
+ *   class KWin's own blur and invert effects use.
+ *
+ * IMPORTANT HISTORY (INCIDENT.md): this effect left the screen black twice. The
+ * cause was NOT the code but the identifier: the same code compiled as
+ * `macosglass` broke rendering, and with a new name it worked. That is why the
+ * plugin is installed as `macosglass2`.
  */
-class MacosGlassEffect : public Effect
+class MacosGlassEffect : public OffscreenEffect
 {
     Q_OBJECT
 
@@ -31,43 +43,37 @@ public:
 
     void reconfigure(ReconfigureFlags flags) override;
 
-    // CRITICAL: if it is overridden, it MUST continue the chain by calling
-    // effects->paintWindow(). See the comment in glass.cpp.
-    void paintWindow(const RenderTarget &renderTarget, const RenderViewport &viewport,
-                     EffectWindow *w, int mask, const Region &deviceRegion,
-                     WindowPaintData &data) override;
+    /**
+     * OffscreenEffect handles the redirection and the shader; this override only
+     * decides WHICH windows get the treatment.
+     */
+    void apply(EffectWindow *w, int mask, WindowPaintData &data, WindowQuadList &quads) override;
 
 private:
-    // From the kit: the material border is not a gray of its own, it is the veil primitive.
-    // `Fills - Opaque / Secondary` = black at 8% in light, white at 8% in dark.
-    int m_borderAlpha = 20;
-    qreal m_borderWidth = 1.0;
+    void slotWindowAdded(EffectWindow *w);
+    void slotWindowDeleted(EffectWindow *w);
+
+    bool loadShader();
+
+    std::unique_ptr<GLShader> m_shader;
 
     // ---------------------------------------------------------------------
-    // M1.1 -- the marker.
+    // M1.2 -- diffusion.
     //
-    // The effect used to load, join the paint chain and draw NOTHING. The harness
-    // could only assert "black = 0 %", which proves it does not BREAK rendering
-    // but says nothing about whether it draws.
+    // Values from the kit's Liquid Glass parameters (tokens.toml):
+    //   frost    6 / 16 / 16
+    //   refraction 70, dispersion 20, depth 30   <- M1.3 and later
     //
-    // M1.1 paints a flat colour patch in the top-left corner of every normal
-    // window. It is deliberately obvious: the point is to prove the whole path
-    // works -- bind the framebuffer, set a scissor region, get a colour on
-    // screen -- before adding any material on top. It goes away once the
-    // material shader exists.
-    //
-    // A provisional magenta, picked because nothing else in output/ produces it,
-    // so a screenshot test can look for it unambiguously.
+    // `frost` is a three-part figure; 6 is the innermost radius. M1.2 uses it as
+    // the blur radius, because a single radius is what a box blur takes. The two
+    // 16s describe the outer falloff and belong with the edge work in M1.3/M1.5.
     // ---------------------------------------------------------------------
-    // Saturated cyan, 0x00E5FF. The first choice was a desaturated magenta
-    // (0xB33A5B) and it was a bad test instrument: the wallpaper contains 1388
-    // pixels within a tolerance of 24 per channel of it, so a screenshot test
-    // could not tell the marker from the background. Cyan is not a colour any
-    // normal desktop produces, so the delta is unambiguous.
-    static constexpr float kMarkerR = 0.00f;   // 0x00
-    static constexpr float kMarkerG = 0.90f;   // 0xE5
-    static constexpr float kMarkerB = 1.00f;   // 0xFF
-    static constexpr int kMarkerSize = 48;     // device pixels, square
+    static constexpr int kFrostRadius = 6;    // kit: frost 6/16/16
+    static constexpr float kFrostOpacity = 0.25f;  // kit: opacity 25
+
+    // Where the material is applied. Until the shape work (M2) exists, this is
+    // the whole window.
+    bool m_active = true;
 };
 
 } // namespace KWin
