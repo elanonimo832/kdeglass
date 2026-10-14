@@ -127,10 +127,8 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     //   qdbus6 org.kde.KWin /KWin reconfigure
     const KConfigGroup cfg = effects->config()->group(QStringLiteral("Effect-macosglass2"));
     m_frostRadius = cfg.readEntry("FrostRadius", kFrostRadius);
-    m_csdBarHeight = cfg.readEntry("CsdBarHeight", 0);
 
-    qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
-            << "csdBarHeight=" << m_csdBarHeight;
+    qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius;
 
     m_shader.reset();
     loadShader();
@@ -220,20 +218,13 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
         if (w->hasDecoration()) {
             barHeight = w->clientGeometry().top() - w->frameGeometry().top();
         }
-        if (barHeight <= 0.0) {
-            // CLIENT-SIDE DECORATION (CSD), and this is a real limit rather than a
-            // bug. Apps like Zen Browser draw their own title bar INSIDE the client
-            // area, so frameGeometry() and clientGeometry() are identical and their
-            // difference is zero. KWin does not expose that region separately, so
-            // there is nothing to measure and no effect can know where the bar ends
-            // without guessing.
-            //
-            // Guessing geometry is what cost four session restarts in M1.1, so the
-            // guess here is explicit, configurable and documented: a fallback band
-            // height in the kwinrc, defaulting to 0 so the behaviour is unchanged
-            // for anyone who does not ask for it.
-            barHeight = qreal(m_csdBarHeight);
-        }
+        // A window with client-side decoration (Zen Browser, most Electron apps)
+        // reports frameGeometry() == clientGeometry(), so the difference is zero
+        // and there is nothing to cover. KWin does not expose that region, so it
+        // cannot be located without guessing -- and a guess was TRIED and removed:
+        // it blurred a band on Zen Browser that the user did not want, on a window
+        // whose own title bar cannot be measured. Better to do nothing than to
+        // blur content on a guess.
 
         ShaderManager::instance()->pushShader(m_shader.get());
         m_shader->setUniform("uRadius", float(m_frostRadius));
