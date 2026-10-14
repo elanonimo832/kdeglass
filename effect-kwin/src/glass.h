@@ -121,26 +121,26 @@ private:
     // The cache keeps the uv maths identical (it is still a texture per size, not one
     // packed texture with a scale uniform) and the network of assumptions above intact:
     // entries are used inside the same capture/draw call that fills them.
-    struct CapturaFondo {
-        std::unique_ptr<GLTexture> textura;   // declared first, so the FBO dies first
+    struct CaptureSlot {
+        std::unique_ptr<GLTexture> texture;   // declared first, so the FBO dies first
         std::unique_ptr<GLFramebuffer> fbo;
     };
-    std::map<std::pair<int, int>, std::unique_ptr<CapturaFondo>> m_fondos;
+    std::map<std::pair<int, int>, std::unique_ptr<CaptureSlot>> m_captures;
     // When each entry was last used, so the cap evicts the LEAST RECENTLY USED rather than
     // whatever `std::map` happens to put first -- which is the smallest size, and a small
     // terminal is the window this cache exists for.
-    std::map<std::pair<int, int>, quint64> m_uso;
-    quint64 m_reloj = 0;
-    CapturaFondo *m_fondoActual = nullptr;   // the one this paint uses; apply() binds it
-    static constexpr int kMaxCapturas = 4;   // enough for a desktop, bounded on purpose
+    std::map<std::pair<int, int>, quint64> m_lastUse;
+    quint64 m_useClock = 0;
+    CaptureSlot *m_currentCapture = nullptr;   // the one this paint uses; apply() binds it
+    static constexpr int kMaxCaptureSlots = 4;   // enough for a desktop, bounded on purpose
 
-    QSize m_backgroundRegion;    // the region the CURRENT capture covers, in screen px
+    QSize m_captureRegion;    // the region the CURRENT capture covers, in screen px
     bool m_hasBackground = false;
 
     // Whether the window's frame reaches the screen's edge, computed in drawWindow (the
     // only place with a viewport) and read by apply() for the same window. Rounding a
     // window that reaches the edge would carve an arc out of the SCREEN.
-    bool m_tocaBorde = false;
+    bool m_touchesEdge = false;
 
     // THE v AXIS QUESTION, whose answer is NO FLIP -- and it is settled, not a coin toss.
     //
@@ -225,7 +225,7 @@ private:
     // M1.3a -- real glass.
     //
     // M1.2b blurred the WINDOW'S OWN texture and was invisible in practice. The
-    // user put it exactly: "el fondo blanco no me deja ver nada, solo lo se por
+    // user put it exactly: "el backdrop blanco no me deja ver nada, solo lo se por
     // los botones y el titulo". Blurring a uniform colour returns that same
     // uniform colour, so there was nothing to see beyond unreadable text.
     //

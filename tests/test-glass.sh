@@ -71,19 +71,19 @@ afirmar_codigo "the chrome is found by its deviation from a baseline" "$FUENTE" 
 # behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
 # bar's height keeps ~4, which cannot be seen.
 afirmar_codigo "the bar's tone is averaged over the bar's own scale" "$FUENTE" 'max[(]uRadius, uTitleBarHeight [*] 0[.]5[)]'
-afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, cromo, chrome[)]'
+afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, chromeColour, chrome[)]'
 # VIBRANCY, off by default: the theme's title is dark and the frosted backdrop can be
 # dark, so with little of the bar's colour kept the title disappears. macOS adapts the
 # chrome to the material. It is a setting because it changes the title's colour, which is
 # a decision for a screen.
 afirmar_codigo "vibrancy is off by default" "$CABECERA" 'kVibrancy = 0'
 afirmar_codigo "and it is a live setting" "$FUENTE" 'Vibrancy'
-afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$FUENTE" 'esColor > 0[.]5'
+afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$FUENTE" 'isColour > 0[.]5'
 # The wiring: the main path must go through the helper, or vibrancy is a function nobody
 # calls -- the same trap as the `discard;` that could never run.
-afirmar_codigo "and the main path uses it" "$FUENTE" 'cromoConVibrancy[(]window[.]rgb, glass, chrome, porColor[)]'
+afirmar_codigo "and the main path uses it" "$FUENTE" 'chromeWithVibrancy[(]window[.]rgb, glass, chrome, byColour[)]'
 # The wiring, not the name: the adaptation must be what gets composited.
-afirmar_codigo "and the adapted chrome is the one composited" "$FUENTE" 'mix[(]glass, cromo, chrome[)]'
+afirmar_codigo "and the adapted chrome is the one composited" "$FUENTE" 'mix[(]glass, chromeColour, chrome[)]'
 # THE BASELINE MUST BE TIGHT. The first version measured the deviation against the
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar
 # pixels AROUND them were classified as chrome and drawn crisp: a bright halo around
@@ -95,10 +95,10 @@ afirmar_codigo "and its threshold is one tunable knob" "$FUENTE" 'uChromeLow'
 # 12 px disc as around it. Chroma is local, so it costs no halo.
 # ...and it must be USED, not merely declared: asserting the name alone passed while
 # the term was disconnected, which is the third time this shape has bitten.
-afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$FUENTE" 'max[(]porDesviacion, porColor[)]'
+afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$FUENTE" 'max[(]byDeviation, byColour[)]'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
-afirmar_codigo "the band's colour is premultiplied by its alpha" "$FUENTE" 'salida [*] window[.]a'
+afirmar_codigo "the band's colour is premultiplied by its alpha" "$FUENTE" 'result [*] window[.]a'
 # And the corners: this theme's SVG has a 12 px arc but aurorae clips it into a 1 px
 # cell, so the frame is a rectangle and there is no shape to follow. The effect draws
 # the rounded rectangle itself and discards what falls outside it (0 disables it).
@@ -107,7 +107,7 @@ afirmar_codigo "by discarding what falls outside the rounding" "$FUENTE" 'discar
 # The condition itself, not just the two names: the first version of this assertion was
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
-afirmar_codigo "outside the arc, and only there" "$FUENTE" 'dot[(]esquina, esquina[)] > uCornerRadius [*] uCornerRadius'
+afirmar_codigo "outside the arc, and only there" "$FUENTE" 'dot[(]corner, corner[)] > uCornerRadius [*] uCornerRadius'
 # ...and only for the windows the material covers. A fullscreen window IS the screen:
 # rounding it would carve arcs out of the screen and show the desktop through them. A
 # client-side decoration is the case this effect leaves alone everywhere else.
@@ -334,20 +334,20 @@ echo "  -- a diagnostic may not flood the journal --"
 # quotes the buggy expression, and a check that matched it would be checking the prose.
 negar "the per-paint diagnostic cannot log on every paint" \
   codigo_contiene "$FUENTE" 'pre <= 6'
-afirmar_codigo "the diagnostic uses one gate and one counter" "$FUENTE" 'const bool loguear ='
+afirmar_codigo "the diagnostic uses one gate and one counter" "$FUENTE" 'const bool shouldLog ='
 
 echo "  -- the capture is cached per size, not rebuilt per paint --"
 # Two windows of different sizes repainting used to allocate and free a texture and a
 # framebuffer twice PER FRAME for as long as both kept repainting (a terminal with a
 # blinking cursor next to a video). The note that deferred the fix said to do it once the
 # mechanism was verified; the capture measured 73.8 against a threshold of 12, so it is.
-afirmar_codigo "the capture lives in a per-size cache" "$CABECERA" 'm_fondos'
-afirmar_codigo "the cache is bounded, so a resizing window cannot grow it forever" "$CABECERA" 'kMaxCapturas'
-afirmar_codigo "a capture is looked up by size" "$FUENTE" 'm_fondos[.]find[(]clave[)]'
+afirmar_codigo "the capture lives in a per-size cache" "$CABECERA" 'm_captures'
+afirmar_codigo "the cache is bounded, so a resizing window cannot grow it forever" "$CABECERA" 'kMaxCaptureSlots'
+afirmar_codigo "a capture is looked up by size" "$FUENTE" 'm_captures[.]find[(]key[)]'
 # And the wiring, which is the check that keeps mattering: apply() must bind the capture
 # this paint filled, not one it hopes is current.
-afirmar_codigo "apply() binds the capture this paint filled" "$FUENTE" 'm_fondoActual->textura->bind[(][)]'
-afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$FUENTE" 'm_fondoActual = nullptr;'
+afirmar_codigo "apply() binds the capture this paint filled" "$FUENTE" 'm_currentCapture->texture->bind[(][)]'
+afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$FUENTE" 'm_currentCapture = nullptr;'
 
 echo "  -- the live instruments' journal contract still holds --"
 # The live scripts measure by READING the effect's journal: test-glass.sh matches
@@ -382,7 +382,7 @@ python3 - "$FUENTE" <<'PYEOF'
 import re, sys
 src = open(sys.argv[1], encoding="utf-8").read()
 cuerpo = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
-limpiar = cuerpo.find("m_fondoActual = nullptr;")
+limpiar = cuerpo.find("m_currentCapture = nullptr;")
 salida = cuerpo.find("return false;")
 print("OK" if 0 <= limpiar < salida else "MAL")
 PYEOF
@@ -390,7 +390,7 @@ if python3 - "$FUENTE" <<'PYEOF'
 import sys
 src = open(sys.argv[1], encoding="utf-8").read()
 cuerpo = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
-limpiar = cuerpo.find("m_fondoActual = nullptr;")
+limpiar = cuerpo.find("m_currentCapture = nullptr;")
 salida = cuerpo.find("return false;")
 raise SystemExit(0 if 0 <= limpiar < salida else 1)
 PYEOF
@@ -402,17 +402,17 @@ fi
 # std::map is ordered by KEY, so erase(begin()) evicts the SMALLEST size -- and a small
 # terminal is the window this cache exists for. The cap must evict the least recently used.
 negar "the cache does not evict by key order" \
-  codigo_contiene "$FUENTE" 'm_fondos.erase[(]m_fondos.begin[(][)][)]'
-afirmar_codigo "it evicts the least recently used entry" "$FUENTE" 'm_uso\[masViejo->first\]'
+  codigo_contiene "$FUENTE" 'm_captures.erase[(]m_captures.begin[(][)][)]'
+afirmar_codigo "it evicts the least recently used entry" "$FUENTE" 'm_lastUse\[leastRecentlyUsed->first\]'
 # A destination built from the CLAMPED source can be smaller than the texture, and with a
 # cache the unwritten strip would hold a PREVIOUS window's capture.
 afirmar_codigo "the capture is cleared before the blit" "$FUENTE" 'glClear[(]GL_COLOR_BUFFER_BIT[)]'
 # Both paths write premultiplied: the scene blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA.
-afirmar_codigo "the no-capture fallback is premultiplied too" "$FUENTE" 'reserva [*] uGlassAlpha'
+afirmar_codigo "the no-capture fallback is premultiplied too" "$FUENTE" 'fallback [*] uGlassAlpha'
 # Rounding a window whose frame reaches the screen edge would carve an arc out of the screen.
-afirmar_codigo "windows that reach the screen edge are not rounded" "$FUENTE" '&& !m_tocaBorde'
-afirmar_codigo "and that is computed where the viewport is" "$FUENTE" 'm_tocaBorde = marco.left'
+afirmar_codigo "windows that reach the screen edge are not rounded" "$FUENTE" '&& !m_touchesEdge'
+afirmar_codigo "and that is computed where the viewport is" "$FUENTE" 'm_touchesEdge = frameRect.left'
 # Vibrancy must DELIVER the minimum contrast, not approach it: aim at a luminance that far
 # from the glass and shift, which is exact, instead of mixing towards black or white.
-afirmar_codigo "vibrancy aims at the promised contrast" "$FUENTE" 'objetivo = [(]lumFondo <= 0[.]5[)]'
-afirmar_codigo "and shifts the chrome's luminance to it" "$FUENTE" 'cromo [+] vec3[(]objetivo - lumCromo[)]'
+afirmar_codigo "vibrancy aims at the promised contrast" "$FUENTE" 'targetLuma = [(]backdropLuma <= 0[.]5[)]'
+afirmar_codigo "and shifts the chrome's luminance to it" "$FUENTE" 'chromeColour [+] vec3[(]targetLuma - chromeLuma[)]'
