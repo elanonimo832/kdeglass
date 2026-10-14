@@ -25,7 +25,7 @@ The first two are **identical**. The third is not, and there is an explanation.
 
 ## 2. Texts: they match within the compression tolerance
 
-The text is measured by the **core of the stroke** (the most extreme 0.5 % of pixels), not by the
+The text is measured by the **core of the stroke** (the most extreme 0,5 % of pixels), not by the
 smoothed edges, which are always lighter:
 
 | Text | On screen | What I declared | Difference |
