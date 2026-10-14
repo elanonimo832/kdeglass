@@ -231,11 +231,15 @@ private:
     //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key Vibrancy 0.35
     //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
     // ---------------------------------------------------------------------
-    // ON by default, because Apple's material and Apple's content go together: at a quarter
-    // opacity the title of this theme (a dark #404040) has too little contrast against a dark
-    // backdrop, and macOS answers that by flipping the content rather than by making the
-    // material more opaque. 0 turns it off.
-    static constexpr float kVibrancy = 0.35f;
+    // OFF by default, and the reason is a user's report that exposed the wrong RULE rather than
+    // a wrong value: "el texto es blanco, estamos en tema claro por lo que el texto deberia ser
+    // obscuro". Flipping the content by the MATERIAL's momentary luminance means a light theme
+    // over a dark wallpaper gets white text, which is not what anybody expects. macOS decides
+    // the content's colour from the APPEARANCE (light/dark mode) and lets the material carry its
+    // own lightness; that is the design this should grow into, and it needs the colour scheme,
+    // not the glass, so it is not this knob. Until then: off, and the theme's own text colour
+    // wins. 0.35 turns the flip on for anyone who wants it.
+    static constexpr float kVibrancy = 0.0f;
     float m_vibrancy = kVibrancy;
 
     // ---------------------------------------------------------------------

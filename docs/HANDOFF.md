@@ -856,6 +856,30 @@ and outline it. They are what the measurement supported, no more.
 a commit that had just renamed exactly those identifiers. The shader failed to compile and two
 assertions failed with it: the tests, not the habit, are what keeps that agreement.
 
+## 9e. Three corrections the next screenshot forced, and one wrong RULE
+
+- **The halo was never vibrancy; it was the theme's own anti-aliasing.** The theme draws a
+  button against ITS white bar, so the boundary pixel is a mix of the button's colour and
+  #F6F6F6 -- a white fringe baked into the texture, which no compositing can remove. Classifying
+  it as chrome painted that white over our glass, one pixel wide, around every light. The chroma
+  term is `smoothstep(0.15, 0.30, ...)` now instead of `(0.06, 0.15)`, so the fringe stays glass
+  and the button's edge dissolves into the material while the saturated interior still passes.
+  The earlier vibrancy gate was a real bug too, but it was the second cause, not the first.
+- **The rim was the wrong SHAPE.** Ours was a two-texel white line and the user's verdict was
+  exact: "el de apple es mas grueso y se adapta al color del background, el nuestro es una simple
+  linea fina delgada blanca". Apple's edge is **refraction** -- the glass bends what is behind
+  it -- which is why the measured bands are thick and take the backdrop's colour. The
+  approximation is now the AMPLIFIED backdrop over a 5-texel falloff with a small specular lift,
+  and section 9b still says what is missing: true refraction displaces the sample
+  (`refraction = 70`), which is the next milestone rather than a knob on this one.
+- **Vibrancy's rule was wrong, not its value.** The user: "el texto es blanco, estamos en tema
+  claro por lo que el texto deberia ser obscuro". Deciding the content's colour from the
+  MATERIAL's momentary luminance means a light theme over a dark wallpaper gets white text.
+  macOS decides it from the APPEARANCE (light/dark mode) and gives the material its own
+  lightness. That is the design to grow into, and it needs the colour scheme rather than the
+  glass, so it is not this knob: **`Vibrancy` is off by default again**, the theme's own text
+  colour wins, and the knob stays for whoever wants the flip.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

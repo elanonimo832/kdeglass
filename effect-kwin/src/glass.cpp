@@ -283,7 +283,13 @@ void main()
     // is chrome by itself.
     float chroma = max(max(window.r, window.g), window.b)
                      - min(min(window.r, window.g), window.b);
-    float byColour = smoothstep(0.06, 0.15, chroma);
+    // 0.15 and not 0.06, and this is the halo the user kept seeing. The theme anti-aliases a
+    // button against its OWN white bar, so the boundary pixel is a mix of the button's colour
+    // and #F6F6F6 -- a white fringe baked into the texture, which no compositing can remove.
+    // Treating it as chrome paints that white over OUR glass, one pixel wide, around every
+    // light. At 0.15 the fringe stays glass and the button's edge dissolves into the material,
+    // while the saturated interior still passes.
+    float byColour = smoothstep(0.15, 0.30, chroma);
     float chrome = max(byDeviation, byColour);
 
     // M1.3a -- THE DESKTOP ITSELF, NOT AN ALPHA.
@@ -395,8 +401,19 @@ void main()
         float fromLeft = vTexCoord.x * uTextureSize.x;
         float fromRight = uTextureSize.x - fromLeft;
         float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
-        float rim = (1.0 - smoothstep(0.0, 2.0, toEdge)) * uRim;
-        result = mix(result, vec3(1.0), rim);
+        float rim = (1.0 - smoothstep(0.0, 5.0, toEdge)) * uRim;
+        // THE EDGE IS THE BACKDROP'S OWN COLOUR, NOT WHITE. The first version was a two-texel
+        // white line and the user's verdict was exact: "el de apple es mas grueso y se adapta al
+        // color del background, el nuestro es una simple linea fina delgada blanca". Apple's
+        // edge is REFRACTION -- the glass bends what is behind it, so the rim is the backdrop
+        // seen through the material's edge, brighter and coloured by whatever is there. This
+        // approximates that first: the amplified backdrop, over a wider falloff, with a small
+        // specular lift on top instead of a white line. True refraction displaces the sample
+        // (that is `refraction = 70`) and is the next milestone, not this.
+        float edgeLuma = dot(desktop, kLuma);
+        vec3 rimColour = clamp(edgeLuma + (desktop - edgeLuma) * max(uMaterialBoost, 1.2), 0.0, 1.0);
+        result = mix(result, rimColour, rim * 0.85);
+        result = mix(result, vec3(1.0), rim * 0.15);
         fragColor = vec4(result * window.a, window.a);
         return;
     }

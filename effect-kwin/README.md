@@ -49,10 +49,10 @@ while the command reports success.
 | `GlassAlpha` | 0.25 | how much of the bar's own tone the glass keeps -- Apple's `[liquid_glass] opacity = 25` |
 | `CornerRadius` | 16 | radius of the window's corners; 0 leaves whatever the decoration drew |
 | `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |
-| `Vibrancy` | 0.35 | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
+| `Vibrancy` | 0.0 (off) | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
 | `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |
 | `CaptureSubRect` | false (off) | sample the capture at the FRAME's sub-rectangle instead of the whole texture. It exists because the capture covers the expanded geometry while the shader's sizes come from the frame; run `measure-alignment.py` with each value and keep the one that reports (0, 0) |
-| `Rim` | 0.20 | brightness of the edge highlight; measured from Apple's Dock as ~215-236 against a middle of 168-190 |
+| `Rim` | 0.20 | the edge highlight: the AMPLIFIED backdrop over a 5-texel falloff, not a white line. Apple's edge is refraction (it bends the background), measured as bright coloured bands 215-236 top and 206-218 bottom against a middle of 168-190 |
 | `MaterialBoost` | 1.20 | how much the material AMPLIFIES the backdrop's colour instead of veiling it. 1.0 is off; the value measured on Apple's Dock is **1.6** |
 | `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |
 
