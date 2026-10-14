@@ -163,7 +163,7 @@ the user describing the behaviour: *"if I moved the app up, the patch went down"
     its own start-up, so a changed file needs a fresh session
   - hot-loading only reaches `paintWindow` for windows that are DAMAGED; loading
     an effect damages nothing, which is why a plain `loadEffect` appears to do
-    nothing. `test-hot.sh` damages windows on purpose
+    nothing. `test-hot.sh` (now in `tests/archive/`) damages windows on purpose
   - a screenshot diff is blind to DIRECTION: it counted the changed pixels
     correctly and still could not say the patch was anchored wrongly
 
@@ -174,7 +174,7 @@ them on purpose.
 screenshots in `evidence/` that prove it.
 
 **Risk:** this is the most delicate part (OpenGL over KWin's framebuffer). A mistake
-can leave a black screen. Mitigation: `test-installed.sh` always unloads,
+can leave a black screen. Mitigation: `test-installed.sh` (now archived) always unloads,
 `verify-chain.sh` aborts before installing, and `RECOVER-KDE.sh reanimar` recovers
 on the fly.
 

@@ -99,7 +99,7 @@ recovery from a TTY.
 
 **Practical rule:**
 - Every risky operation must be **reversible** and have an **escape hatch**
-  (the `trap EXIT` in `test-installed.sh` always unloads the effect).
+  (the `trap EXIT` in `tests/archive/test-installed.sh` always unloads the effect).
 - Before touching anything, know how to undo it.
 - **Commit before every risky change.**
 
@@ -109,7 +109,7 @@ recovery from a TTY.
 "moved between files". The real cause was the race of rule 4, but the reason it
 could not be placed was the runner: `tests/run.sh` **`source`d every test file into
 one shell**, so a variable, a function, a `set` flag or an `exit` in one file
-reached the next. Measured, not deduced: `test-diffusion.sh` sets `CABECERA`, and it
+reached the next. Measured, not deduced: `test-offscreen.sh` sets `CABECERA`, and it
 was still set when `test-harness.sh` ran.
 
 **Practical rule:**
@@ -124,6 +124,14 @@ was still set when `test-harness.sh` ran.
   `grep -q` in a pipe was forbidden in `effect-kwin/*.sh` and used nine times inside
   `tests/`, including in the helper that runs every assertion. The scan now covers
   both.
+- **A file that dies halfway reports nothing, and a counter cannot tell it from a file that
+  finished.** The harness's per-file EXIT trap writes the counter even when the file is
+  killed mid-way -- which is deliberate, so a file that dies still contributes the checks it
+  ran -- and that made a dead check invisible: `tests/test-scripts.sh` referenced an
+  undefined variable, `set -u` killed it, and the suite printed ALL PASS with a check that
+  never ran. `run-one.sh` now writes a marker after the file returns and `run.sh` requires
+  it, so "finished" and "died" are different verdicts. The marker is a separate file because
+  the counter is written with `>` from the trap.
 - **A deliberate break must not be able to destroy uncommitted work.** While checking that
   the eviction guard caught the regression it was written for, the break was reverted with
   `git checkout`, which restored the file to the last COMMIT and took ten uncommitted fixes
@@ -181,7 +189,7 @@ Before calling anything done:
 |---|---|
 | The harness passes | `tests/run.sh` |
 | The test catches the break | break it on purpose and watch it fail |
-| The system does not break | `test-installed.sh` (loads, measures, unloads) |
+| The system does not break | `tests/archive/test-installed.sh` (loads, measures, unloads) -- retired, kept as the record |
 | It is reproducible | regenerate and compare (byte for byte) |
 | It is documented | the documentation does not contradict itself (there is a test) |
 

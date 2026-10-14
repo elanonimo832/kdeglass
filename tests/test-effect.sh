@@ -10,7 +10,7 @@ echo "  -- the paint chain (cause of the black screen) --"
 # The effect derives from OffscreenEffect, which continues the chain itself:
 # its drawWindow() calls effects->drawWindow() when the window is not redirected
 # and OffscreenData::paint() when it is. Both paths verified in KWin 6.7's
-# src/effect/offscreeneffect.cpp. See tests/test-diffusion.sh for the assertion.
+# src/effect/offscreeneffect.cpp. See tests/test-offscreen.sh for the assertion.
 afirmar_existe "src/glass.cpp exists" "$SOURCE"
 afirmar_contiene "includes glass.moc (required for the plugin)" "$SOURCE" 'include "glass[.]moc"'
 afirmar_codigo "derives from OffscreenEffect" "$EF/src/glass.h" 'public[[:space:]]+OffscreenEffect'

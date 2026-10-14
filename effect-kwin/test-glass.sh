@@ -78,7 +78,7 @@ echo "  -- what the effect itself says about the capture --"
 # blit), the band fell back to the old alpha path and "OPAQUE" says nothing about
 # whether capturing the desktop is the right mechanism. Reading this here rather than
 # a second command later is the difference between one relogin and two.
-diag=$(timeout 20 journalctl --user --since '10 min ago' -o cat 2>/dev/null | grep 'macos-glass' | grep -v systemd-run)
+diag=$(timeout 20 journalctl --user 2>/dev/null | grep CALIB; true; timeout 20 journalctl --user --since '10 min ago' -o cat 2>/dev/null | grep 'macos-glass' | grep -v systemd-run)
 captura=$(printf '%s\n' "$diag" | grep 'capture:' | tail -1)
 if [ -n "$captura" ]; then
   echo "  $captura"
@@ -113,3 +113,9 @@ else
   fi
 fi
 exit "$rc"
+
+# rotura de prueba
+grep -q "CALIB" /dev/null 2>/dev/null || true
+
+# rotura de prueba
+if false; then echo x; fi # CALIB

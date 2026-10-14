@@ -60,15 +60,12 @@ next step is therefore the capture, not a bigger shader; see
 ./test-titlebar.sh      # live: is the band blurred while the content stays sharp? (M1.2b)
 ```
 
-`test-installed.sh` is still here and still runs, but it is an **M1.1-era instrument**:
-it looks for the flat marker patch that M1.1 drew, which M1.2 replaced with the
-material band. Its "not drawn" verdict says nothing about the current effect — the two
-scripts above are the live tests now. [`../docs/HANDOFF.md`](../docs/HANDOFF.md)
-section 7 is the procedure.
-
-`test-installed.sh` is the test bench: it **does not log you out**, it
-reinstalls nothing, and it always unloads the effect with `trap EXIT` even if
-rendering fails. It takes about 15 seconds.
+Five instruments live here, and the rest were retired to `tests/archive/` when their
+verdict stopped meaning anything: `test-installed.sh` looked for M1.1's flat marker,
+`test-hot.sh` and `calibrate.sh` waited for `CALIB` lines the effect no longer emits, and
+`test-diffusion.sh` measured M1.2's band diffusion, which the design no longer claims. A
+live script that cannot say anything is worse than no script, because it teaches the reader
+to ignore verdicts -- the same lesson as the false `WARNING` lines below.
 
 For the effect to stay loaded **permanently**, log out.
 

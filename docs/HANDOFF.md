@@ -300,6 +300,9 @@ can see exactly where it stopped.
   capture/draw ordering the note above depends on), which is why eviction is safe; and
   `std::map` nodes do not move on insert, so a pointer into the cache stays valid.
 - **`test-installed.sh` is an M1.1-era instrument and its verdict is meaningless now.**
+  *(Retired to `tests/archive/` on 2026-10-14, together with `test-hot.sh`, `calibrate.sh`
+  and `test-diffusion.sh`: the first three could no longer say anything and the fourth
+  measured a design that is gone.)*
   It looks for the flat 48x48 marker patch that M1.1 drew; M1.2 replaced it with the
   material band. Running it today reports "not drawn" about a working effect. Its
   header and the effect README say so, and the live procedure points at
@@ -493,7 +496,7 @@ The instruments:
 | --- | --- |
 | `measure-titlebar.py` | is the TITLE BAR blurred while the CONTENT stays sharp |
 | `measure-glass.py` | does the bar change colour when only the background changes |
-| `measure-diffusion.py` | is local contrast lost with brightness preserved |
+| ~~`measure-diffusion.py`~~ | RETIRED: answered that for a design that took its blur from the window's own texture. In `tests/archive/` |
 | `verify-chain.sh` | does the effect continue KWin's paint chain (black-screen safety) |
 | `tests/run.sh` (glass) | do the embedded shaders compile, without a screen |
 | `measure-alignment.py` | is the backdrop sampled where it belongs, or displaced by the shadow margin (step 3d) |
@@ -611,7 +614,7 @@ What changed:
    `test-titlebar.sh` are pure static assertions over `glass.cpp` and `glass.h`.
    Nothing under `tests/` contains `qdbus`, `busctl`, `dbus` or an executed
    `kwin_wayland --replace`. The scripts that DO talk to the live KWin are
-   `effect-kwin/test-installed.sh` and `effect-kwin/test-hot.sh`, and the suite
+   `tests/archive/test-installed.sh` and `tests/archive/test-hot.sh`, and the suite
    never runs them.
 3. **The `.pass-count` cache was a race.** No: `run.sh` writes it and nothing reads
    it -- no test, no tool, no doc, and it is git-ignored. It stays as a convenience
@@ -620,7 +623,7 @@ What changed:
 ### The contamination was real, it just was not the cause
 
 Sourcing every test file into one shell did leak state, and that was measured, not
-deduced: `test-diffusion.sh` sets `CABECERA`, and with the old runner that variable
+deduced: `tests/test-offscreen.sh` sets `CABECERA`, and with the old runner that
 was still set when `test-harness.sh` ran. `tests/test-harness.sh` keeps a canary
 for it, so a future runner that goes back to one shared shell fails a test instead
 of losing a session.
