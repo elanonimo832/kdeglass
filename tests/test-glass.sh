@@ -348,3 +348,16 @@ afirmar_codigo "a capture is looked up by size" "$FUENTE" 'm_fondos[.]find[(]cla
 # this paint filled, not one it hopes is current.
 afirmar_codigo "apply() binds the capture this paint filled" "$FUENTE" 'm_fondoActual->textura->bind[(][)]'
 afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$FUENTE" 'm_fondoActual = nullptr;'
+
+echo "  -- the live instruments' journal contract still holds --"
+# The live scripts measure by READING the effect's journal: test-glass.sh matches
+# `capture:`, `refused=N` and looks for the warning phrases; the handoff tells the reader to
+# use `frame=`/`barHeight=` for the band's rectangle and to confirm settings with the
+# `reconfigure:` line. Rename any of these and a live test measures NOTHING while still
+# reporting success -- the worst failure this project knows, and the reason the harness work
+# in section 10 exists at all. The list is explicit rather than extracted on purpose: an
+# extracted pattern cannot tell a contract from a coincidence.
+for frase in "capture: ok=" "refused=" "cannot allocate" "not valid" "failed to load" \
+             "blit was refused" "frame=" "barHeight=" "reconfigure:"; do
+  afirmar_codigo "the journal still carries '$frase'" "$FUENTE" "$frase"
+done
