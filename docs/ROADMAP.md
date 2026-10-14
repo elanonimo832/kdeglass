@@ -40,6 +40,22 @@ Done in small steps, each measured before the next one starts:
 | M1.4 | Dispersion (20) | the edge splits into channels; measured in the colour | |
 | M1.5 | Specular highlight + darkened edge (alpha 20) | matches the kit | |
 
+#### M1.3a — in progress, and it needs a different mechanism (2026-10-14)
+
+A translucent band was implemented (`kGlassAlpha` 0.55 plus
+`data.setTranslucent()` in `prePaintWindow`) and **measured OPAQUE** by
+`test-glass.sh`: with the window held still and only the background changed, the
+bar moved by 3.2 where 12 is the threshold.
+
+That is a mechanism limit, not a defect in the translucency work. The shader's only
+input is the window's own texture, so no alpha and no uniform can put the desktop
+into it — an alpha of 0 would still show the window's own black. Showing the
+background requires CAPTURING it with `GLFramebuffer::blitFromRenderTarget`, which
+is exactly what KWin's own blur effect does for the whole window.
+
+**The full analysis, the next step in detail, and its risks are in
+[`HANDOFF.md`](HANDOFF.md).** Start there, not here.
+
 #### M1.2 and M1.2b — done (2026-10-14)
 
 The effect derives from `OffscreenEffect` and blurs the window's own texture with a
