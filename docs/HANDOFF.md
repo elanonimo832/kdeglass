@@ -51,6 +51,35 @@ for (const Rect &dirtyRect : dirtyRegion.rects()) {
 }
 ```
 
+**A rejected option, recorded so nobody spends time on it again.** An earlier plan
+in the session proposed GLFramebuffer plus a raw glBlitFramebuffer. That was
+abandoned after reading KWin: glBlitFramebuffer reads from whatever is bound as
+GL_READ_FRAMEBUFFER, and the screen is not a framebuffer object, so blitting from it
+is not portable. blitFromRenderTarget exists precisely to solve that, and it handles
+the case where the source is the screen:
+
+    bool GLFramebuffer::blitFromRenderTarget(...)
+    {
+        OutputTransform transform = sourceRenderTarget.texture()
+            ? sourceRenderTarget.texture()->contentTransform() : OutputTransform();
+        const bool normal = transform == OutputTransform::Normal;
+        if ((normal || mirrorX || mirrorY) && EglContext::currentContext()->supportsBlits()) {
+            blitFromFramebuffer(sourceViewport.mapToRenderTarget(source), destination, ...);
+            return true;              // the normal path: no source texture needed
+        } else {
+            const auto texture = sourceRenderTarget.texture();
+            if (!texture) {
+                return false;         // only fails when the output is ROTATED
+            }
+            ...
+        }
+    }
+
+The output here is not rotated, so the normal path applies. Note also
+mapToRenderTarget(source), which is what converts the logical coordinates of
+frameGeometry() into framebuffer coordinates -- the coordinate-space risk noted in
+section 5 is handled by using this function rather than by arithmetic.
+
 So: **do not depend on the blur effect, and do not reimplement its internals. Use
 the same primitives it uses.** Depending on it would be fragile — its region, its
 two-pass down/upsample, its noise and its strength settings are not ours, and the
