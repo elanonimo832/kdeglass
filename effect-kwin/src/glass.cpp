@@ -52,6 +52,7 @@ uniform float uRadius;
 uniform vec2 uTexelSize;
 uniform vec2 uTextureSize;
 uniform float uTitleBarHeight;
+uniform float uGlassAlpha;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -90,7 +91,9 @@ void main()
             sum += texture(sampler, vTexCoord + d);
         }
     }
-    fragColor = sum / 9.0;
+    // Translucent: this is what lets the desktop behind the window show through,
+    // and it is the difference between a smudged bar and a glass one.
+    fragColor = vec4((sum / 9.0).rgb, uGlassAlpha);
 }
 )";
 
@@ -250,6 +253,17 @@ void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
     unredirect(w);
 }
 
+void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowPrePaintData &data)
+{
+    if (m_active && w->isNormalWindow()) {
+        // The scene blends a window only if it is told the window is translucent.
+        // The shader writing an alpha is not enough on its own.
+        data.setTranslucent();
+    }
+    // Continue the chain: prePaintWindow must re-enter it like the others.
+    OffscreenEffect::prePaintWindow(view, w, data);
+}
+
 void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, WindowQuadList &quads)
 {
     Q_UNUSED(w)
@@ -313,6 +327,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uTextureSize",
                          QVector2D(float(size.width()), float(size.height())));
     m_shader->setUniform("uTitleBarHeight", float(barHeight));
+    m_shader->setUniform("uGlassAlpha", kGlassAlpha);
     ShaderManager::instance()->popShader();
 }
 

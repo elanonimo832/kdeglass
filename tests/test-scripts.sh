@@ -10,11 +10,11 @@ echo "  -- solo los scripts esenciales --"
 #   test-hot.sh         the same WITHOUT logging out (damages windows on purpose)
 #   calibrate.sh        derives the coordinate transform from two known positions
 #   verify-chain.sh     the check that prevents the black screen
-esperados="build.sh install.sh test-installed.sh test-hot.sh test-diffusion.sh test-titlebar.sh calibrate.sh verify-chain.sh"
+esperados="build.sh install.sh test-installed.sh test-hot.sh test-diffusion.sh test-titlebar.sh test-glass.sh calibrate.sh verify-chain.sh"
 for s in $esperados; do afirmar_existe "existe $s" "$EF/$s"; done
 
 n=$(ls "$EF"/*.sh 2>/dev/null | wc -l)
-afirmar_igual "number of scripts (no scaffolding)" "8" "$n"
+afirmar_igual "number of scripts (no scaffolding)" "9" "$n"
 sobran=""
 for x in "$EF"/*.sh; do
   [ -f "$x" ] || continue

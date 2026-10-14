@@ -49,6 +49,12 @@ public:
      */
     void apply(EffectWindow *w, int mask, WindowPaintData &data, WindowQuadList &quads) override;
 
+    // Marks the window translucent, which is what makes the scene BLEND the alpha
+    // the shader writes. Without this the alpha is ignored and the bar stays
+    // opaque no matter what the shader outputs -- the same class of mistake as
+    // the unbound uniform: correct output, never used.
+    void prePaintWindow(RenderView *view, EffectWindow *w, WindowPrePaintData &data) override;
+
 private:
     void slotWindowAdded(EffectWindow *w);
     void slotWindowDeleted(EffectWindow *w);
@@ -71,6 +77,25 @@ private:
     static constexpr int kFrostRadius = 6;    // kit: frost 6/16/16
 
     int m_frostRadius = kFrostRadius;
+
+    // ---------------------------------------------------------------------
+    // M1.3a -- real glass.
+    //
+    // M1.2b blurred the WINDOW'S OWN texture and was invisible in practice. The
+    // user put it exactly: "el fondo blanco no me deja ver nada, solo lo se por
+    // los botones y el titulo". Blurring a uniform colour returns that same
+    // uniform colour, so there was nothing to see beyond unreadable text.
+    //
+    // macOS does not blur the bar; it makes the bar translucent and shows the
+    // desktop behind it. That is the difference between "smudged" and "glass", and
+    // it is also what makes every LATER step visible: refraction, dispersion and
+    // the specular highlight all deform or light up what shows through. Without a
+    // background to show, all of them would be equally invisible.
+    //
+    // The band keeps some of the window's own colour and lets the rest through.
+    // Too low and the title text becomes unreadable; too high and it is paint.
+    // ---------------------------------------------------------------------
+    static constexpr float kGlassAlpha = 0.55f;   // how much of the bar stays opaque
 
     // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
     // it belongs with the veil work in M1.5.
