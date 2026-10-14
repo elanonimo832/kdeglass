@@ -717,12 +717,28 @@ tool that produced the evidence had been verified.
   defaults (16 / 16 / 0.55). They were tuned against the build whose frost SAMPLED the
   backdrop; the reduced capture averages it, so the same numbers may read differently --
   re-tune by eye before baking any of them as the default.
-- **The source is ahead of the built `.so` on purpose.** Vibrancy, the consistency pass and
-  this note are committed and validated OFFLINE (the shader validator reads the source, not
-  the binary), while a rebuild would have made the live tests abort mid-verification. The
-  next `./build.sh` folds them in, and then the freshness guard asks for a fresh install,
-  which is correct: the numbers a relogin has to produce are vibrancy's default (off) and
-  the same look, plus whatever the step-3d measurement says.
+- **The source is ahead of the built `.so` on purpose, and this is the complete list of
+  what the next `./build.sh` will fold in.** All of it is committed and validated OFFLINE
+  (the shader validator and the compiler read the source; see the note on `-fsyntax-only`
+  below), because a rebuild would make the live tests abort mid-verification:
+  1. **Vibrancy**, off by default (`Vibrancy = 0`), as a GLSL function called by BOTH the
+     capture path and the no-capture fallback.
+  2. **The consistency pass**: three comments that no longer matched the code, and the
+     fallback's alpha documented rather than "fixed" without being able to measure it.
+  3. **The journal-flood fix** in `prePaintWindow` (74,609 spam lines in one boot).
+  4. **The per-size capture cache** (one texture+framebuffer per distinct reduced size,
+     capped at four), replacing a single pair.
+  5. **Comment-only and documentation changes** that cannot affect the artifact: the
+     destructor's note about the context, the roadmap's closing criterion, the settings
+     table in the effect README, and the new checks in `tests/`.
+  **Every one of those is behaviour-preserving with vibrancy off**, so the relogin that
+  installs them should show the band exactly as it is now: that is the thing to look at,
+  and only then is `Vibrancy` worth turning on.
+- **Compiling without producing an artifact** is possible and is what these changes were
+  checked with: `ninja -C build -t commands | grep glass.cpp` gives the exact compiler
+  invocation, strip `-MD/-MT/-MF` and add `-fsyntax-only`. The compiler type-checks the
+  file and NOTHING is written, so `build/*.so` (and therefore the freshness guard the live
+  scripts depend on) is untouched. Useful when the user is mid-verification.
 - No Apple material in version control. SF Pro is not redistributable; the project
   uses Inter (SIL OFL). The original brief stays in Spanish as `BRIEF-ORIGINAL.md`,
   sha256 `1f95c5239a3af3ef99614ff1104363a6e2c7799b4e1929d5eeba1053497bf5e1`.
