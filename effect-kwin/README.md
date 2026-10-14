@@ -148,9 +148,13 @@ effect's config, **0 by default** precisely so that the first relogin verifies o
 variable (is the desktop there?) before a second one changes how it looks:
 
 ```bash
-kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 6
-qdbus6 org.kde.KWin /KWin reconfigure     # applied live
+kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 16
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
 ```
+
+`/KWin reconfigure` looks like the obvious command and is the wrong one: it re-parses
+`kwinrc` but never calls the effects' `reconfigure()`, so the effect keeps its old
+values while the command reports success.
 
 Each step is measured with `test-glass.sh` / `measure-glass.py` before the next one
 starts — one variable at a time, because a test that changed two things at once once

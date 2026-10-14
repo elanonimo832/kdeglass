@@ -62,8 +62,10 @@ fragment shader.
 
 The frost over that capture ships in the same build with `BackgroundRadius` defaulting
 to 0, so the relogin verified one variable (is the desktop there?) before a second one
-changed how it looks. It is switched on with a `kwinrc` key plus `reconfigure`, without
-a relogin.
+changed how it looks. It is switched on with a `kwinrc` key plus
+`qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2`, no
+relogin -- note that `/KWin reconfigure` does NOT reach the effects, which cost a
+session of believing a value had been applied when it had not.
 
 Left for the next steps: tune `kGlassAlpha`, and settle whether the captured
 background is sampled with the right size and offset — the shader's sizes come from

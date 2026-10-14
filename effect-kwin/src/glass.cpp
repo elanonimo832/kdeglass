@@ -182,9 +182,20 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
 {
     // Read the settings. KWin gives effects their own config group, so these can be
     // changed without a rebuild:
-    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key CsdBarHeight 70
-    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key FrostRadius 6
-    //   qdbus6 org.kde.KWin /KWin reconfigure
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 16
+    //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
+    //
+    // THE SECOND COMMAND IS THE ONE THAT WORKS, and this comment used to give
+    // `qdbus6 org.kde.KWin /KWin reconfigure`, which does NOT reach the effects:
+    //   - DBusInterface::reconfigure() -> Workspace::slotReconfigure(), which calls
+    //     reparseConfiguration() and touches windows and rules -- but never
+    //     effects->reconfigureEffects();
+    //   - EffectsHandler::configChanged() only reacts to the [Plugins] group, so
+    //     changing [Effect-*] notifies nobody;
+    //   - EffectsHandler::reconfigureEffect(name) -- the D-Bus method above -- DOES
+    //     call reparseConfiguration() and then this function.
+    // Cost of the wrong command: a whole session in which a value was written,
+    // "reconfigured", and never read. The log line below is what makes it visible.
     const KConfigGroup cfg = effects->config()->group(QStringLiteral("Effect-macosglass2"));
     m_frostRadius = cfg.readEntry("FrostRadius", kFrostRadius);
 

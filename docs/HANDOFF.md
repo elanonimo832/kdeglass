@@ -372,9 +372,20 @@ composite, where a wrong answer is obvious to the eye, and only then is the blur
 as the second variable:
 
 ```bash
-kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 6
-qdbus6 org.kde.KWin /KWin reconfigure     # applied live, no relogin
+kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key BackgroundRadius 16
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
 ```
+
+**That second command is not interchangeable with `qdbus6 org.kde.KWin /KWin reconfigure`**,
+and this document said the wrong one for a whole session. Read from KWin 6.7.5:
+`DBusInterface::reconfigure()` goes to `Workspace::slotReconfigure()`, which re-parses
+`kwinrc` and touches windows and rules but never calls `effects->reconfigureEffects()`;
+`EffectsHandler::configChanged()` only reacts to the `[Plugins]` group; and
+`EffectsHandler::reconfigureEffect(name)` -- the D-Bus method above -- is the one that
+re-parses and *then* calls the effect's `reconfigure()`. The symptom of using the wrong
+one is exactly the worst kind: the value is written, the command reports success, the
+effect keeps its old value, and nothing says so. The `reconfigure:` line in the journal
+is what tells the two apart.
 
 It does not disturb the measurement above: `measure-glass.py` compares the band's
 **mean** colour over two backgrounds, and a blur preserves the mean. It does change
