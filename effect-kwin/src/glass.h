@@ -171,6 +171,22 @@ private:
     int m_backgroundDownsample = 0;
 
     // ---------------------------------------------------------------------
+    // Vibrancy: the minimum CONTRAST the chrome should keep against the glass.
+    //
+    // 0 DISABLES IT, and 0 is the default on purpose: it changes the colour of the title,
+    // which is a decision for a screen and not for a commit. The problem it answers is
+    // real and reported -- the theme's title is dark, the frosted backdrop can be dark,
+    // and with little of the bar's own colour kept the title disappears. macOS adapts the
+    // chrome to the material; the shader does the same, and only for achromatic chrome,
+    // so the traffic lights keep their colours.
+    //
+    //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key Vibrancy 0.35
+    //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
+    // ---------------------------------------------------------------------
+    static constexpr float kVibrancy = 0.0f;   // 0 = off; try 0.30 - 0.45
+    float m_vibrancy = kVibrancy;
+
+    // ---------------------------------------------------------------------
     // M1.2 -- diffusion.
     //
     // Values from the kit's Liquid Glass parameters (tokens.toml):

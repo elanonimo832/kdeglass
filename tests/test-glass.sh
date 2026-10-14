@@ -71,7 +71,16 @@ afirmar_codigo "the chrome is found by its deviation from a baseline" "$FUENTE" 
 # behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
 # bar's height keeps ~4, which cannot be seen.
 afirmar_codigo "the bar's tone is averaged over the bar's own scale" "$FUENTE" 'max[(]uRadius, uTitleBarHeight [*] 0[.]5[)]'
-afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, window.rgb, chrome[)]'
+afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, cromo, chrome[)]'
+# VIBRANCY, off by default: the theme's title is dark and the frosted backdrop can be
+# dark, so with little of the bar's colour kept the title disappears. macOS adapts the
+# chrome to the material. It is a setting because it changes the title's colour, which is
+# a decision for a screen.
+afirmar_codigo "vibrancy is off by default" "$CABECERA" 'kVibrancy = 0'
+afirmar_codigo "and it is a live setting" "$FUENTE" 'Vibrancy'
+afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$FUENTE" 'porColor < 0.5'
+# The wiring, not the name: the adaptation must be what gets composited.
+afirmar_codigo "and the adapted chrome is the one composited" "$FUENTE" 'mix[(]glass, cromo, chrome[)]'
 # THE BASELINE MUST BE TIGHT. The first version measured the deviation against the
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar
 # pixels AROUND them were classified as chrome and drawn crisp: a bright halo around

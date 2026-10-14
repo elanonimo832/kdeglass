@@ -65,6 +65,7 @@ uniform vec2 uBackgroundTexel;
 uniform float uChromeRadius;
 uniform float uChromeLow;
 uniform float uCornerRadius;
+uniform float uVibrancy;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -233,13 +234,33 @@ void main()
         // not smeared into the glass -- and lets the frosted backdrop through.
         vec3 glass = mix(desktop, baseline, uGlassAlpha);
 
+        // VIBRANCY: THE CHROME ADAPTS TO THE GLASS. OFF BY DEFAULT (uVibrancy = 0), so
+        // the screen being verified right now is unaffected by this block.
+        //
+        // The theme draws the title in a colour chosen for the BAR's own tone (#404040
+        // here), but the bar's tone is now the frosted backdrop, which can be dark. With
+        // little of the bar's own colour kept (a low GlassAlpha) a dark title then sits
+        // on a dark glass and vanishes -- which is what the user saw on a dark
+        // background. macOS solves this by adapting the chrome to the material; this
+        // does the same, and only when the minimum contrast is set above zero:
+        // achromatic chrome is pushed towards black or white, whichever end the glass is
+        // furthest from. Colour is left alone, so the traffic lights stay traffic lights.
+        vec3 cromo = window.rgb;
+        const vec3 kLuma = vec3(0.2126, 0.7152, 0.0722);
+        float lumGlass = dot(glass, kLuma);
+        float contraste = abs(dot(cromo, kLuma) - lumGlass);
+        if (uVibrancy > 0.001 && chrome > 0.5 && porColor < 0.5 && contraste < uVibrancy) {
+            float mezcla = (uVibrancy - contraste) / uVibrancy;
+            cromo = mix(cromo, vec3(lumGlass > 0.5 ? 0.0 : 1.0), mezcla);
+        }
+
         // PREMULTIPLIED, because that is the convention KWin blends with
         // (GL_ONE, GL_ONE_MINUS_SRC_ALPHA in OffscreenData::paint). Writing an
         // unpremultiplied colour with an alpha below 1 adds it to the backdrop instead
         // of replacing it -- which is what made the first attempt at the corners paint
         // a BRIGHT square instead of nothing. With alpha 1 inside the frame this is
         // identical to what was verified, and the shape now comes from the clip above.
-        vec3 salida = mix(glass, window.rgb, chrome);
+        vec3 salida = mix(glass, cromo, chrome);
         fragColor = vec4(salida * window.a, window.a);
         return;
     }
@@ -325,6 +346,9 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // 1 px corner cells, so this is drawn here; 0 restores whatever the theme drew.
     m_cornerRadius = cfg.readEntry("CornerRadius", kCornerRadius);
 
+    // Vibrancy, off unless asked for: the chrome's minimum contrast against the glass.
+    m_vibrancy = float(cfg.readEntry("Vibrancy", double(kVibrancy)));
+
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
             << "backgroundRadius=" << m_backgroundRadius
@@ -332,7 +356,8 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "glassAlpha=" << m_glassAlpha
             << "chromeRadius=" << m_chromeRadius
             << "chromeLow=" << m_chromeLow
-            << "cornerRadius=" << m_cornerRadius;
+            << "cornerRadius=" << m_cornerRadius
+            << "vibrancy=" << m_vibrancy;
 
     m_shader.reset();
     loadShader();
@@ -740,6 +765,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     const bool seRedondea = m_cornerRadius > 0
         && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen();
     m_shader->setUniform("uCornerRadius", seRedondea ? float(m_cornerRadius) : 0.0f);
+    m_shader->setUniform("uVibrancy", m_vibrancy);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

@@ -157,6 +157,7 @@ deliberately, so that a correct override is not another false alarm.
 | 2 | Override `drawWindow`; capture the desktop into an owned `GLFramebuffer` + `GLTexture`; call the base class; bind the captured texture as a second sampler and composite it over the band. | ✅ **VERIFIED ON SCREEN** (2026-10-14): band moved **73.8** over two backgrounds where 12 is the threshold, `capture: ok=1200 refused=0`. The capture covers the window's expanded geometry, clamped to the render target, composited in the fragment shader (unit 1, `uHasBackground`) |
 | 3a | Blur the captured background, in two scales so it does not read as ghost copies. | ✅ **done and seen on screen** (2026-10-14): `BackgroundRadius` defaults to the kit's outer 16, the inner scale is 6/16 of it, and 0 still takes the single-sample path. Tuned live with `reconfigureEffect`; the user's eye picked 16 over 6 |
 | 3b | Make the chrome readable again (title and buttons), round the corners, and make the quality knobs tunable. | ✅ **done** (2026-10-14): the bar's blur became the blank that isolates the chrome, which is drawn crisp over the glass; the halo the first version produced was fixed with a TIGHT baseline of its own; `GlassAlpha`, `ChromeRadius` and `ChromeLow` are settings |
+| 3b″ | Vibrancy: the chrome keeps a minimum contrast against the glass, so a dark backdrop does not swallow a dark title. | 🟡 **written, off by default, NOT in the installed build**: `Vibrancy` is the minimum contrast (0 = off, try 0.30-0.45). Adapted from macOS, and only for achromatic chrome so the traffic lights keep their colours |
 | 3b′ | The rounded corners the user asked for. | ✅ **done in the effect, not in the theme**: this theme's SVG has a 12 px arc but aurorae clips the corner piece into a 1 px cell, so the frame is a rectangle and there was nothing to follow. The effect draws the rounded rectangle itself (`CornerRadius`, default 12; 0 = off) and discards what falls outside. That is the beginning of M2, driven by a real request |
 | 3c | A frost that AVERAGES instead of sampling, so text behind the window dissolves into a haze. | ✅ **done** (2026-10-14): the backdrop is captured already reduced (a scaled blit) and the kernel only has to be wide, not dense; the tone of the bar in the glass is averaged over half the bar's height so the title leaves no ghost |
 | 3d | Settle whether the band samples the backdrop where it belongs, or displaced by the decoration's shadow margins. | 🟡 **instrument ready, measurement pending**: `measure-alignment.py` correlates the band against the same backdrop just outside the window (rows against a strip beside it, columns against a strip above it), with synthetic cases in the suite that prove it recovers a known (14, 7) WITH its sign and refuses to invent one from a flat backdrop. Needs one screenshot with text behind and `BackgroundRadius=0` |
@@ -392,6 +393,12 @@ none of it needs a second relogin):
   text. A true average would mean averaging the block in the shader.
 - *Is there a ghost of the title itself?* Then the bar's tone in the glass still has
   chrome in it: it is averaged over half the bar's height for exactly that reason.
+- *On a DARK backdrop, does the title vanish?* That is the theme drawing a dark title on
+  a bar whose tone is now the backdrop. `Vibrancy` (minimum contrast, 0 = off, try 0.35)
+  pushes achromatic chrome towards black or white, whichever the glass is furthest from,
+  and leaves the traffic lights alone. It ships OFF because it changes the title's colour,
+  which is a decision for a screen:
+  `kwriteconfig6 ... --key Vibrancy 0.35` then the usual `reconfigureEffect`.
 - *Is there too much or too little glass?* Then `GlassAlpha` (bar opacity, default
   0.55) and `BackgroundRadius` (frost, default 16) are the two knobs, both live:
   `kwriteconfig6 ... --key GlassAlpha 0.4` then
