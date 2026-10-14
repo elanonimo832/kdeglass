@@ -285,6 +285,11 @@ cd effect-kwin
 ./test-glass.sh     # does the bar take colour from behind it?
 ```
 
+Both live test scripts **abort if the installed plugin is not the build in the tree**
+(`cmp`), because a relogin that skipped `./install.sh` would measure the previous
+effect and report its OPAQUE as if it were the new code's. At the time of writing the
+installed plugin IS the pre-capture build, so `./install.sh` is not optional.
+
 **First, without logging out:** `bash tests/run.sh` validates the embedded shaders
 with `glslangValidator` (`#version 330 core` prepended; KWin prepends its own header
 at runtime, so what this proves is that the shader BODY is well formed, not that
@@ -577,6 +582,14 @@ tool that produced the evidence had been verified.
   `qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass2`
 - Installation target: `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so`
   (note `plugins/` at the end; installing one level up makes KWin never see it).
+  **The installed file is currently the pre-capture build** (checked with `strings`:
+  the build in `effect-kwin/build/` carries the `capture: ok=` line and the installed
+  one does not), so the next step is `./install.sh` and a relogin, not a measurement.
+  The live test scripts refuse to measure a stale install for exactly this reason.
+- The effect's settings are all at their defaults in `~/.config/kwinrc`: there is no
+  `[Effect-macosglass2]` group, so `FrostRadius=6`, `BackgroundFlipV=false` and
+  `BackgroundRadius=0` (the sharp composite). That is the intended state for the first
+  relogin.
 - No Apple material in version control. SF Pro is not redistributable; the project
   uses Inter (SIL OFL). The original brief stays in Spanish as `BRIEF-ORIGINAL.md`,
   sha256 `1f95c5239a3af3ef99614ff1104363a6e2c7799b4e1929d5eeba1053497bf5e1`.
