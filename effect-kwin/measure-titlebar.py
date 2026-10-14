@@ -17,8 +17,16 @@ That state has its own verdict and its own exit code (3) now. The blur returns i
 step 3, and then the criterion above applies again.
 
 Exit codes: 0 correct, 1 a problem (or not applied), 2 cannot measure,
-            3 the band changed but kept its detail -- what the captured desktop looks
-              like when it is NOT blurred (M1.3a step 2, where BackgroundRadius is 0)
+            3 the band changed but kept its detail.
+
+SINCE M1.3a STEP 3b, CODE 3 IS THE EXPECTED RESULT, not a half-done state. The material
+is now the frosted BACKDROP and the window's chrome is deliberately left crisp on top of
+it, because that is what macOS does and what the user asked for ("que se vean los botones
+y el titulo"). So the band keeps its high-frequency detail by design, and M1.2b's
+criterion -- the band must LOSE edge energy -- no longer describes what good looks like.
+What this tool still answers well: is the band confined to the title bar (the content
+measurement), and is it doing anything at all (code 1 if nothing changed). The frost is
+judged by eye and by measure-glass.py, which checks that the band follows the background.
 
 Usage: measure-titlebar.py <off.png> <on.png> <x> <y> <w> <h> <barHeight>
   x y w h are the window's frame geometry in device pixels; barHeight is the
@@ -92,11 +100,10 @@ def main():
     cambio = float(np.abs(band_on - band_off).mean())
     if cambio >= 8.0:
         print(f"  VERDICT: THE BAND CHANGED ({cambio:.1f} mean per-pixel) BUT KEPT ITS DETAIL")
-        print("    The effect is drawing something with as much detail as the bar had.")
-        print("    That is what the captured desktop looks like when it is NOT blurred")
-        print("    (M1.3a step 2, and the default: BackgroundRadius = 0). If the band is")
-        print("    supposed to be frosted, this says the blur is not in the path.")
-        print("    It is not the same as 'not applied', and it is not a regression.")
+        print("    Expected since M1.3a step 3b: the chrome (title, buttons) is drawn")
+        print("    crisp over the glass on purpose, so the band keeps the detail it had.")
+        print("    Only a concern if the band is ALSO supposed to be blurred as a whole,")
+        print("    which is not the design any more. See this file's docstring.")
         return 3
 
     print(f"  VERDICT: NOT APPLIED. title bar only fell {band_drop * 100:.1f} %")

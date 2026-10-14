@@ -360,6 +360,21 @@ journalctl --user -b -o cat | grep macos-glass | grep -E 'capture:|refused'
     capture: ok=0 refused=N   there is no capture at all; the band is the old opaque
                               alpha path (the GL context refused the blit)
 
+**After the step-3b relogin, this is the checklist** (all of it is for the eye, and
+none of it needs a second relogin):
+
+- *Are the traffic lights and the title crisp?* They should read as clearly as with the
+  effect off. If they look washed out, `GlassAlpha` is the knob (and if they look
+  *smeared*, the baseline/chrome path is broken, not tuned).
+- *Are the window's top corners round?* They follow the decoration now. Square corners
+  mean the band is not taking the decoration's alpha.
+- *Is the frost continuous, with no repeated ghost copies of the text behind?* Ghosts
+  mean one 3x3 is being used instead of the two scales.
+- *Is there too much or too little glass?* Then `GlassAlpha` (bar opacity, default
+  0.55) and `BackgroundRadius` (frost, default 16) are the two knobs, both live:
+  `kwriteconfig6 ... --key GlassAlpha 0.4` then
+  `qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2`.
+
 Two things the instruments CANNOT catch, and both are for the eye:
 
 - **the desktop upside down** -- two flat backgrounds look the same flipped. If that

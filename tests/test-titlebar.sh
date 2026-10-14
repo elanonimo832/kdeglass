@@ -123,8 +123,11 @@ PYEOF
   afirmar_igual "a blurred band is still CORRECT (0)" "0" "$rc_bien"
   afirmar_igual "a band that changed but kept its detail is 3, not 1" "3" "$rc_cambio"
   afirmar_igual "an untouched band is still NOT APPLIED (1)" "1" "$rc_igual"
-  if grep -q 'M1.3a step 2' <<< "$salida_cambio"; then
-    ok "the step-2 verdict says WHICH state it is, instead of blaming the effect"
+  # The verdict must say WHY keeping the detail is fine now, or the next reader will
+  # read code 3 as "the blur is missing" -- which is exactly how the previous wording
+  # went stale when the chrome started being drawn crisp on purpose.
+  if grep -q 'crisp over the glass' <<< "$salida_cambio"; then
+    ok "the kept-detail verdict explains that it is the design, not a failure"
   else
     fallo "the 'changed but not blurred' verdict does not explain itself"
   fi
