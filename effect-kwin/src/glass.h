@@ -218,7 +218,11 @@ private:
     //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key Vibrancy 0.35
     //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
     // ---------------------------------------------------------------------
-    static constexpr float kVibrancy = 0.0f;   // 0 = off; try 0.30 - 0.45
+    // ON by default, because Apple's material and Apple's content go together: at a quarter
+    // opacity the title of this theme (a dark #404040) has too little contrast against a dark
+    // backdrop, and macOS answers that by flipping the content rather than by making the
+    // material more opaque. 0 turns it off.
+    static constexpr float kVibrancy = 0.35f;
     float m_vibrancy = kVibrancy;
 
     // ---------------------------------------------------------------------
@@ -261,7 +265,10 @@ private:
     //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key GlassAlpha 0.4
     //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
     // ---------------------------------------------------------------------
-    static constexpr float kGlassAlpha = 0.55f;   // default: how much of the bar stays
+    // APPLE'S OWN NUMBER, not a taste of mine: tokens/tokens-kit.toml, [liquid_glass],
+    // `opacity = 25`. The material is a quarter opaque. The user's "el efecto es muy blanco"
+    // was this constant at 0.55 keeping too much of the theme's near-white bar.
+    static constexpr float kGlassAlpha = 0.25f;   // default: how much of the bar stays
 
     float m_glassAlpha = kGlassAlpha;
 

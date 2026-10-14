@@ -470,3 +470,17 @@ afirmar_igual "no tone sample is taken along the row" "0" \
 afirmar_igual "and all five are vertical" "4" \
   "$(grep -c 'toneRadius [*] uTexelSize[.]y' effect-kwin/src/glass.cpp)"
 afirmar_codigo "reaching two radii out" "$SOURCE" '2[.]0 [*] toneRadius [*] uTexelSize[.]y'
+
+echo "  -- the documented defaults are the ones in the code --"
+# The table listed keys and defaults, and the keys were checked; the DEFAULTS were not. They
+# changed the day Apple's kit was read (GlassAlpha 0.55 -> 0.25, Vibrancy off -> 0.35), which is
+# exactly the drift this catches. Keys with no `k<Key>` constant in the header (0 means "derive
+# it", false means "off") are skipped on purpose rather than asserted from a third copy.
+faltan_defaults=""
+for k in $(grep -oE '^\| `[A-Za-z]+` \|' "$EF/README.md" | sed 's/^| `//; s/` |$//'); do
+  valor=$(grep -oE "k$k = [0-9.]+" "$EF/src/glass.h" | head -1 | sed "s/k$k = //" | sed 's/\.$//')
+  [ -n "$valor" ] || continue
+  fila=$(grep -E "^\| \`$k\` \|" "$EF/README.md")
+  case "$fila" in *"$valor"*) ;; *) faltan_defaults="$faltan_defaults $k(=$valor)";; esac
+done
+afirmar_igual "every documented default matches the code" "" "${faltan_defaults# }"
