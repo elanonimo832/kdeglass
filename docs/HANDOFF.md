@@ -833,6 +833,29 @@ effect still samples whatever the theme draws, so the two changes compose: a dar
 light material, and the same title flipped to near-white when the material goes dark -- which is
 Apple's behaviour and, in their tokens, literally written down.
 
+## 9d. The rim and the amplification are implemented, from that measurement
+
+Section 9b measured what Apple's material does; this is the first cut of doing it.
+
+- **`Rim`** (default 0.20): a two-texel highlight along the band's four edges, computed from the
+  frame's own rectangle and from the title bar's height, which is where the hairline goes that
+  macOS draws between the bar and the content. The measured reference is bright bands of 215-236
+  (top) and 206-218 (bottom) around a middle of 168-190, so 0.20 is deliberately subtle.
+- **`MaterialBoost`** (default 1.20): the backdrop's chroma around its own luminance is
+  multiplied by this before the bar's tone is mixed in -- the gain that a plain blend cannot
+  produce. **1.0 turns it off and the value measured on Apple's Dock is 1.6**, so the knob's
+  range is the honest one: the default sits below the measurement, and the measurement is written
+  next to the knob.
+
+Neither is the whole of `refraction = 70` / `dispersion = 20` / the specular highlight, and
+section 9b says why: those bend and displace what is behind the glass, and these two only boost
+and outline it. They are what the measurement supported, no more.
+
+**And the language pass caught its own author.** The first version of this change used `salida`,
+`cromo` and `desdeArriba` -- Spanish names, in a repository whose agreement is English and after
+a commit that had just renamed exactly those identifiers. The shader failed to compile and two
+assertions failed with it: the tests, not the habit, are what keeps that agreement.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

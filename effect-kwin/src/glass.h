@@ -146,6 +146,19 @@ private:
     //
     // Then run measure-alignment.py with BackgroundRadius=0: the setting that reports
     // (0, 0) is the true one. Both are stable, so this is a measurement, not a guess.
+    // ---------------------------------------------------------------------
+    // The material's EDGE and its AMPLIFICATION, both from the user's own measurement of a
+    // macOS Dock: bright bands of 215-236 along the top and 206-218 along the bottom (the rim),
+    // and a colour that tracks the backdrop with a gain of ~1.6, which no blend can produce.
+    //
+    //   kwriteconfig6 ... --key Rim 0.3          (0 = no edge highlight; 0.2 is subtle)
+    //   kwriteconfig6 ... --key MaterialBoost 1.6 (1.0 = off; 1.6 is what Apple measures)
+    // ---------------------------------------------------------------------
+    static constexpr float kRim = 0.20f;
+    float m_rim = kRim;
+    static constexpr float kMaterialBoost = 1.20f;
+    float m_materialBoost = kMaterialBoost;
+
     static constexpr bool kCaptureSubRect = false;
     bool m_captureSubRect = kCaptureSubRect;
     QVector2D m_sampleOffset{0.0f, 0.0f};   // the frame inside the capture, normalized

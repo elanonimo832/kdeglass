@@ -493,3 +493,14 @@ for k in $(grep -oE '^\| `[A-Za-z]+` \|' "$EF/README.md" | sed 's/^| `//; s/` |$
   case "$fila" in *"$valor"*) ;; *) faltan_defaults="$faltan_defaults $k(=$valor)";; esac
 done
 afirmar_igual "every documented default matches the code" "" "${faltan_defaults# }"
+
+echo "  -- the material's edge and its amplification --"
+# From the user's own reading of a macOS Dock: "el dock tiene como un borde, no es directa la
+# transparencia, y este toma el color del background pero lo hace mas fuerte". Measured: bright
+# bands of 215-236 (top) and 206-218 (bottom) around a middle of 168-190, and a colour that
+# tracks the backdrop with a gain of ~1.6 -- which a plain blend cannot produce.
+afirmar_codigo "the band has an edge highlight" "$SOURCE" 'float rim = [(]1[.]0 - smoothstep'
+afirmar_codigo "measured from the frame's own edges and the bar's bottom" "$SOURCE" 'float toEdge = min'
+afirmar_codigo "and the material amplifies the backdrop's chroma" "$SOURCE" 'uMaterialBoost'
+afirmar_igual "1.0 is off, so the knob defaults above it" "1" \
+  "$(grep -c 'kMaterialBoost = 1[.]20f' effect-kwin/src/glass.h)"

@@ -67,6 +67,8 @@ uniform vec2 uBackgroundScale;
 uniform float uChromeLow;
 uniform float uCornerRadius;
 uniform float uVibrancy;
+uniform float uRim;
+uniform float uMaterialBoost;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -353,6 +355,19 @@ void main()
             desktop = texture(background, uvBackground).rgb;
         }
 
+        // APPLE'S MATERIAL DOES NOT VEIL THE BACKDROP, IT AMPLIFIES IT. Measured on the user's
+        // own macOS Dock sample, over two different parts of the wallpaper: the dock's colour
+        // tracks the backdrop with a gain of about 1.6, which a plain `a*colour + (1-a)*fondo`
+        // cannot produce -- it would need (1-a) = 1.6, greater than one. That is why a
+        // quarter-opaque veil looks like grey plastic next to Apple's glass. This is that gain,
+        // applied to the chroma around the frosted backdrop's own luminance, so the material
+        // keeps the backdrop's colour and makes it stronger instead of washing it out.
+        // 1.0 is off; the measured Apple value is 1.6.
+        if (uMaterialBoost > 1.001) {
+            float luma = dot(desktop, kLuma);
+            desktop = clamp(vec3(luma) + (desktop - vec3(luma)) * uMaterialBoost, 0.0, 1.0);
+        }
+
         // The bar keeps uGlassAlpha of its own colour -- its BASELINE, so the chrome is
         // not smeared into the glass -- and lets the frosted backdrop through.
         vec3 glass = mix(desktop, baseline, uGlassAlpha);
@@ -368,6 +383,20 @@ void main()
         // a BRIGHT square instead of nothing. With alpha 1 inside the frame this is
         // identical to what was verified, and the shape now comes from the clip above.
         vec3 result = mix(glass, chromeColour, chrome);
+
+        // THE RIM. Apple's material does not simply end: it has a bright edge. Measured on the
+        // user's Dock sample, bright bands of 215-236 along the top and 206-218 along the bottom
+        // around a darker middle of 168-190 -- which is what they saw and asked for ("el dock
+        // tiene como un borde"). The band's four edges are all known here: the top and the sides
+        // from the frame's own rectangle, and the bottom from the title bar's height, where the
+        // hairline goes that macOS draws between the bar and the content.
+        float fromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
+        float fromBottom = uTitleBarHeight - fromTop;
+        float fromLeft = vTexCoord.x * uTextureSize.x;
+        float fromRight = uTextureSize.x - fromLeft;
+        float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
+        float rim = (1.0 - smoothstep(0.0, 2.0, toEdge)) * uRim;
+        result = mix(result, vec3(1.0), rim);
         fragColor = vec4(result * window.a, window.a);
         return;
     }
@@ -480,6 +509,10 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // Vibrancy, off unless asked for: the chrome's minimum contrast against the glass.
     m_vibrancy = float(cfg.readEntry("Vibrancy", double(kVibrancy)));
 
+    // The material's edge highlight and its amplification of the backdrop; see the shader.
+    m_rim = float(cfg.readEntry("Rim", double(kRim)));
+    m_materialBoost = float(cfg.readEntry("MaterialBoost", double(kMaterialBoost)));
+
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
             << "backgroundRadius=" << m_backgroundRadius
@@ -488,7 +521,9 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "glassAlpha=" << m_glassAlpha
             << "chromeLow=" << m_chromeLow
             << "cornerRadius=" << m_cornerRadius
-            << "vibrancy=" << m_vibrancy;
+            << "vibrancy=" << m_vibrancy
+            << "rim=" << m_rim
+            << "materialBoost=" << m_materialBoost;
 
     m_shader.reset();
     loadShader();
@@ -963,6 +998,8 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen() && !m_touchesEdge;
     m_shader->setUniform("uCornerRadius", shouldRound ? float(m_cornerRadius) : 0.0f);
     m_shader->setUniform("uVibrancy", m_vibrancy);
+    m_shader->setUniform("uRim", m_rim);
+    m_shader->setUniform("uMaterialBoost", m_materialBoost);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

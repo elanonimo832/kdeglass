@@ -52,6 +52,8 @@ while the command reports success.
 | `Vibrancy` | 0.35 | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
 | `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |
 | `CaptureSubRect` | false (off) | sample the capture at the FRAME's sub-rectangle instead of the whole texture. It exists because the capture covers the expanded geometry while the shader's sizes come from the frame; run `measure-alignment.py` with each value and keep the one that reports (0, 0) |
+| `Rim` | 0.20 | brightness of the edge highlight; measured from Apple's Dock as ~215-236 against a middle of 168-190 |
+| `MaterialBoost` | 1.20 | how much the material AMPLIFIES the backdrop's colour instead of veiling it. 1.0 is off; the value measured on Apple's Dock is **1.6** |
 | `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |
 
 
