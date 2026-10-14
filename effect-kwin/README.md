@@ -20,13 +20,20 @@ texture, and no alpha puts the desktop into a texture that does not contain it. 
 next step is therefore the capture, not a bigger shader; see
 [`../docs/HANDOFF.md`](../docs/HANDOFF.md).
 
-## The three commands
+## The commands
 
 ```bash
 ./build.sh              # compiles and verifies the paint chain
 ./install.sh            # installs and activates (asks for your password)
-./test-installed.sh     # live test: loads, measures and UNLOADS on its own
+./test-glass.sh         # live: does the band show the desktop behind it? (M1.3a)
+./test-titlebar.sh      # live: is the band blurred while the content stays sharp? (M1.2b)
 ```
+
+`test-installed.sh` is still here and still runs, but it is an **M1.1-era instrument**:
+it looks for the flat marker patch that M1.1 drew, which M1.2 replaced with the
+material band. Its "not drawn" verdict says nothing about the current effect — the two
+scripts above are the live tests now. [`../docs/HANDOFF.md`](../docs/HANDOFF.md)
+section 7 is the procedure.
 
 `test-installed.sh` is the test bench: it **does not log you out**, it
 reinstalls nothing, and it always unloads the effect with `trap EXIT` even if

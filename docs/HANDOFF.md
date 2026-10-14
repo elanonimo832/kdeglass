@@ -244,6 +244,24 @@ can see exactly where it stopped.
   at unload, not a crash and not a black screen, and it disappears if the capture
   becomes per window and is released in `slotWindowDeleted`, where the context is
   current.
+- **The capture texture is reallocated whenever the window size changes.** One GL
+  texture, sized to the window being captured, so a frame in which two windows of
+  DIFFERENT sizes both repaint allocates and frees it twice -- per frame, for as long
+  as that keeps happening (a terminal with a blinking cursor next to a video, for
+  instance). One window repainting is free. **State: known, not fixed, deliberately.**
+  The fix is to cache one texture+framebuffer per distinct size, capped at a few sizes,
+  which keeps the uv maths IDENTICAL -- unlike the other obvious fix (one grow-only
+  texture with a scale uniform), which would add a packed-layout mapping that has to be
+  verified on a screen. It is left out until the mechanism itself is verified: adding
+  thirty lines of resource juggling to the build that gets the first relogin risks
+  failing that relogin for a reason that has nothing to do with the capture.
+- **`test-installed.sh` is an M1.1-era instrument and its verdict is meaningless now.**
+  It looks for the flat 48x48 marker patch that M1.1 drew; M1.2 replaced it with the
+  material band. Running it today reports "not drawn" about a working effect. Its
+  header and the effect README say so, and the live procedure points at
+  `test-glass.sh` and `test-titlebar.sh` instead. Left in place because the reasoning
+  in its comments (measure by difference, never by colour) is still the reason the
+  other two tools are built the way they are.
 - **Every code change needs a session restart.** KWin keeps the `.so` it loaded at
   startup; it never re-reads a changed file. Never use `kwin_wayland --replace`.
   `./install.sh` needs sudo; verify by relogin, and keep

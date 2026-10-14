@@ -2,6 +2,23 @@
 # LIVE test of the ALREADY INSTALLED effect. Installs nothing (no sudo needed).
 # Always unloads when it finishes (trap EXIT).
 #
+# ---------------------------------------------------------------------------
+# SUPERSEDED, AND ITS VERDICT CANNOT BE TRUSTED. READ THIS BEFORE RUNNING IT.
+#
+# It looks for the flat 48x48 MARKER that M1.1 drew to prove pixels could reach
+# the screen. M1.2 replaced that marker with the material band, so the thing this
+# script measures no longer exists: "not drawn" from here today is NOT evidence
+# that the effect fails, and it will say that about a working build.
+#
+# The live instruments for the material now are:
+#     ./test-glass.sh      does the band take colour from behind it? (M1.3a)
+#     ./test-titlebar.sh   is the band blurred while the content stays sharp? (M1.2b)
+#
+# What is still true: everything below about HOW to measure by difference, and why
+# colour matching against a desktop cannot work. That reasoning is why the other two
+# tools compare regions instead of matching colours.
+# ---------------------------------------------------------------------------
+#
 # It measures by DIFFERENCE: a screenshot with the effect OFF and one with it ON.
 # The marker is the only thing that changes between them.
 #
