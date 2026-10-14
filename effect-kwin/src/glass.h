@@ -156,6 +156,12 @@ private:
     // ---------------------------------------------------------------------
     static constexpr float kRim = 0.20f;
     float m_rim = kRim;
+    // THE GAIN, measured from Apple's Dock: `dock = 1.6 * backdrop + 0.42`. Ours was 0.75,
+    // which is a veil; Apple amplifies. 1.0 reproduces the behaviour before this existed and
+    // 1.6 is what the sample measured -- tried in simulate.py first, then here.
+    static constexpr float kMaterialGain = 1.60f;
+    float m_materialGain = kMaterialGain;
+
     static constexpr float kMaterialBoost = 1.20f;
     float m_materialBoost = kMaterialBoost;
 

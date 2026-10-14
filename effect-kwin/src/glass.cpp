@@ -69,6 +69,7 @@ uniform float uCornerRadius;
 uniform float uVibrancy;
 uniform float uRim;
 uniform float uMaterialBoost;
+uniform float uMaterialGain;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -392,9 +393,17 @@ void main()
             desktop = clamp(vec3(luma) + (desktop - vec3(luma)) * uMaterialBoost, 0.0, 1.0);
         }
 
-        // The bar keeps uGlassAlpha of its own colour -- its BASELINE, so the chrome is
-        // not smeared into the glass -- and lets the frosted backdrop through.
-        vec3 glass = mix(desktop, baseline, uGlassAlpha);
+        // APPLE'S MATERIAL DOES NOT VEIL THE BACKDROP, IT AMPLIFIES IT. Measured on the user's
+        // macOS Dock sample, over two parts of the wallpaper: `dock = 1.6 * backdrop + 0.42`,
+        // a GAIN above one and a LIFT. Ours was `0.75 * backdrop + 0.24`: both below the
+        // backdrop, which is why it reads as grey plastic next to Apple's glass -- and why
+        // "muy blanco" and "muy oscuro" were both true at different opacities. The gain is its
+        // own term now, so the two can be set independently: 1.0 is exactly the behaviour
+        // before this line existed, and the measured Apple figure is 1.6.
+        vec3 gained = clamp(desktop * uMaterialGain, 0.0, 1.0);
+        // The bar keeps uGlassAlpha of its own colour -- its BASELINE, so the chrome is not
+        // smeared into the glass -- and lets the (amplified) backdrop through.
+        vec3 glass = mix(gained, baseline, uGlassAlpha);
 
         // Vibrancy, off by default; the full explanation is on chromeWithVibrancy above and
         // on the m_vibrancy member in glass.h. This used to be a third copy of it.
@@ -547,6 +556,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // The material's edge highlight and its amplification of the backdrop; see the shader.
     m_rim = float(cfg.readEntry("Rim", double(kRim)));
     m_materialBoost = float(cfg.readEntry("MaterialBoost", double(kMaterialBoost)));
+    m_materialGain = float(cfg.readEntry("MaterialGain", double(kMaterialGain)));
 
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
@@ -558,7 +568,8 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "cornerRadius=" << m_cornerRadius
             << "vibrancy=" << m_vibrancy
             << "rim=" << m_rim
-            << "materialBoost=" << m_materialBoost;
+            << "materialBoost=" << m_materialBoost
+            << "materialGain=" << m_materialGain;
 
     m_shader.reset();
     loadShader();
@@ -1042,6 +1053,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uVibrancy", m_vibrancy);
     m_shader->setUniform("uRim", m_rim);
     m_shader->setUniform("uMaterialBoost", m_materialBoost);
+    m_shader->setUniform("uMaterialGain", m_materialGain);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

@@ -57,7 +57,7 @@ negar "the capture is not framed to frameGeometry" \
 # drawn under the window (HANDOFF section 5, risk 4).
 afirmar_codigo "the shader samples the captured background" "$SOURCE" 'texture[(]background'
 afirmar_codigo "the composite does not depend on the scene blending alpha" "$SOURCE" 'uHasBackground'
-afirmar_codigo "the composite keeps part of the bar colour" "$SOURCE" 'mix[(]desktop, baseline, uGlassAlpha[)]'
+afirmar_codigo "the composite keeps part of the bar colour" "$SOURCE" 'mix[(]gained, baseline, uGlassAlpha[)]'
 afirmar_codigo "the bar's opacity is tunable too" "$SOURCE" 'GlassAlpha'
 
 echo "  -- the chrome stays readable, and the corners stay round --"
@@ -529,3 +529,12 @@ else
 fi
 # Its knob defaults must come from the header, or a changed default would be simulated wrongly.
 afirmar_codigo "the simulator reads its defaults from the effect" "$EF/simulate.py" 'defaults_from_source'
+
+echo "  -- no Spanish identifiers, checked instead of remembered --"
+# The language pass renamed 133 identifiers and I relapsed four times afterwards (salida, cromo,
+# desdeArriba, amplificado), each time in a patch written from memory. A habit cannot be the check;
+# this is the same shape as the file-name scan in test-claims.sh, with a curated word list so it
+# cannot fire on English words that merely contain Spanish letters.
+sp_words='amplificado|desdeArriba|desdeAbajo|desdeIzquierda|desdeDerecha|alBorde|salida|cromo|fondo|esquina|saturacion|porColor|porDesviacion|tonoRadio|loguear|reducido|encontrado|clave|marco|pantalla|sombra|barra|ventana|ancho|alto|fila|columna|captura|fichero'
+malas=$(grep -oE "\b($sp_words)\b" "$SOURCE" "$HEADER" 2>/dev/null | grep -v ':' | sort -u | tr '\n' ' ')
+afirmar_igual "the effect's identifiers are English" "" "${malas% }"

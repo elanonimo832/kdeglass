@@ -943,6 +943,37 @@ One structural lesson, again: the `--geometry` test mode and the capture now sha
 a test of the parse is a test of the step that runs. The version before this tested a parser the
 capture did not use, and the capture failed on every run while the test passed.
 
+## 9i. The gain, and the first measurement of our own material with real inputs
+
+With a TRUE capture pair -- 905x38, geometry from the active window, the unload verified -- the
+numbers finally describe our material instead of a stale crop: backdrop luminance 61, the theme's
+bar 237.5, and the simulation reproducing a band at 107.6.
+
+That is a VEIL: `0.75 * backdrop + 0.24`, both terms below the backdrop. Apple's Dock measures
+`1.6 * backdrop + 0.42`. `MaterialGain` is that gain as its own term now, applied to the frosted
+backdrop before the bar's tone is mixed in, so the material's amplification and its lightness can
+be set independently. **1.0 reproduces exactly the behaviour before it existed** and **1.6 is what
+the sample measured**; it was demonstrated in `simulate.py` first, which is what that tool is for:
+
+| | luminance | deviation | chroma |
+|---|---|---|---|
+| the captured backdrop | 61.0 | 9.5 | -- |
+| gain 1.0 (off) | 107.6 | 14.7 | 35.8 |
+| gain 1.6 (Apple's) | 134.9 | 19.7 | 55.5 |
+
+A third of a stop brighter and half again as chromatic, which is the user's own description of the
+Dock: "toma el color del background pero lo hace mas fuerte".
+
+**Known and next**: `clamp(desktop * gain)` clips hard above 0.625, so a bright backdrop will
+blow to white rather than brighten smoothly. Apple's material is tone-mapped there, not clipped.
+That is a soft knee, and it is the next thing this term needs.
+
+**And the language habit is a test now.** The language pass renamed 133 identifiers and I relapsed
+four times afterwards (`salida`, `cromo`, `desdeArriba`, `amplificado`), every time in a patch
+written from memory. `tests/test-glass.sh` scans the effect's identifiers against a curated Spanish
+word list, the same shape as the file-name scan in `test-claims.sh`. Checked by putting
+`amplificado` back: it named it.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

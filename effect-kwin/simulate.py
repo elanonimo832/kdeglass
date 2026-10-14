@@ -56,6 +56,7 @@ DEFAULTS = defaults_from_source()
 GLASS_ALPHA = DEFAULTS.get("GlassAlpha", 0.25)
 BACKGROUND_RADIUS = int(DEFAULTS.get("BackgroundRadius", 16))
 MATERIAL_BOOST = DEFAULTS.get("MaterialBoost", 1.20)
+MATERIAL_GAIN = DEFAULTS.get("MaterialGain", 1.60)
 RIM = DEFAULTS.get("Rim", 0.20)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
 INNER_SCALE = 0.375          # the kit's frost 6/16/16, as in the shader
@@ -133,7 +134,8 @@ def smoothstep(edge0, edge1, x):
 
 
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
-             boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0):
+             boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
+             gain=MATERIAL_GAIN):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     desktop = frost(backdrop, radius, factor)
 
@@ -143,6 +145,7 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         desktop = np.clip(l + (desktop - l) * boost, 0, 1)
 
     base = tone(window, radius)
+    desktop = np.clip(desktop * gain, 0, 1)          # the material's gain, as in the shader
     glass = (1.0 - glass_alpha) * desktop + glass_alpha * base
 
     # the chrome: deviation from the bar's tone, as a COVERAGE, plus chroma for the discs
@@ -185,12 +188,12 @@ def self_test():
     # boost 1.0 here: with alpha 0 the band is the frosted backdrop and NOTHING else, and the
     # amplification is a separate step that the comparison would otherwise include
     plana = np.full((60, 200, 3), 0.96)          # a bar with no chrome at all
-    sin_tono = simulate(plana, backdrop, glass_alpha=0.0, rim_strength=0.0, boost=1.0)
+    sin_tono = simulate(plana, backdrop, glass_alpha=0.0, rim_strength=0.0, boost=1.0, gain=1.0)
     esperado = frost(backdrop, BACKGROUND_RADIUS, max(1, BACKGROUND_RADIUS // 8))
     e1 = np.abs(sin_tono - esperado).max()
     print(f"  GlassAlpha 0 -> the frosted backdrop            (max diff {e1:.4f})")
 
-    sin_mezcla = simulate(window, backdrop, glass_alpha=1.0, rim_strength=0.0, boost=1.0)
+    sin_mezcla = simulate(window, backdrop, glass_alpha=1.0, rim_strength=0.0, boost=1.0, gain=1.0)
     base = tone(window, BACKGROUND_RADIUS)
     fundido = np.zeros_like(base)
     l = luma(window); lt = luma(base)
@@ -224,6 +227,7 @@ def main():
     ap.add_argument("--GlassAlpha", type=float, default=GLASS_ALPHA)
     ap.add_argument("--BackgroundRadius", type=int, default=BACKGROUND_RADIUS)
     ap.add_argument("--MaterialBoost", type=float, default=MATERIAL_BOOST)
+    ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Rim", type=float, default=RIM)
     ap.add_argument("--ChromeLow", type=float, default=CHROME_LOW)
     ap.add_argument("--FrostDownsample", type=int, default=0)
@@ -252,7 +256,7 @@ def main():
         print(f"the two crops must be the same size: window {w.shape}, backdrop {b.shape}")
         return 2
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
-                   args.Rim, args.ChromeLow, args.FrostDownsample)
+                   args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0
