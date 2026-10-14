@@ -52,4 +52,39 @@ read -r -p "  2. WITHOUT MOVING THIS WINDOW, make the area behind it LIGHT,
 spectacle -b -n -o "$OUT/behind-light.png" >/dev/null 2>&1 || true
 
 echo
+echo "  -- what the effect itself says about the capture --"
+# The measurement below can only say GLASS or OPAQUE. Those are TWO different OPAQUEs
+# and this tells them apart: if the capture never happened (the GL context refused the
+# blit), the band fell back to the old alpha path and "OPAQUE" says nothing about
+# whether capturing the desktop is the right mechanism. Reading this here rather than
+# a second command later is the difference between one relogin and two.
+diag=$(timeout 20 journalctl --user --since '10 min ago' -o cat 2>/dev/null | grep 'macos-glass' | grep -v systemd-run)
+captura=$(printf '%s\n' "$diag" | grep 'capture:' | tail -1)
+if [ -n "$captura" ]; then
+  echo "  $captura"
+else
+  echo "  (no 'capture:' line yet: either the effect is not loaded, or it has not"
+  echo "   painted 60 times -- move a window a little and run this again)"
+fi
+printf '%s\n' "$diag" | grep -E 'refused|cannot allocate|not valid|failed to load' | tail -4 | sed 's/^/  WARNING: /'
+echo
+
 python3 "$HERE/measure-glass.py" "$OUT/behind-dark.png" "$OUT/behind-light.png" "$x" "$y" "$w" "$bar"
+rc=$?
+
+# Make the two OPAQUEs distinguishable in the verdict itself, not just in the log.
+# Here-string, not a pipe into grep -q: under `set -o pipefail` the early exit of
+# grep -q can kill the producer with SIGPIPE and report failure on a match. The
+# project's own scan caught exactly that shape in the first version of this block.
+if [ "$rc" -ne 0 ] && grep -q 'refused=0' <<< "$captura"; then
+  echo
+  echo "  NOTE: the desktop WAS captured (refused=0), so this OPAQUE is a COMPOSITE"
+  echo "  problem -- the capture reaches the shader and the shader is not showing it."
+else
+  if [ "$rc" -ne 0 ]; then
+    echo
+    echo "  NOTE: check the capture line above. If refused is climbing, there was no"
+    echo "  capture at all and the band is the old alpha path."
+  fi
+fi
+exit "$rc"
