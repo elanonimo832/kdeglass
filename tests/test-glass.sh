@@ -373,3 +373,46 @@ id_copia=$(sed -n 's#^SO="\$AQUI/build/plugins/kwin/effects/\(.*\)\.so"$#\1#p' "
 [ -n "$id_cmake" ] || fallo "no OUTPUT_NAME found in CMakeLists.txt; the extraction broke"
 afirmar_igual "the CMake output name and install.sh's ID agree" "$id_cmake" "$id_install"
 afirmar_igual "and the file install.sh copies is that same name" "$id_cmake" "$id_copia"
+
+echo "  -- the review's findings stay fixed --"
+# The clear must come BEFORE the first early return. Asserting the string alone passed
+# while the clear sat after them, which is what a reviewer caught: the comment and the test
+# claimed an invariant the code did not hold. So this checks PLACEMENT.
+python3 - "$FUENTE" <<'PYEOF'
+import re, sys
+src = open(sys.argv[1], encoding="utf-8").read()
+cuerpo = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
+limpiar = cuerpo.find("m_fondoActual = nullptr;")
+salida = cuerpo.find("return false;")
+print("OK" if 0 <= limpiar < salida else "MAL")
+PYEOF
+if python3 - "$FUENTE" <<'PYEOF'
+import sys
+src = open(sys.argv[1], encoding="utf-8").read()
+cuerpo = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
+limpiar = cuerpo.find("m_fondoActual = nullptr;")
+salida = cuerpo.find("return false;")
+raise SystemExit(0 if 0 <= limpiar < salida else 1)
+PYEOF
+then
+  ok "the capture pointer is cleared before any early return"
+else
+  fallo "m_fondoActual is cleared after an early return, so it can outlive its capture"
+fi
+# std::map is ordered by KEY, so erase(begin()) evicts the SMALLEST size -- and a small
+# terminal is the window this cache exists for. The cap must evict the least recently used.
+negar "the cache does not evict by key order" \
+  codigo_contiene "$FUENTE" 'm_fondos.erase[(]m_fondos.begin[(][)][)]'
+afirmar_codigo "it evicts the least recently used entry" "$FUENTE" 'm_uso\[masViejo->first\]'
+# A destination built from the CLAMPED source can be smaller than the texture, and with a
+# cache the unwritten strip would hold a PREVIOUS window's capture.
+afirmar_codigo "the capture is cleared before the blit" "$FUENTE" 'glClear[(]GL_COLOR_BUFFER_BIT[)]'
+# Both paths write premultiplied: the scene blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA.
+afirmar_codigo "the no-capture fallback is premultiplied too" "$FUENTE" 'reserva [*] uGlassAlpha'
+# Rounding a window whose frame reaches the screen edge would carve an arc out of the screen.
+afirmar_codigo "windows that reach the screen edge are not rounded" "$FUENTE" '&& !m_tocaBorde'
+afirmar_codigo "and that is computed where the viewport is" "$FUENTE" 'm_tocaBorde = marco.left'
+# Vibrancy must DELIVER the minimum contrast, not approach it: aim at a luminance that far
+# from the glass and shift, which is exact, instead of mixing towards black or white.
+afirmar_codigo "vibrancy aims at the promised contrast" "$FUENTE" 'objetivo = [(]lumFondo <= 0[.]5[)]'
+afirmar_codigo "and shifts the chrome's luminance to it" "$FUENTE" 'cromo [+] vec3[(]objetivo - lumCromo[)]'

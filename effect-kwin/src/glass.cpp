@@ -77,9 +77,9 @@ out vec4 fragColor;
 // own colour kept (a low GlassAlpha) a dark title then sits on a dark glass and vanishes --
 // which is what the user saw on a dark background. macOS solves this by adapting the chrome
 // to the material; this does the same, and only when the minimum contrast is set above
-// zero: ACHROMATIC chrome is pushed towards black or white, whichever end the glass is
-// furthest from. Colour is left alone (the caller says whether it is colour), so the
-// traffic lights stay traffic lights.
+// zero: ACHROMATIC chrome keeps at least that much contrast against the glass, moving away
+// from it. Colour is left alone (the caller says whether it is colour), so the traffic
+// lights stay traffic lights.
 const vec3 kLuma = vec3(0.2126, 0.7152, 0.0722);
 
 vec3 cromoConVibrancy(vec3 cromo, vec3 fondo, float esCromo, float esColor)
@@ -88,12 +88,26 @@ vec3 cromoConVibrancy(vec3 cromo, vec3 fondo, float esCromo, float esColor)
         return cromo;
     }
     float lumFondo = dot(fondo, kLuma);
-    float contraste = abs(dot(cromo, kLuma) - lumFondo);
+    float lumCromo = dot(cromo, kLuma);
+    float contraste = abs(lumCromo - lumFondo);
     if (contraste >= uVibrancy) {
         return cromo;
     }
-    float mezcla = (uVibrancy - contraste) / uVibrancy;
-    return mix(cromo, vec3(lumFondo > 0.5 ? 0.0 : 1.0), mezcla);
+    // SHIFT THE LUMINANCE; do not mix towards black or white. The first version mixed by
+    // the shortfall's fraction, which reads well and is wrong at both ends: it OVERSHOOTS
+    // when the chrome is far from the extreme, and UNDERSHOOTS when it is close to it --
+    // a near-white title on a mid-grey glass came out at 0.33 of contrast where the knob
+    // promised 0.35, and that is exactly the case the knob exists for. Aiming at a
+    // luminance exactly uVibrancy away and adding the difference to all three channels
+    // delivers the promise and keeps the chrome's own hue, because kLuma sums to 1.
+    //
+    // The clamp can only bind for a colour that is already at an end of the range, and the
+    // caller only sends achromatic chrome here, whose channels are within a few hundredths
+    // of each other -- so it clamps all three together and does not tint the chrome.
+    float objetivo = (lumFondo <= 0.5)
+        ? min(1.0, lumFondo + uVibrancy)
+        : max(0.0, lumFondo - uVibrancy);
+    return clamp(cromo + vec3(objetivo - lumCromo), 0.0, 1.0);
 }
 
 void main()
@@ -236,8 +250,11 @@ void main()
 
         // STEP 3a -- FROST. The offsets are in SCREEN pixels (uBackgroundTexel is the
         // texel of the full-size region, not of the reduced texture), and the capture is
-        // already reduced, so nine taps land on values that are averages rather than on
-        // nine isolated points of text. See captureBackground for the reduction.
+        // already reduced, so nine taps land on PRE-SMOOTHED values rather than on nine
+        // isolated points of text. Pre-smoothed, not averaged: GL minifies with bilinear
+        // filtering, which reads a 2x2 neighbourhood and not the whole block -- the honest
+        // version of the claim is in captureBackground, and this comment used to oversell
+        // it.
         //
         // THE FROST IS TWO SCALES, and that is the kit's own figure: frost 6/16/16 is
         // an inner radius of 6 and an outer of 16, with the 16 repeated. A single 3x3
@@ -269,17 +286,8 @@ void main()
         // not smeared into the glass -- and lets the frosted backdrop through.
         vec3 glass = mix(desktop, baseline, uGlassAlpha);
 
-        // VIBRANCY: THE CHROME ADAPTS TO THE GLASS. OFF BY DEFAULT (uVibrancy = 0), so
-        // the screen being verified right now is unaffected by this block.
-        //
-        // The theme draws the title in a colour chosen for the BAR's own tone (#404040
-        // here), but the bar's tone is now the frosted backdrop, which can be dark. With
-        // little of the bar's own colour kept (a low GlassAlpha) a dark title then sits
-        // on a dark glass and vanishes -- which is what the user saw on a dark
-        // background. macOS solves this by adapting the chrome to the material; this
-        // does the same, and only when the minimum contrast is set above zero:
-        // achromatic chrome is pushed towards black or white, whichever end the glass is
-        // furthest from. Colour is left alone, so the traffic lights stay traffic lights.
+        // Vibrancy, off by default; the full explanation is on cromoConVibrancy above and
+        // on the m_vibrancy member in glass.h. This used to be a third copy of it.
         vec3 cromo = cromoConVibrancy(window.rgb, glass, chrome, porColor);
 
         // PREMULTIPLIED, because that is the convention KWin blends with
@@ -298,13 +306,19 @@ void main()
     // filled: the bar's own tone with an alpha, and the chrome crisp on top of it, with
     // vibrancy applied here too so the two paths do not disagree about the chrome.
     //
-    // NOTE ON THE ALPHA HERE, left as it was rather than "fixed": this path writes an
-    // UNPREMULTIPLIED colour with an alpha, which is what the alpha-only attempt did when
-    // it measured OPAQUE -- suggesting the scene does not blend this texture's alpha at
-    // all. Premultiplying it without being able to measure the result could darken a path
-    // nobody is looking at. It only runs when the capture is unavailable.
+    // BOTH PATHS WRITE PREMULTIPLIED, and an earlier version of this comment told a
+    // different story here -- that the alpha-only attempt measuring OPAQUE suggested the
+    // scene ignores this texture's alpha, so this path could write an UNPREMULTIPLIED
+    // colour. Two reviews flagged it, and they are right that the two claims cannot both
+    // stand: prePaintWindow asks for translucency and OffscreenData::paint blends with
+    // GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an unpremultiplied colour with an alpha below 1 is
+    // ADDED to the backdrop rather than composited over it. The old measurement is left as
+    // an unexplained anomaly instead of being used to justify a different convention. The
+    // residual risk is the other way: if the alpha really were ignored, this path would be
+    // darker rather than brighter -- and it only runs when the capture is unavailable.
     vec3 cromoReserva = cromoConVibrancy(window.rgb, baseline, chrome, porColor);
-    fragColor = vec4(mix(baseline, cromoReserva, chrome), uGlassAlpha);
+    vec3 reserva = mix(baseline, cromoReserva, chrome);
+    fragColor = vec4(reserva * uGlassAlpha, uGlassAlpha);
 }
 )";
 
@@ -544,6 +558,12 @@ void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
 bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
                                          const RenderViewport &viewport, EffectWindow *w)
 {
+    // CLEARED FIRST, BEFORE ANY EARLY RETURN. It used to be cleared after them, so on the
+    // paths that return early the previous window's pointer survived -- harmless only
+    // because m_hasBackground is set false by the same failing call. A review pointed out
+    // that the comment and the test claimed "at the start of every capture" and the code
+    // did not deliver it; now it does.
+    m_fondoActual = nullptr;
     if (!m_active || !w->isNormalWindow() || !w->hasDecoration()) {
         return false;
     }
@@ -621,7 +641,6 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
 
     // Looked up, not rebuilt: two windows of different sizes used to allocate and free a
     // texture and a framebuffer twice per frame for as long as both kept repainting.
-    m_fondoActual = nullptr;
     const auto clave = std::make_pair(reducido.width(), reducido.height());
     auto encontrado = m_fondos.find(clave);
     if (encontrado == m_fondos.end()) {
@@ -638,12 +657,21 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
             qWarning() << "[macos-glass] the capture framebuffer is not valid";
             return false;
         }
-        // Bounded on purpose. A desktop has a handful of window sizes; a cap keeps a
-        // pathological session (a resizing window, or many different sizes) from growing
-        // the cache without limit, and evicting the oldest is enough because a live
-        // capture is consumed inside the call that fills it.
+        // Bounded on purpose, and evicting the LEAST RECENTLY USED, not the first in the
+        // map. A review caught the first version: `std::map` is ordered by key, so
+        // `erase(begin())` evicted the SMALLEST size -- and a small terminal is exactly the
+        // window whose repaints this cache exists to make cheap, so with five or more
+        // distinct sizes in a session the thrash came back for the case that motivated the
+        // cache. `m_uso` is the stamp of the last capture that used an entry.
         if (int(m_fondos.size()) >= kMaxCapturas) {
-            m_fondos.erase(m_fondos.begin());
+            auto masViejo = m_fondos.begin();
+            for (auto it = m_fondos.begin(); it != m_fondos.end(); ++it) {
+                if (m_uso[it->first] < m_uso[masViejo->first]) {
+                    masViejo = it;
+                }
+            }
+            m_uso.erase(masViejo->first);
+            m_fondos.erase(masViejo);
         }
         encontrado = m_fondos.emplace(clave, std::move(nuevoFondo)).first;
         qInfo() << "[macos-glass] capture texture" << reducido
@@ -651,6 +679,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
                 << "-- cached:" << int(m_fondos.size());
     }
     m_fondoActual = encontrado->second.get();
+    m_uso[clave] = ++m_reloj;
     m_backgroundRegion = size;
 
     const Rect sourceDevice = viewport.mapToRenderTargetTexture(source);
@@ -662,6 +691,17 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
 
     // blitFromFramebuffer reads from the CURRENT framebuffer. It already is the
     // source while the scene is drawn; pushing it says so instead of assuming it.
+    // CLEARED BEFORE THE BLIT, and it is not hygiene. The destination can be SMALLER than
+    // the texture: `reducido` is floor(size/factor) while `destination` is built from the
+    // CLAMPED source, so for a window that extends off screen a strip of the texture stays
+    // unwritten -- and with the cache that strip holds a PREVIOUS window's capture, which
+    // the frost kernel would blend in at the edge. Clearing makes it transparent black,
+    // which the block also is: that strip is the part of the frame that is off screen.
+    GLFramebuffer::pushFramebuffer(m_fondoActual->fbo.get());
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    GLFramebuffer::popFramebuffer();
+
     GLFramebuffer::pushFramebuffer(sourceFbo);
     const bool ok = m_fondoActual->fbo->blitFromRenderTarget(renderTarget, viewport, source, destination);
     GLFramebuffer::popFramebuffer();
@@ -715,6 +755,19 @@ void MacosGlassEffect::drawWindow(const RenderTarget &renderTarget, const Render
     // The base class is called on the ONLY path out of this function. That is not
     // decoration: verify-chain.sh checks it, and an early return here is the exact
     // shape of the two black screens this project already paid for (HANDOFF §3).
+    // DOES THE FRAME REACH THE SCREEN'S EDGE? If it does, an arc there would carve a piece
+    // out of the screen itself and show the desktop through it. A maximized window with a
+    // visible panel does NOT reach the top edge and keeps its corners; one with the panel
+    // hidden does, and does not. A review caught the first version of this gate, which
+    // only excluded fullscreen windows and therefore rounded maximized ones.
+    //
+    // Set here because this is where the viewport is available, and apply() runs after
+    // drawWindow for the SAME window, which is what makes a per-paint member safe.
+    const Rect pantalla = viewport.renderRect().toRect();
+    const Rect marco = w->frameGeometry().toRect();
+    m_tocaBorde = marco.left() <= pantalla.left() || marco.top() <= pantalla.top()
+        || marco.right() >= pantalla.right() || marco.bottom() >= pantalla.bottom();
+
     m_hasBackground = captureBackground(renderTarget, viewport, w);
     OffscreenEffect::drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
 }
@@ -824,7 +877,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     // tried and removed), so its corners are left alone too. That leaves exactly the
     // windows the material covers: normal, decorated, not fullscreen.
     const bool seRedondea = m_cornerRadius > 0
-        && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen();
+        && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen() && !m_tocaBorde;
     m_shader->setUniform("uCornerRadius", seRedondea ? float(m_cornerRadius) : 0.0f);
     m_shader->setUniform("uVibrancy", m_vibrancy);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);

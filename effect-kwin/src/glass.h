@@ -77,10 +77,10 @@ private:
     void slotWindowDeleted(EffectWindow *w);
 
     /**
-     * Copies the desktop behind @a w into m_background. Returns false when there is
-     * nothing to copy (no GL framebuffer to read, the window is off screen, blits
-     * unsupported); the shader then keeps the old alpha-only behaviour instead of
-     * showing a texture that was never filled.
+     * Copies the desktop behind @a w into one of the cached capture textures, reduced by
+     * the frost's factor. Returns false when there is nothing to copy (no GL framebuffer to
+     * read, the window is off screen, blits unsupported); the shader then keeps the old
+     * alpha-only behaviour instead of showing a texture that was never filled.
      */
     bool captureBackground(const RenderTarget &renderTarget, const RenderViewport &viewport,
                            EffectWindow *w);
@@ -126,25 +126,31 @@ private:
         std::unique_ptr<GLFramebuffer> fbo;
     };
     std::map<std::pair<int, int>, std::unique_ptr<CapturaFondo>> m_fondos;
+    // When each entry was last used, so the cap evicts the LEAST RECENTLY USED rather than
+    // whatever `std::map` happens to put first -- which is the smallest size, and a small
+    // terminal is the window this cache exists for.
+    std::map<std::pair<int, int>, quint64> m_uso;
+    quint64 m_reloj = 0;
     CapturaFondo *m_fondoActual = nullptr;   // the one this paint uses; apply() binds it
     static constexpr int kMaxCapturas = 4;   // enough for a desktop, bounded on purpose
 
     QSize m_backgroundRegion;    // the region the CURRENT capture covers, in screen px
     bool m_hasBackground = false;
 
-    // THE ONE THING THAT CANNOT BE SETTLED WITHOUT A SCREEN.
+    // Whether the window's frame reaches the screen's edge, computed in drawWindow (the
+    // only place with a viewport) and read by apply() for the same window. Rounding a
+    // window that reaches the edge would carve an arc out of the SCREEN.
+    bool m_tocaBorde = false;
+
+    // THE v AXIS QUESTION, whose answer is NO FLIP -- and it is settled, not a coin toss.
     //
-    // Two GL textures are involved: the window's (created by OffscreenEffect) and
-    // the capture's (created here). The window's is known to have its v axis
-    // inverted relative to window coordinates -- measured in M1.2b, and that is why
-    // the band test uses (1 - vTexCoord.y), i.e. v = 0 is the BOTTOM of the window.
-    //
-    // The default (false) rests on one argument, not on a coin toss: the capture is
-    // filled by a framebuffer blit whose destination is in texture-local
-    // coordinates, and for an FBO's texture v = 0 is the bottom row of the
-    // framebuffer. So the capture's v axis is ALSO bottom-up, and the two textures
-    // agree -> no flip. What would falsify it is KWin mapping `destination` through
-    // a top-left convention internally, which is not visible from the headers.
+    // This block used to be titled "the one thing that cannot be settled without a screen",
+    // which stopped being true when KWin's own blit code was read: the capture is filled by
+    // a framebuffer blit whose destination is in texture-local coordinates, and both
+    // textures involved are bottom-up (the window texture was measured in M1.2b -- that is
+    // why the band test uses (1 - vTexCoord.y) -- and the blit preserves that). The default
+    // (false) is therefore correct, and the knob stays for a ROTATED output, where the blit
+    // takes a different branch.
     //
     // Because that is an argument and not a measurement, it is a setting rather
     // than a literal in the shader:
