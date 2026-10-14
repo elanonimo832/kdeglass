@@ -3,8 +3,8 @@
 #
 # Does NOT install or activate. For that:  ./install.sh
 set -euo pipefail
-AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$AQUI"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$HERE"
 
 if ! command -v cmake >/dev/null 2>&1; then
   cat <<'MSG'
@@ -21,11 +21,11 @@ fi
 # a stub of our own is enough: it avoids installing the 42 MiB of vulkan-headers.
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
-      -DVulkan_INCLUDE_DIR="$AQUI/_stub"
+      -DVulkan_INCLUDE_DIR="$HERE/_stub"
 cmake --build build
 
 # If the chain is not there, it does NOT continue: installing that .so leaves the desktop black.
-if ! "$AQUI/verify-chain.sh"; then
+if ! "$HERE/verify-chain.sh"; then
   echo
   echo "NOT installing: the effect does not continue KWin's paint chain."
   exit 1

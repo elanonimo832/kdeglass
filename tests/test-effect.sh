@@ -1,7 +1,7 @@
 # The KWin effect: invariants that MUST NOT break.
 # These are the tests that prevent the black screen from coming back.
 
-EF="$PROY/effect-kwin"
+EF="$PROJECT/effect-kwin"
 SOURCE="$EF/src/glass.cpp"
 SO_BUILD="$EF/build/plugins/kwin/effects/macosglass2.so"
 SO_SYSTEM=/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
@@ -62,8 +62,8 @@ negar "the .so with the id that broke the render is gone" \
 
 echo "  -- diagnostic scripts --"
 for s in "$EF/install.sh" "$EF/build.sh" \
-         "$PROY/install.sh" "$PROY/install-decoration.sh" \
-         "$PROY/RECOVER-KDE.sh"; do
+         "$PROJECT/install.sh" "$PROJECT/install-decoration.sh" \
+         "$PROJECT/RECOVER-KDE.sh"; do
   [ -f "$s" ] && { bash -n "$s" 2>/dev/null && ok "$(basename "$s"): bash syntax OK" || fallo "$(basename "$s"): BAD bash syntax"; }
 done
 
@@ -167,18 +167,18 @@ echo "  -- no script EXECUTES kwin_wayland --replace --"
 # It leaves the screen black: on Wayland it starts a second compositor that fights
 # for the DRM/GL and kills the live KWin's OpenGL context. We only look at COMMAND
 # lines: mentioning it in a comment to warn against it is correct and desirable.
-malos=0
-for s in "$EF"/*.sh "$PROY"/*.sh; do
+bad=0
+for s in "$EF"/*.sh "$PROJECT"/*.sh; do
   [ -f "$s" ] || continue
   # Only counts when the command is EXECUTED: at line start or after a shell
   # separator. Inside an echo (warning against it) it does not count.
   if grep -qE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace' \
        <<< "$(grep -vE '^[[:space:]]*#' "$s" 2>/dev/null)"; then
-    malos=$((malos+1)); printf '      -> %s\n' "$(basename "$s")"
+    bad=$((bad+1)); printf '      -> %s\n' "$(basename "$s")"
     grep -nE '(^|[;&|]|\$\(|^[[:space:]]*)[[:space:]]*kwin_wayland[[:space:]]+--replace' "$s" | sed 's/^/         /'
   fi
 done
-afirmar_igual "no script executes --replace" "0" "$malos"
+afirmar_igual "no script executes --replace" "0" "$bad"
 
 echo "  -- no pipeline may use 'grep -q' under pipefail --"
 # THIS FAILURE HAPPENED THREE TIMES. grep -q exits as soon as it matches and
@@ -190,7 +190,7 @@ echo "  -- no pipeline may use 'grep -q' under pipefail --"
 #
 # The --diagnose block reproduces the broken form ON PURPOSE, to show the
 # contrast, so it is the one allowed place.
-malos=$(python3 - "$EF" <<'PYEOF'
+bad=$(python3 - "$EF" <<'PYEOF'
 import glob, os, re, sys
 ef = sys.argv[1]
 bad = []
@@ -210,5 +210,5 @@ for b in bad:
 print(len(bad))
 PYEOF
 )
-n="${malos##*$'\n'}"
+n="${bad##*$'\n'}"
 afirmar_igual "no 'grep -q' in a pipeline outside --diagnose" "0" "$n"

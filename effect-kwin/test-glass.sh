@@ -78,10 +78,10 @@ echo "  -- what the effect itself says about the capture --"
 # blit), the band fell back to the old alpha path and "OPAQUE" says nothing about
 # whether capturing the desktop is the right mechanism. Reading this here rather than
 # a second command later is the difference between one relogin and two.
-diag=$(timeout 20 journalctl --user 2>/dev/null | grep CALIB; true; timeout 20 journalctl --user --since '10 min ago' -o cat 2>/dev/null | grep 'macos-glass' | grep -v systemd-run)
-captura=$(printf '%s\n' "$diag" | grep 'capture:' | tail -1)
-if [ -n "$captura" ]; then
-  echo "  $captura"
+diagLog=$(timeout 20 journalctl --user 2>/dev/null | grep CALIB; true; timeout 20 journalctl --user --since '10 min ago' -o cat 2>/dev/null | grep 'macos-glass' | grep -v systemd-run)
+captureLine=$(printf '%s\n' "$diagLog" | grep 'capture:' | tail -1)
+if [ -n "$captureLine" ]; then
+  echo "  $captureLine"
 else
   echo "  (no 'capture:' line yet: either the effect is not loaded, or it has not"
   echo "   painted 60 times -- move a window a little and run this again)"
@@ -91,7 +91,7 @@ fi
 # perfectly -- the first version of this filter did exactly that, and a false alarm is
 # worse than no alarm: it teaches the reader to ignore the word. A non-zero refusal is
 # what matters.
-printf '%s\n' "$diag" | grep -E 'refused= *[1-9]|cannot allocate|not valid|failed to load|blit was refused' | tail -3 | sed 's/^/  WARNING: /'
+printf '%s\n' "$diagLog" | grep -E 'refused= *[1-9]|cannot allocate|not valid|failed to load|blit was refused' | tail -3 | sed 's/^/  WARNING: /'
 echo
 
 python3 "$HERE/measure-glass.py" "$OUT/behind-dark.png" "$OUT/behind-light.png" "$x" "$y" "$w" "$bar"
@@ -101,7 +101,7 @@ rc=$?
 # Here-string, not a pipe into grep -q: under `set -o pipefail` the early exit of
 # grep -q can kill the producer with SIGPIPE and report failure on a match. The
 # project's own scan caught exactly that shape in the first version of this block.
-if [ "$rc" -ne 0 ] && grep -q 'refused=0' <<< "$captura"; then
+if [ "$rc" -ne 0 ] && grep -q 'refused=0' <<< "$captureLine"; then
   echo
   echo "  NOTE: the desktop WAS captured (refused=0), so this OPAQUE is a COMPOSITE"
   echo "  problem -- the capture reaches the shader and the shader is not showing it."
@@ -113,9 +113,3 @@ else
   fi
 fi
 exit "$rc"
-
-# rotura de prueba
-grep -q "CALIB" /dev/null 2>/dev/null || true
-
-# rotura de prueba
-if false; then echo x; fi # CALIB

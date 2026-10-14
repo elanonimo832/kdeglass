@@ -1,7 +1,7 @@
-# Los scripts del efecto: pocos, claros, autosuficientes y sin el id que rompia el render.
-EF="$PROY/effect-kwin"
+# The effect's scripts: few, clear, self-sufficient, and without the id that broke rendering.
+EF="$PROJECT/effect-kwin"
 
-echo "  -- solo los scripts esenciales --"
+echo "  -- only the essential scripts --"
 # Nine debug scripts were scaffolding for the bisection; their value (the variant
 # table) is in INCIDENT.md. FIVE remain, each with a purpose that is still true:
 #   build.sh            builds and verifies the paint chain
@@ -14,65 +14,80 @@ echo "  -- solo los scripts esenciales --"
 # for CALIB lines the effect no longer emits, and test-diffusion.sh measured M1.2's band
 # diffusion, which the design no longer claims. A live script whose verdict is
 # meaningless is worse than no script: it teaches the reader to ignore verdicts.
-esperados="build.sh install.sh test-titlebar.sh test-glass.sh verify-chain.sh"
-for s in $esperados; do afirmar_existe "existe $s" "$EF/$s"; done
+expected="build.sh install.sh test-titlebar.sh test-glass.sh verify-chain.sh"
+for s in $expected; do afirmar_existe "existe $s" "$EF/$s"; done
 
 n=$(ls "$EF"/*.sh 2>/dev/null | wc -l)
 afirmar_igual "number of scripts (no scaffolding)" "5" "$n"
-sobran=""
+extra=""
 for x in "$EF"/*.sh; do
   [ -f "$x" ] || continue
   b="$(basename "$x")"
-  case " $esperados " in *" $b "*) ;; *) sobran="$sobran $b";; esac
+  case " $expected " in *" $b "*) ;; *) extra="$extra $b";; esac
 done
-afirmar_igual "no sobra ningun script" "" "$sobran"
+afirmar_igual "no script is left over" "" "$extra"
 
-echo "  -- ningun script carga el id que rompia el render --"
-malos=0
+echo "  -- no script loads the id that broke rendering --"
+bad=0
 for s in "$EF"/*.sh; do
   [ -f "$s" ] || continue
   if grep -nE '(load|unload)Effect[^a-zA-Z0-9]*macosglass([^0-9]|$)' "$s" >/dev/null 2>&1; then
-    malos=$((malos+1)); printf '      -> %s usa el id viejo\n' "$(basename "$s")"
+    bad=$((bad+1)); printf '      -> %s usa el id viejo\n' "$(basename "$s")"
   fi
 done
-afirmar_igual "ningun script carga el id viejo" "0" "$malos"
+afirmar_igual "no script loads the old id" "0" "$bad"
 
-echo "  -- la comprobacion de la cadena antes de instalar --"
-# Sin ella, instalar el .so deja la pantalla negra. Se admite comprobarla
-# directamente o delegar en verify-chain.sh (delegar es mejor: una sola fuente).
+echo "  -- the chain check before installing --"
+# Without it, installing the .so leaves the screen black. Checking it directly is allowed,
+# or delegating to verify-chain.sh (delegating is better: one source of truth).
 for s in build.sh install.sh; do
   if grep -qE 'EffectsHandler::paintWindow|verify-chain\.sh' "$EF/$s" 2>/dev/null; then
-    ok "$s comprueba la cadena antes de instalar"
+    ok "$s checks the chain before installing"
   else
-    fallo "$s NO comprueba la cadena antes de instalar"
+    fallo "$s does NOT check the chain before installing"
   fi
 done
 
-echo "  -- el patron de grep es determinista --"
-# grep -q aborta al encontrar la coincidencia y cierra el pipe; con pipefail el
-# resultado VARIA y puede abortar la instalacion de un .so correcto. Paso dos veces.
-malos=0
+echo "  -- the grep pattern is deterministic --"
+# grep -q exits on the first match and closes the pipe; under pipefail the result VARIES
+# and can abort the installation of a correct .so. It happened twice.
+bad=0
 for s in "$EF"/*.sh; do
   [ -f "$s" ] || continue
   if grep -nE 'objdump.*\|[[:space:]]*grep[[:space:]]+-q' "$s" >/dev/null 2>&1; then
-    malos=$((malos+1)); printf '      -> %s usa grep -q en un pipe\n' "$(basename "$s")"
+    bad=$((bad+1)); printf '      -> %s usa grep -q en un pipe\n' "$(basename "$s")"
   fi
 done
-afirmar_igual "ningun script usa 'grep -q' en un pipe" "0" "$malos"
+afirmar_igual "no script uses 'grep -q' in a pipe" "0" "$bad"
 
-echo "  -- autosuficiencia: sin binarios de build/ --"
-# build/ es regenerable y se borra al recompilar. Un script que llama a
-# build/verificar-carga se rompe en cuanto se limpia. (Paso de verdad.)
-malos=0
-for s in "$EF"/*.sh; do
-  [ -f "$s" ] || continue
-  if awk '/\$AQUI\/build\// && !/\.so/ {found=1} END{exit !found}' "$s" 2>/dev/null; then
-    malos=$((malos+1)); printf '      -> %s llama a un binario de build/\n' "$(basename "$s")"
-  fi
-done
-afirmar_igual "ningun script depende de binarios de build/" "0" "$malos"
+echo "  -- self-sufficient: no binaries from build/ --"
+# build/ is regenerable and is wiped on a rebuild, so a script that EXECUTES something from
+# it breaks as soon as it is cleaned. (It happened.)
+#
+# This check was written against a variable name, `$HERE/build/`, that no script used: it
+# matched nothing for its whole life, and a rename brought it back to life as a FALSE
+# POSITIVE -- it flagged the screenshot directories `build/glass` and `build/titlebar`, which
+# are not dependencies at all. What it checks now is the property: any path under build/ that
+# a live script mentions is either the plugin (`.so`, regenerated by build.sh) or a directory
+# the same script creates, never something it calls.
+bad=$(python3 - "$EF" <<'PYEOF'
+import glob, os, re, sys
+bad = []
+for ruta in sorted(glob.glob(os.path.join(sys.argv[1], "*.sh"))):
+    for n, linea in enumerate(open(ruta, encoding="utf-8"), 1):
+        if "/build/" not in linea or ".so" in linea:
+            continue
+        if "mkdir" in linea or re.match(r"\s*[A-Za-z_][A-Za-z0-9_]*=", linea):
+            continue
+        bad.append(f"{os.path.basename(ruta)}:{n}: {linea.strip()}")
+for m in bad:
+    print(f"      -> {m}")
+print(len(bad))
+PYEOF
+)
+afirmar_igual "no script executes anything from build/" "0" "${bad##*$'\n'}"
 
-echo "  -- ningun script vivo busca una etiqueta de log que ya no existe --"
+echo "  -- no live script waits for a journal tag that is gone --"
 # The rot this catches: test-hot.sh and calibrate.sh waited for `CALIB` lines that the
 # effect stopped emitting when M1.1's coordinate calibration was replaced, and nothing
 # noticed for days -- a live script that cannot say anything looks exactly like a live
@@ -83,16 +98,20 @@ echo "  -- ningun script vivo busca una etiqueta de log que ya no existe --"
 # in verify-chain.sh, none of which are journal tags. What makes a word a tag is the LINE it
 # is used in -- so only lines that actually read the journal count. It needs no allow-list,
 # and a check with no allow-list is one nobody will quietly weaken.
-faltan=""
+missing=""
 for s in "$EF"/*.sh; do
   [ -f "$s" ] || continue
   b="$(basename "$s")"
-  etiquetas=$(grep -E 'journalctl' "$s" 2>/dev/null | grep -oE "'[^']*'" \
+  # ONLY lines that read the journal, because a tag is defined by where it is used: widening
+  # this to every grep line made it flag `WARNING` (an echo label) and `SOURCE`/`HEADER`
+  # (verify-chain.sh's own variables), which are not tags of anything. BOTH quote styles, so
+  # a real dependency written as grep -q "CALIB" is still caught.
+  tags=$(grep -E 'journalctl' "$s" 2>/dev/null | grep -oE "['\"][^'\"]*['\"]" \
               | grep -oE '\b[A-Z][A-Z0-9_]{2,}\b' | sort -u)
-  for e in $etiquetas; do
+  for e in $tags; do
     if ! codigo_contiene "$EF/src/glass.cpp" "$e"; then
-      faltan="$faltan $b:$e"
+      missing="$missing $b:$e"
     fi
   done
 done
-afirmar_igual "every journal tag a live script waits for still exists" "" "${faltan# }"
+afirmar_igual "every journal tag a live script waits for still exists" "" "${missing# }"

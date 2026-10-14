@@ -4,23 +4,23 @@
 #
 # Why a process per file: run.sh used to `source` every test file into a single
 # shell. A variable, a function or a `set` flag set in one file then reached the
-# next -- measured, not theorised: test-offscreen.sh sets CABECERA and it was
+# next -- measured, not theorised: test-offscreen.sh sets HEADER and it was
 # still set when test-harness.sh ran (see the canary there). An `exit` anywhere
 # also ended the whole suite, which is one way for a run to stop without a
 # summary. Isolation is what makes "the failure belongs to this file" true.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-: "${CUENTA:?CUENTA (where to write the counters) is required}"
-: "${PRUEBA:?PRUEBA (the test name) is required}"
-: "${PROY:=$(cd "$HERE/.." && pwd)}"
-: "${FALLOS_F:=${TMPDIR:-/tmp}/tests-failures.$$}"
-export PROY PRUEBA FALLOS_F
+: "${COUNT_FILE:?COUNT_FILE (where to write the counters) is required}"
+: "${TEST_NAME:?TEST_NAME (the test name) is required}"
+: "${PROJECT:=$(cd "$HERE/.." && pwd)}"
+: "${FAILURES_FILE:=${TMPDIR:-/tmp}/tests-failures.$$}"
+export PROJECT TEST_NAME FAILURES_FILE
 
 # Written from an EXIT trap so it happens even if the test calls `exit`: a file
 # that dies halfway must still contribute the checks it did run, instead of
 # disappearing from the totals.
-escribir_cuenta() { printf '%s %s\n' "${PASAN:-0}" "${FALLAN:-0}" > "$CUENTA"; }
+escribir_cuenta() { printf '%s %s\n' "${PASSED:-0}" "${FAILED:-0}" > "$COUNT_FILE"; }
 trap escribir_cuenta EXIT
 
 # shellcheck source=/dev/null
@@ -36,4 +36,4 @@ source "$1"
 # that cannot tell "finished" from "died" cannot say that either.
 # A SEPARATE FILE, because the counter is written with `>` from the EXIT trap and would
 # overwrite a marker written here.
-printf 'FIN\n' > "$CUENTA.fin"
+printf 'DONE\n' > "$COUNT_FILE.done"

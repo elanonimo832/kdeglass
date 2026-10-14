@@ -132,6 +132,13 @@ was still set when `test-harness.sh` ran.
   never ran. `run-one.sh` now writes a marker after the file returns and `run.sh` requires
   it, so "finished" and "died" are different verdicts. The marker is a separate file because
   the counter is written with `>` from the trap.
+- **A backup taken after the first break contains the first break.** The rule above says to
+  break a copy; this is how that rule goes wrong. A break-check appended two lines to a live
+  script, the copy was refreshed at the START of the next break-check -- which already
+  contained the first debris -- and the restore brought both back. It sat at the end of a
+  live script, after `exit`, for a round: unreachable, harmless, and invisible to the suite
+  because the suite does not run live scripts. Verify the restore (`git diff` on the file, or
+  read its tail) before trusting it.
 - **A deliberate break must not be able to destroy uncommitted work.** While checking that
   the eviction guard caught the regression it was written for, the break was reverted with
   `git checkout`, which restored the file to the last COMMIT and took ten uncommitted fixes

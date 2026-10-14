@@ -11,54 +11,54 @@
 # also what makes refraction, dispersion and the highlight visible at all: without
 # a background showing through, every later step is invisible too.
 
-EF="$PROY/effect-kwin"
-FUENTE="$EF/src/glass.cpp"
-CABECERA="$EF/src/glass.h"
+EF="$PROJECT/effect-kwin"
+SOURCE="$EF/src/glass.cpp"
+HEADER="$EF/src/glass.h"
 
 echo "  -- the title bar is translucent --"
-afirmar_codigo "the shader writes a reduced alpha in the band" "$FUENTE" 'uGlassAlpha'
-afirmar_codigo "the glass alpha is a named constant" "$CABECERA" 'kGlassAlpha'
+afirmar_codigo "the shader writes a reduced alpha in the band" "$SOURCE" 'uGlassAlpha'
+afirmar_codigo "the glass alpha is a named constant" "$HEADER" 'kGlassAlpha'
 
 echo "  -- the content is left alone --"
-afirmar_codigo "outside the band the window texel is returned unmodified" "$FUENTE" 'vec4 window = texture[(]sampler, vTexCoord[)]'
-afirmar_codigo "and that is exactly what the content path returns" "$FUENTE" 'fragColor = window;'
+afirmar_codigo "outside the band the window texel is returned unmodified" "$SOURCE" 'vec4 window = texture[(]sampler, vTexCoord[)]'
+afirmar_codigo "and that is exactly what the content path returns" "$SOURCE" 'fragColor = window;'
 
 echo "  -- the scene is told the window is translucent --"
 # Setting an alpha in the shader is not enough: the scene blends the redirected
 # texture only for a window it considers translucent.
-afirmar_codigo "the effect marks the window translucent" "$FUENTE" 'data\.setTranslucent[(][)]'
+afirmar_codigo "the effect marks the window translucent" "$SOURCE" 'data\.setTranslucent[(][)]'
 
 echo "  -- the DESKTOP is captured, because an alpha cannot invent it --"
 # The mechanism limit that made M1.3a measure OPAQUE: the shader's only input was
 # the window's own texture, and no alpha puts the desktop into a texture that does
 # not contain it. So the desktop is copied out of the screen before the window is
 # painted over it.
-afirmar_codigo "the background is captured from the render target" "$FUENTE" 'blitFromRenderTarget'
-afirmar_codigo "the capture has its own texture and framebuffer" "$FUENTE" 'GLTexture::allocate'
-afirmar_codigo "the capture happens before the window is drawn" "$FUENTE" 'captureBackground[(]'
+afirmar_codigo "the background is captured from the render target" "$SOURCE" 'blitFromRenderTarget'
+afirmar_codigo "the capture has its own texture and framebuffer" "$SOURCE" 'GLTexture::allocate'
+afirmar_codigo "the capture happens before the window is drawn" "$SOURCE" 'captureBackground[(]'
 # The override must continue the chain on its only path, or the screen goes black.
-afirmar_codigo "the drawWindow override continues the chain" "$FUENTE" 'OffscreenEffect::drawWindow[(]'
+afirmar_codigo "the drawWindow override continues the chain" "$SOURCE" 'OffscreenEffect::drawWindow[(]'
 # RISK: frameGeometry() of a maximised window is the whole screen, and a window
 # dragged past the edge goes outside it. An out-of-bounds blit is undefined
 # behaviour, so the source MUST be clamped.
-afirmar_codigo "the blit source is clamped to the render target" "$FUENTE" 'intersected[(]'
+afirmar_codigo "the blit source is clamped to the render target" "$SOURCE" 'intersected[(]'
 # Device pixels, not logical ones: at scale != 1 the texture must be larger than
 # frameGeometry(). KWin's own transform, not arithmetic done by hand.
-afirmar_codigo "the capture is sized in device pixels" "$FUENTE" 'mapToRenderTargetTexture'
+afirmar_codigo "the capture is sized in device pixels" "$SOURCE" 'mapToRenderTargetTexture'
 # AND it must cover exactly the region KWin redirected: the offscreen texture is
 # expandedGeometry()*scale (frame PLUS shadow margins) and the shader's vTexCoord runs
 # across all of it. A frame-sized capture samples the desktop shifted by the shadow
 # margin -- a bug that would have looked like a uv or flip problem.
-afirmar_codigo "the capture covers the EXPANDED geometry KWin redirected" "$FUENTE" 'expandedGeometry[(][)]'
-afirmar_codigo "and it is snapped to the device grid the way KWin does" "$FUENTE" 'snapToPixels'
+afirmar_codigo "the capture covers the EXPANDED geometry KWin redirected" "$SOURCE" 'expandedGeometry[(][)]'
+afirmar_codigo "and it is snapped to the device grid the way KWin does" "$SOURCE" 'snapToPixels'
 negar "the capture is not framed to frameGeometry" \
-  grep -qE 'snapToPixels[(]w->frameGeometry' "$FUENTE"
+  grep -qE 'snapToPixels[(]w->frameGeometry' "$SOURCE"
 # The composite happens in the shader, so there is no second quad that could be
 # drawn under the window (HANDOFF section 5, risk 4).
-afirmar_codigo "the shader samples the captured background" "$FUENTE" 'texture[(]background'
-afirmar_codigo "the composite does not depend on the scene blending alpha" "$FUENTE" 'uHasBackground'
-afirmar_codigo "the composite keeps part of the bar colour" "$FUENTE" 'mix[(]desktop, baseline, uGlassAlpha[)]'
-afirmar_codigo "the bar's opacity is tunable too" "$FUENTE" 'GlassAlpha'
+afirmar_codigo "the shader samples the captured background" "$SOURCE" 'texture[(]background'
+afirmar_codigo "the composite does not depend on the scene blending alpha" "$SOURCE" 'uHasBackground'
+afirmar_codigo "the composite keeps part of the bar colour" "$SOURCE" 'mix[(]desktop, baseline, uGlassAlpha[)]'
+afirmar_codigo "the bar's opacity is tunable too" "$SOURCE" 'GlassAlpha'
 
 echo "  -- the chrome stays readable, and the corners stay round --"
 # The user, after the frost landed: "que se vean los botones y el titulo de la ventana".
@@ -66,76 +66,76 @@ echo "  -- the chrome stays readable, and the corners stay round --"
 # were smeared into it. Now the blur is the BASELINE, and what deviates from it is the
 # chrome, which is drawn crisp over the glass -- the way macOS does it: the glass is
 # behind the chrome, not over it.
-afirmar_codigo "the chrome is found by its deviation from a baseline" "$FUENTE" 'abs[(]dot[(]window.rgb - tight'
+afirmar_codigo "the chrome is found by its deviation from a baseline" "$SOURCE" 'abs[(]dot[(]window.rgb - tight'
 # The glass carries the bar's TONE, so any chrome left in it is a ghost of the title
 # behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
 # bar's height keeps ~4, which cannot be seen.
-afirmar_codigo "the bar's tone is averaged over the bar's own scale" "$FUENTE" 'max[(]uRadius, uTitleBarHeight [*] 0[.]5[)]'
-afirmar_codigo "and it is composited crisp on top of the glass" "$FUENTE" 'mix[(]glass, chromeColour, chrome[)]'
+afirmar_codigo "the bar's tone is averaged over the bar's own scale" "$SOURCE" 'max[(]uRadius, uTitleBarHeight [*] 0[.]5[)]'
+afirmar_codigo "and it is composited crisp on top of the glass" "$SOURCE" 'mix[(]glass, chromeColour, chrome[)]'
 # VIBRANCY, off by default: the theme's title is dark and the frosted backdrop can be
 # dark, so with little of the bar's colour kept the title disappears. macOS adapts the
 # chrome to the material. It is a setting because it changes the title's colour, which is
 # a decision for a screen.
-afirmar_codigo "vibrancy is off by default" "$CABECERA" 'kVibrancy = 0'
-afirmar_codigo "and it is a live setting" "$FUENTE" 'Vibrancy'
-afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$FUENTE" 'isColour > 0[.]5'
+afirmar_codigo "vibrancy is off by default" "$HEADER" 'kVibrancy = 0'
+afirmar_codigo "and it is a live setting" "$SOURCE" 'Vibrancy'
+afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$SOURCE" 'isColour > 0[.]5'
 # The wiring: the main path must go through the helper, or vibrancy is a function nobody
 # calls -- the same trap as the `discard;` that could never run.
-afirmar_codigo "and the main path uses it" "$FUENTE" 'chromeWithVibrancy[(]window[.]rgb, glass, chrome, byColour[)]'
+afirmar_codigo "and the main path uses it" "$SOURCE" 'chromeWithVibrancy[(]window[.]rgb, glass, chrome, byColour[)]'
 # The wiring, not the name: the adaptation must be what gets composited.
-afirmar_codigo "and the adapted chrome is the one composited" "$FUENTE" 'mix[(]glass, chromeColour, chrome[)]'
+afirmar_codigo "and the adapted chrome is the one composited" "$SOURCE" 'mix[(]glass, chromeColour, chrome[)]'
 # THE BASELINE MUST BE TIGHT. The first version measured the deviation against the
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar
 # pixels AROUND them were classified as chrome and drawn crisp: a bright halo around
 # each letter and each traffic light, which is what the user saw.
-afirmar_codigo "the chrome baseline is its own, narrow radius" "$FUENTE" 'uChromeRadius'
-afirmar_codigo "and its threshold is one tunable knob" "$FUENTE" 'uChromeLow'
+afirmar_codigo "the chrome baseline is its own, narrow radius" "$SOURCE" 'uChromeRadius'
+afirmar_codigo "and its threshold is one tunable knob" "$SOURCE" 'uChromeLow'
 # Colour is chrome too. Without this the traffic lights come out as bright rings with
 # glass in the middle, because a tight baseline sees the same colour in the centre of a
 # 12 px disc as around it. Chroma is local, so it costs no halo.
 # ...and it must be USED, not merely declared: asserting the name alone passed while
 # the term was disconnected, which is the third time this shape has bitten.
-afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$FUENTE" 'max[(]byDeviation, byColour[)]'
+afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$SOURCE" 'max[(]byDeviation, byColour[)]'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
-afirmar_codigo "the band's colour is premultiplied by its alpha" "$FUENTE" 'result [*] window[.]a'
+afirmar_codigo "the band's colour is premultiplied by its alpha" "$SOURCE" 'result [*] window[.]a'
 # And the corners: this theme's SVG has a 12 px arc but aurorae clips it into a 1 px
 # cell, so the frame is a rectangle and there is no shape to follow. The effect draws
 # the rounded rectangle itself and discards what falls outside it (0 disables it).
-afirmar_codigo "the window's rounded corners are drawn by the effect" "$FUENTE" 'uCornerRadius'
-afirmar_codigo "by discarding what falls outside the rounding" "$FUENTE" 'discard;'
+afirmar_codigo "the window's rounded corners are drawn by the effect" "$SOURCE" 'uCornerRadius'
+afirmar_codigo "by discarding what falls outside the rounding" "$SOURCE" 'discard;'
 # The condition itself, not just the two names: the first version of this assertion was
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
-afirmar_codigo "outside the arc, and only there" "$FUENTE" 'dot[(]corner, corner[)] > uCornerRadius [*] uCornerRadius'
+afirmar_codigo "outside the arc, and only there" "$SOURCE" 'dot[(]corner, corner[)] > uCornerRadius [*] uCornerRadius'
 # ...and only for the windows the material covers. A fullscreen window IS the screen:
 # rounding it would carve arcs out of the screen and show the desktop through them. A
 # client-side decoration is the case this effect leaves alone everywhere else.
-afirmar_codigo "only decorated, non-fullscreen windows are rounded" "$FUENTE" 'isNormalWindow[(][)] && w->hasDecoration[(][)] && !w->isFullScreen[(][)]'
+afirmar_codigo "only decorated, non-fullscreen windows are rounded" "$SOURCE" 'isNormalWindow[(][)] && w->hasDecoration[(][)] && !w->isFullScreen[(][)]'
 # The one orientation that cannot be settled without a screen is a setting, so it
 # can be flipped and reconfigured WITHOUT a relogin.
-afirmar_codigo "the capture orientation is configurable, not assumed" "$FUENTE" 'BackgroundFlipV'
+afirmar_codigo "the capture orientation is configurable, not assumed" "$SOURCE" 'BackgroundFlipV'
 
 echo "  -- M1.3a step 3a: the frost over the captured desktop --"
 # Step 2 shows the desktop SHARP; macOS shows it frosted. It is a setting so it can be
 # tuned without a rebuild, and its default is the kit's own outer radius: 16 is what the
 # user's eye selected on screen. 0 is the sharp composite step 2 was verified with, and
 # 6 is real but invisible against anything coarser than text.
-afirmar_codigo "the frost radius defaults to the kit's outer 16" "$CABECERA" 'kBackgroundRadius = 16'
-afirmar_codigo "the radius is read from the effect's config" "$FUENTE" 'BackgroundRadius'
-afirmar_codigo "the shader can blur the captured background" "$FUENTE" 'uBackgroundRadius'
+afirmar_codigo "the frost radius defaults to the kit's outer 16" "$HEADER" 'kBackgroundRadius = 16'
+afirmar_codigo "the radius is read from the effect's config" "$SOURCE" 'BackgroundRadius'
+afirmar_codigo "the shader can blur the captured background" "$SOURCE" 'uBackgroundRadius'
 # The capture is a different texture from the window's, so it has its own texel size.
 # Reusing the window's would make the radius a ~3% lie, which is free to avoid.
-afirmar_codigo "the frost is measured in the capture's own texels" "$FUENTE" 'uBackgroundTexel'
+afirmar_codigo "the frost is measured in the capture's own texels" "$SOURCE" 'uBackgroundTexel'
 # Radius 0 must be the SINGLE-sample path, not a stack of samples of the same texel:
 # the sharp state has to stay identical to what was verified.
-afirmar_codigo "radius 0 keeps the single-sample path" "$FUENTE" 'desktop = texture[(]background, uvBackground[)]'
+afirmar_codigo "radius 0 keeps the single-sample path" "$SOURCE" 'desktop = texture[(]background, uvBackground[)]'
 # TWO SCALES, because one 3x3 at the outer spacing samples nine isolated points and a
 # background with text reads as nine ghost copies of it -- seen on screen at radius 16.
 # The pair is the kit's `frost 6/16/16`, the outer sampled twice because that is how the
 # kit writes it.
-afirmar_codigo "the frost samples an inner scale derived from the kit" "$FUENTE" 'kInnerScale'
-afirmar_codigo "and the outer scale carries the kit's repeated figure" "$FUENTE" '2.0 [*] texture'
+afirmar_codigo "the frost samples an inner scale derived from the kit" "$SOURCE" 'kInnerScale'
+afirmar_codigo "and the outer scale carries the kit's repeated figure" "$SOURCE" '2.0 [*] texture'
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
@@ -172,13 +172,13 @@ echo "  -- the shader is validated without a screen --"
 if ! command -v glslangValidator >/dev/null 2>&1; then
   ok "(SKIPPED: glslangValidator is not installed; the shaders were NOT validated)"
 else
-  malos_shader=$(python3 - "$FUENTE" <<'PYEOF'
+  malos_shader=$(python3 - "$SOURCE" <<'PYEOF'
 import pathlib, re, subprocess, sys, tempfile
 
-texto = pathlib.Path(sys.argv[1]).read_text()
+text = pathlib.Path(sys.argv[1]).read_text()
 shaders = {}
 for nombre, var in (("vert", "kDiffusionVertex"), ("frag", "kDiffusionFragment")):
-    m = re.search(r'static const char \*' + var + r' = R"\((.*?)\)";', texto, re.S)
+    m = re.search(r'static const char \*' + var + r' = R"\((.*?)\)";', text, re.S)
     if m:
         shaders[nombre] = m.group(1)
 
@@ -243,26 +243,26 @@ echo "  -- the alignment instrument recovers a known displacement --"
 if ! python3 -c 'import PIL, numpy' >/dev/null 2>&1; then
   ok "(SKIPPED: Pillow/numpy are not installed; the alignment instrument was NOT exercised)"
 else
-  CAJA_AL="$(mktemp -d)"
-  python3 - "$CAJA_AL" <<'PYEOF'
+  ALIGN_TMP="$(mktemp -d)"
+  python3 - "$ALIGN_TMP" <<'PYEOF'
 import pathlib, sys
 import numpy as np
 from PIL import Image
 
 d = pathlib.Path(sys.argv[1])
 rng = np.random.default_rng(7)
-ALTO, ANCHO = 600, 900
+HEIGHT, WIDTH = 600, 900
 # A backdrop with UNIQUE structure in both axes: random horizontal lines (text) and
 # random vertical columns. Periodic structure would give the correlation several equally
 # good lags and the test would be measuring the period instead of the displacement.
-base = np.full((ALTO, ANCHO, 3), 200, dtype=np.uint8)
+base = np.full((HEIGHT, WIDTH, 3), 200, dtype=np.uint8)
 y = 0
-while y < ALTO:
+while y < HEIGHT:
     h = int(rng.integers(3, 9))
     base[y:y + h, :] = int(rng.integers(60, 120))
     y += h + int(rng.integers(6, 20))
 x = 0
-while x < ANCHO:
+while x < WIDTH:
     w = int(rng.integers(2, 10))
     base[:, x:x + w] = int(rng.integers(120, 170))
     x += w + int(rng.integers(10, 40))
@@ -270,24 +270,24 @@ while x < ANCHO:
 X, Y, W, BAR = 300, 200, 400, 40
 
 
-def captura(dx, dy, plano=False):
-    img = np.full((ALTO, ANCHO, 3), 180, dtype=np.uint8) if plano else base.copy()
+def captureLine(dx, dy, plano=False):
+    img = np.full((HEIGHT, WIDTH, 3), 180, dtype=np.uint8) if plano else base.copy()
     for j in range(BAR):
         fila = (Y + j + dy)
         for i in range(W):
             col = (X + i + dx)
-            if 0 <= fila < ALTO and 0 <= col < ANCHO:
+            if 0 <= fila < HEIGHT and 0 <= col < WIDTH:
                 img[Y + j, X + i] = base[fila, col]
     return img
 
 
-Image.fromarray(captura(0, 0)).save(d / "alineado.png")
-Image.fromarray(captura(14, 7)).save(d / "desplazado.png")
-Image.fromarray(captura(0, 0, plano=True)).save(d / "plano.png")
+Image.fromarray(captureLine(0, 0)).save(d / "alineado.png")
+Image.fromarray(captureLine(14, 7)).save(d / "desplazado.png")
+Image.fromarray(captureLine(0, 0, plano=True)).save(d / "plano.png")
 PYEOF
-  alin=$(python3 "$EF/measure-alignment.py" "$CAJA_AL/alineado.png" 300 200 400 40 2>&1)
-  despl=$(python3 "$EF/measure-alignment.py" "$CAJA_AL/desplazado.png" 300 200 400 40 2>&1)
-  plano=$(python3 "$EF/measure-alignment.py" "$CAJA_AL/plano.png" 300 200 400 40 2>&1)
+  alin=$(python3 "$EF/measure-alignment.py" "$ALIGN_TMP/alineado.png" 300 200 400 40 2>&1)
+  despl=$(python3 "$EF/measure-alignment.py" "$ALIGN_TMP/desplazado.png" 300 200 400 40 2>&1)
+  plano=$(python3 "$EF/measure-alignment.py" "$ALIGN_TMP/plano.png" 300 200 400 40 2>&1)
 
   dx_alin=$(printf '%s\n' "$alin" | sed -n 's/^horizontal: *//p' | cut -d' ' -f1)
   dy_alin=$(printf '%s\n' "$alin" | sed -n 's/^vertical: *//p' | cut -d' ' -f1)
@@ -304,7 +304,7 @@ PYEOF
   else
     fallo "a flat backdrop produced a displacement out of nothing"
   fi
-  rm -rf "${CAJA_AL:?}"
+  rm -rf "${ALIGN_TMP:?}"
 fi
 
 echo "  -- every setting the effect reads is in its documented table --"
@@ -312,16 +312,16 @@ echo "  -- every setting the effect reads is in its documented table --"
 # A table that drifts is worse than no table: it is read INSTEAD of the code. Both
 # directions are checked, because both are failures -- a key nobody documented, and a
 # documented key the effect no longer reads.
-claves_fuente=$(grep -oE 'readEntry\("[A-Za-z]+"' "$FUENTE" | sed 's/readEntry("//; s/"$//' | sort -u)
+sourceKeys=$(grep -oE 'readEntry\("[A-Za-z]+"' "$SOURCE" | sed 's/readEntry("//; s/"$//' | sort -u)
 # The row shape, not just the first cell: the README has another table whose rows also
 # start with a backticked word (`bisect`, `macosglass`), and the looser pattern counted the
 # identifiers as undocumented settings.
-claves_doc=$(grep -oE '^\| `[A-Za-z]+` \|' "$EF/README.md" | sed 's/^| `//; s/` |$//' | sort -u)
-sin_doc=$(comm -23 <(printf '%s\n' "$claves_fuente") <(printf '%s\n' "$claves_doc") | tr '\n' ' ')
-sin_codigo=$(comm -13 <(printf '%s\n' "$claves_fuente") <(printf '%s\n' "$claves_doc") | tr '\n' ' ')
-[ -n "$claves_fuente" ] || fallo "no settings found in glass.cpp; the extraction broke"
-afirmar_igual "every key the effect reads is documented" "" "${sin_doc% }"
-afirmar_igual "every documented key is still read by the effect" "" "${sin_codigo% }"
+docKeys=$(grep -oE '^\| `[A-Za-z]+` \|' "$EF/README.md" | sed 's/^| `//; s/` |$//' | sort -u)
+undocumented=$(comm -23 <(printf '%s\n' "$sourceKeys") <(printf '%s\n' "$docKeys") | tr '\n' ' ')
+notRead=$(comm -13 <(printf '%s\n' "$sourceKeys") <(printf '%s\n' "$docKeys") | tr '\n' ' ')
+[ -n "$sourceKeys" ] || fallo "no settings found in glass.cpp; the extraction broke"
+afirmar_igual "every key the effect reads is documented" "" "${undocumented% }"
+afirmar_igual "every documented key is still read by the effect" "" "${notRead% }"
 
 echo "  -- a diagnostic may not flood the journal --"
 # The bug this pins, seen in the real journal on 2026-10-14: prePaintWindow incremented
@@ -333,21 +333,21 @@ echo "  -- a diagnostic may not flood the journal --"
 # codigo_contiene strips comments, which matters here: the comment that explains the bug
 # quotes the buggy expression, and a check that matched it would be checking the prose.
 negar "the per-paint diagnostic cannot log on every paint" \
-  codigo_contiene "$FUENTE" 'pre <= 6'
-afirmar_codigo "the diagnostic uses one gate and one counter" "$FUENTE" 'const bool shouldLog ='
+  codigo_contiene "$SOURCE" 'pre <= 6'
+afirmar_codigo "the diagnostic uses one gate and one counter" "$SOURCE" 'const bool shouldLog ='
 
 echo "  -- the capture is cached per size, not rebuilt per paint --"
 # Two windows of different sizes repainting used to allocate and free a texture and a
 # framebuffer twice PER FRAME for as long as both kept repainting (a terminal with a
 # blinking cursor next to a video). The note that deferred the fix said to do it once the
 # mechanism was verified; the capture measured 73.8 against a threshold of 12, so it is.
-afirmar_codigo "the capture lives in a per-size cache" "$CABECERA" 'm_captures'
-afirmar_codigo "the cache is bounded, so a resizing window cannot grow it forever" "$CABECERA" 'kMaxCaptureSlots'
-afirmar_codigo "a capture is looked up by size" "$FUENTE" 'm_captures[.]find[(]key[)]'
+afirmar_codigo "the capture lives in a per-size cache" "$HEADER" 'm_captures'
+afirmar_codigo "the cache is bounded, so a resizing window cannot grow it forever" "$HEADER" 'kMaxCaptureSlots'
+afirmar_codigo "a capture is looked up by size" "$SOURCE" 'm_captures[.]find[(]key[)]'
 # And the wiring, which is the check that keeps mattering: apply() must bind the capture
 # this paint filled, not one it hopes is current.
-afirmar_codigo "apply() binds the capture this paint filled" "$FUENTE" 'm_currentCapture->texture->bind[(][)]'
-afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$FUENTE" 'm_currentCapture = nullptr;'
+afirmar_codigo "apply() binds the capture this paint filled" "$SOURCE" 'm_currentCapture->texture->bind[(][)]'
+afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$SOURCE" 'm_currentCapture = nullptr;'
 
 echo "  -- the live instruments' journal contract still holds --"
 # The live scripts measure by READING the effect's journal: test-glass.sh matches
@@ -359,7 +359,7 @@ echo "  -- the live instruments' journal contract still holds --"
 # extracted pattern cannot tell a contract from a coincidence.
 for frase in "capture: ok=" "refused=" "cannot allocate" "not valid" "failed to load" \
              "blit was refused" "frame=" "barHeight=" "reconfigure:"; do
-  afirmar_codigo "the journal still carries '$frase'" "$FUENTE" "$frase"
+  afirmar_codigo "the journal still carries '$frase'" "$SOURCE" "$frase"
 done
 
 echo "  -- one identifier: the plugin id is the file's name --"
@@ -369,7 +369,7 @@ echo "  -- one identifier: the plugin id is the file's name --"
 # the effect silently never loads, which is indistinguishable from "the effect does nothing".
 id_cmake=$(grep -oE 'OUTPUT_NAME "[A-Za-z0-9_]+"' "$EF/CMakeLists.txt" | sed 's/OUTPUT_NAME "//; s/"$//' | head -1)
 id_install=$(sed -n 's/^ID=\(.*\)$/\1/p' "$EF/install.sh" | head -1)
-id_copia=$(sed -n 's#^SO="\$AQUI/build/plugins/kwin/effects/\(.*\)\.so"$#\1#p' "$EF/install.sh" | head -1)
+id_copia=$(sed -n 's#^SO="\$HERE/build/plugins/kwin/effects/\(.*\)\.so"$#\1#p' "$EF/install.sh" | head -1)
 [ -n "$id_cmake" ] || fallo "no OUTPUT_NAME found in CMakeLists.txt; the extraction broke"
 afirmar_igual "the CMake output name and install.sh's ID agree" "$id_cmake" "$id_install"
 afirmar_igual "and the file install.sh copies is that same name" "$id_cmake" "$id_copia"
@@ -378,21 +378,21 @@ echo "  -- the review's findings stay fixed --"
 # The clear must come BEFORE the first early return. Asserting the string alone passed
 # while the clear sat after them, which is what a reviewer caught: the comment and the test
 # claimed an invariant the code did not hold. So this checks PLACEMENT.
-python3 - "$FUENTE" <<'PYEOF'
+python3 - "$SOURCE" <<'PYEOF'
 import re, sys
 src = open(sys.argv[1], encoding="utf-8").read()
-cuerpo = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
-limpiar = cuerpo.find("m_currentCapture = nullptr;")
-salida = cuerpo.find("return false;")
-print("OK" if 0 <= limpiar < salida else "MAL")
+body = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
+clearAt = body.find("m_currentCapture = nullptr;")
+output = body.find("return false;")
+print("OK" if 0 <= clearAt < output else "MAL")
 PYEOF
-if python3 - "$FUENTE" <<'PYEOF'
+if python3 - "$SOURCE" <<'PYEOF'
 import sys
 src = open(sys.argv[1], encoding="utf-8").read()
-cuerpo = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
-limpiar = cuerpo.find("m_currentCapture = nullptr;")
-salida = cuerpo.find("return false;")
-raise SystemExit(0 if 0 <= limpiar < salida else 1)
+body = src.split("MacosGlassEffect::captureBackground", 1)[1].split("\n}\n", 1)[0]
+clearAt = body.find("m_currentCapture = nullptr;")
+output = body.find("return false;")
+raise SystemExit(0 if 0 <= clearAt < output else 1)
 PYEOF
 then
   ok "the capture pointer is cleared before any early return"
@@ -402,17 +402,17 @@ fi
 # std::map is ordered by KEY, so erase(begin()) evicts the SMALLEST size -- and a small
 # terminal is the window this cache exists for. The cap must evict the least recently used.
 negar "the cache does not evict by key order" \
-  codigo_contiene "$FUENTE" 'm_captures.erase[(]m_captures.begin[(][)][)]'
-afirmar_codigo "it evicts the least recently used entry" "$FUENTE" 'm_lastUse\[leastRecentlyUsed->first\]'
+  codigo_contiene "$SOURCE" 'm_captures.erase[(]m_captures.begin[(][)][)]'
+afirmar_codigo "it evicts the least recently used entry" "$SOURCE" 'm_lastUse\[leastRecentlyUsed->first\]'
 # A destination built from the CLAMPED source can be smaller than the texture, and with a
 # cache the unwritten strip would hold a PREVIOUS window's capture.
-afirmar_codigo "the capture is cleared before the blit" "$FUENTE" 'glClear[(]GL_COLOR_BUFFER_BIT[)]'
+afirmar_codigo "the capture is cleared before the blit" "$SOURCE" 'glClear[(]GL_COLOR_BUFFER_BIT[)]'
 # Both paths write premultiplied: the scene blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA.
-afirmar_codigo "the no-capture fallback is premultiplied too" "$FUENTE" 'fallback [*] uGlassAlpha'
+afirmar_codigo "the no-capture fallback is premultiplied too" "$SOURCE" 'fallback [*] uGlassAlpha'
 # Rounding a window whose frame reaches the screen edge would carve an arc out of the screen.
-afirmar_codigo "windows that reach the screen edge are not rounded" "$FUENTE" '&& !m_touchesEdge'
-afirmar_codigo "and that is computed where the viewport is" "$FUENTE" 'm_touchesEdge = frameRect.left'
+afirmar_codigo "windows that reach the screen edge are not rounded" "$SOURCE" '&& !m_touchesEdge'
+afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touchesEdge = frameRect.left'
 # Vibrancy must DELIVER the minimum contrast, not approach it: aim at a luminance that far
 # from the glass and shift, which is exact, instead of mixing towards black or white.
-afirmar_codigo "vibrancy aims at the promised contrast" "$FUENTE" 'targetLuma = [(]backdropLuma <= 0[.]5[)]'
-afirmar_codigo "and shifts the chrome's luminance to it" "$FUENTE" 'chromeColour [+] vec3[(]targetLuma - chromeLuma[)]'
+afirmar_codigo "vibrancy aims at the promised contrast" "$SOURCE" 'targetLuma = [(]backdropLuma <= 0[.]5[)]'
+afirmar_codigo "and shifts the chrome's luminance to it" "$SOURCE" 'chromeColour [+] vec3[(]targetLuma - chromeLuma[)]'

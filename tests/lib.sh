@@ -2,17 +2,17 @@
 # Minimal test harness. No external dependencies.
 #   run.sh            -> all
 #   run.sh effect     -> only test-effect.sh
-: "${PROY:=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-: "${PASAN:=0}"; : "${FALLAN:=0}"
+: "${PROJECT:=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+: "${PASSED:=0}"; : "${FAILED:=0}"
 # Overridable so run-one.sh can give every test file its own failure list; the
 # runner concatenates them in order. Default keeps a lone `source lib.sh` working.
-: "${FALLOS_F:=${TMPDIR:-/tmp}/tests-failures.$$}"
+: "${FAILURES_FILE:=${TMPDIR:-/tmp}/tests-failures.$$}"
 
 rojo()  { printf '\033[1;31m%s\033[0m' "$1"; }
 verde() { printf '\033[1;32m%s\033[0m' "$1"; }
 
-ok()    { PASAN=$((PASAN+1)); printf '    %s %s\n' "$(verde OK)" "$1"; }
-fallo() { FALLAN=$((FALLAN+1)); printf '%s\n' "${PRUEBA:-?}: $1" >> "$FALLOS_F"
+ok()    { PASSED=$((PASSED+1)); printf '    %s %s\n' "$(verde OK)" "$1"; }
+fallo() { FAILED=$((FAILED+1)); printf '%s\n' "${TEST_NAME:-?}: $1" >> "$FAILURES_FILE"
           printf '    %s %s\n' "$(rojo FAIL)" "$1"; }
 
 afirmar() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$d"; else fallo "$d"; fi; }

@@ -9,9 +9,9 @@
 # bar height. Sidebars and toolbars would have to be guessed, and guessing geometry
 # is what cost four session restarts in M1.1.
 
-EF="$PROY/effect-kwin"
-FUENTE="$EF/src/glass.cpp"
-CABECERA="$EF/src/glass.h"
+EF="$PROJECT/effect-kwin"
+SOURCE="$EF/src/glass.cpp"
+HEADER="$EF/src/glass.h"
 
 echo "  -- the blur is confined to a band, not the whole window --"
 # The shader must decide per-fragment. A shader that blurs everywhere is what
@@ -20,24 +20,24 @@ echo "  -- the blur is confined to a band, not the whole window --"
 # distance from the window's TOP is (1 - vTexCoord.y). Testing vTexCoord.y directly
 # put the band at the BOTTOM of every window -- caught by the user's screenshot,
 # not by any measurement, because the test only asked whether SOME band blurred.
-afirmar_codigo "the shader measures distance from the TOP" "$FUENTE" '1\.0 - vTexCoord\.y'
-negar "the un-flipped expression is gone" grep -q 'float yPixels = vTexCoord.y \* uTextureSize.y' "$FUENTE"
-afirmar_codigo "it compares against the band height" "$FUENTE" 'yPixelsFromTop > uTitleBarHeight'
-afirmar_codigo "outside the band the original texel is used" "$FUENTE" 'texture[(]sampler, vTexCoord[)]'
+afirmar_codigo "the shader measures distance from the TOP" "$SOURCE" '1\.0 - vTexCoord\.y'
+negar "the un-flipped expression is gone" grep -q 'float yPixels = vTexCoord.y \* uTextureSize.y' "$SOURCE"
+afirmar_codigo "it compares against the band height" "$SOURCE" 'yPixelsFromTop > uTitleBarHeight'
+afirmar_codigo "outside the band the original texel is used" "$SOURCE" 'texture[(]sampler, vTexCoord[)]'
 
 echo "  -- the band height comes from the decoration, not from a guess --"
 # A hard-coded height would be wrong for every theme but ours. KWin knows it.
 # Measured, not assumed: the distance from the top of the frame to the top of the
 # client area. Works for any decoration theme; a constant would only suit ours.
-afirmar_codigo "the title bar height is measured from the window" "$FUENTE" 'clientGeometry[(][)]\.top[(][)] - w->frameGeometry[(][)]\.top[(][)]'
-afirmar_codigo "it is passed to the shader as a uniform" "$FUENTE" 'uTitleBarHeight'
+afirmar_codigo "the title bar height is measured from the window" "$SOURCE" 'clientGeometry[(][)]\.top[(][)] - w->frameGeometry[(][)]\.top[(][)]'
+afirmar_codigo "it is passed to the shader as a uniform" "$SOURCE" 'uTitleBarHeight'
 
 echo "  -- the uniforms are set while the shader is bound --"
 # The bug that made M1.2a a silent no-op: setUniform is glUniform1f and writes to
 # whichever program is active. Without a bind, uRadius stayed 0, every tap sampled
 # the same texel, and the output equalled the input.
-afirmar_codigo "the shader is bound around the uniform writes" "$FUENTE" 'pushShader'
-afirmar_codigo "and unbound afterwards" "$FUENTE" 'popShader'
+afirmar_codigo "the shader is bound around the uniform writes" "$SOURCE" 'pushShader'
+afirmar_codigo "and unbound afterwards" "$SOURCE" 'popShader'
 
 echo "  -- the measurement tool checks a band, not the whole image --"
 afirmar_existe "measure-titlebar.py exists" "$EF/measure-titlebar.py"
@@ -52,7 +52,7 @@ echo "  -- the shader is re-asserted on every paint --"
 # awk is captured first instead of piped into `grep -q`: under `set -o pipefail`
 # the early exit of grep -q kills awk with SIGPIPE and the pipeline fails on a
 # match, at random. See tests/test-harness.sh.
-if grep -q -- 'setShader(' <<< "$(awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE")"; then
+if grep -q -- 'setShader(' <<< "$(awk '/void MacosGlassEffect::apply/,/^}/' "$SOURCE")"; then
   ok "apply() re-asserts the shader on every paint"
 else
   fallo "apply() does not re-assert the shader (the band will vanish on repaint)"
@@ -63,7 +63,7 @@ echo "  -- the uniforms are set per paint, not once per window --"
 # slotWindowAdded meant the last window added won: uTitleBarHeight held another
 # window's bar height, and every focus change overwrote it. That is why the
 # material flickered away and came back when switching windows.
-if grep -q 'uTitleBarHeight' <<< "$(awk '/void MacosGlassEffect::apply/,/^}/' "$FUENTE")"; then
+if grep -q 'uTitleBarHeight' <<< "$(awk '/void MacosGlassEffect::apply/,/^}/' "$SOURCE")"; then
   ok "apply() sets the band height per window"
 else
   fallo "the band height is not set per paint (shared-shader bug is back)"
@@ -71,7 +71,7 @@ fi
 # Comments excluded: the comment EXPLAINS why the shared shader must not be
 # written here, and matching that explanation made this assertion fail on correct
 # code. Same trap as several earlier tests in this project.
-if grep -q 'setUniform' <<< "$(awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$FUENTE" | grep -vE '^[[:space:]]*//')"; then
+if grep -q 'setUniform' <<< "$(awk '/void MacosGlassEffect::slotWindowAdded/,/^}/' "$SOURCE" | grep -vE '^[[:space:]]*//')"; then
   fallo "slotWindowAdded still sets uniforms on the shared shader"
 else
   ok "slotWindowAdded no longer writes to the shared shader"
@@ -86,8 +86,8 @@ echo "  -- the measurement separates 'not applied' from 'applied but not blurred
 if ! python3 -c 'import PIL, numpy' >/dev/null 2>&1; then
   ok "(SKIPPED: Pillow/numpy are not installed; measure-titlebar.py was NOT exercised)"
 else
-  CAJA="$(mktemp -d)"
-  python3 - "$CAJA" <<'PYEOF'
+  BOX="$(mktemp -d)"
+  python3 - "$BOX" <<'PYEOF'
 import pathlib, sys
 import numpy as np
 from PIL import Image
@@ -115,7 +115,7 @@ Image.fromarray(con_banda(uniforme)).save(d / "blurred.png")   # a real blur
 Image.fromarray(con_banda(rayas_h)).save(d / "changed.png")    # step 2: sharp, different
 Image.fromarray(con_banda(rayas_v)).save(d / "same.png")       # nothing happened
 PYEOF
-  ver() { python3 "$EF/measure-titlebar.py" "$CAJA/off.png" "$CAJA/$1" 20 20 160 120 30; }
+  ver() { python3 "$EF/measure-titlebar.py" "$BOX/off.png" "$BOX/$1" 20 20 160 120 30; }
   salida_bien="$(ver blurred.png)"; rc_bien=$?
   salida_cambio="$(ver changed.png)"; rc_cambio=$?
   salida_igual="$(ver same.png)"; rc_igual=$?
@@ -131,5 +131,5 @@ PYEOF
   else
     fallo "the 'changed but not blurred' verdict does not explain itself"
   fi
-  rm -rf "${CAJA:?}"
+  rm -rf "${BOX:?}"
 fi

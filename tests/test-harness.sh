@@ -54,7 +54,7 @@ echo "  -- the harness obeys the rule it enforces on the effect scripts --"
 # test-scripts.sh forbids `grep -q` in a pipe for effect-kwin/*.sh. The harness
 # did it in six places. A rule that does not cover the tool that verifies the
 # rule protects nothing, so the scan covers tests/ too.
-malos=$(python3 - "$PROY/tests" <<'PYEOF'
+bad=$(python3 - "$PROJECT/tests" <<'PYEOF'
 import glob, os, re, sys
 tests = sys.argv[1]
 bad = []
@@ -87,27 +87,27 @@ for b in bad:
 print(len(bad))
 PYEOF
 )
-n="${malos##*$'\n'}"
+n="${bad##*$'\n'}"
 afirmar_igual "no 'grep -q' inside a pipeline in tests/" "0" "$n"
 
 echo "  -- each test file gets its own shell --"
 # run.sh used to `source` every test file into ONE shell, so a variable, a
 # function or a `set` flag from one file reached the next, and an `exit` anywhere
-# ended the whole suite. This check is behavioural on purpose: CABECERA is set by
+# ended the whole suite. This check is behavioural on purpose: HEADER is set by
 # test-diffusion.sh, which runs before this file alphabetically. If the state
 # leaked, it would be visible here.
-negar "state from an earlier test file does not reach this one" test -n "${CABECERA:-}"
-afirmar_contiene "run.sh runs each file through run-one.sh" "$PROY/tests/run.sh" 'run-one[.]sh'
+negar "state from an earlier test file does not reach this one" test -n "${HEADER:-}"
+afirmar_contiene "run.sh runs each file through run-one.sh" "$PROJECT/tests/run.sh" 'run-one[.]sh'
 negar "run.sh does not source the test files into its own shell" \
-  grep -qE 'source[[:space:]]+"[$]f"' "$PROY/tests/run.sh"
-afirmar_existe "tests/run-one.sh exists" "$PROY/tests/run-one.sh"
+  grep -qE 'source[[:space:]]+"[$]f"' "$PROJECT/tests/run.sh"
+afirmar_existe "tests/run-one.sh exists" "$PROJECT/tests/run-one.sh"
 
 echo "  -- a test that hangs cannot silently truncate the run --"
 # Two of the five runs produced no summary at all: the output simply stopped.
 # Truncation and a hang look the same from outside, so the runner now bounds each
 # file and reports the timeout as a failure of that file.
-afirmar_contiene "run.sh bounds every test file with a timeout" "$PROY/tests/run.sh" 'timeout'
-afirmar_contiene "run.sh reports a timed-out file as a failure" "$PROY/tests/run.sh" 'TIMED OUT'
+afirmar_contiene "run.sh bounds every test file with a timeout" "$PROJECT/tests/run.sh" 'timeout'
+afirmar_contiene "run.sh reports a timed-out file as a failure" "$PROJECT/tests/run.sh" 'TIMED OUT'
 
 echo "  -- no test may touch the live KWin session --"
 # The suite runs while the user is working, and section 10 of the handoff is what it
@@ -116,13 +116,13 @@ echo "  -- no test may touch the live KWin session --"
 # guarantee, and the next test file is one import away from loading the effect on the
 # live session. This makes it one: a test that talks to KWin over the session bus,
 # loads or unloads the effect, or grabs the screen fails the suite that runs it.
-malos=$(python3 - "$PROY/tests" <<'PYEOF'
+bad=$(python3 - "$PROJECT/tests" <<'PYEOF'
 import glob, os, re, sys
 
 tests = sys.argv[1]
 HERRAMIENTAS = ("qdbus", "qdbus6", "busctl", "gdbus", "dbus-send", "loadEffect",
                 "unloadEffect", "spectacle")
-patron = re.compile(r"\b(" + "|".join(HERRAMIENTAS) + r")\b")
+pattern = re.compile(r"\b(" + "|".join(HERRAMIENTAS) + r")\b")
 
 
 def sin_cadenas_y_comentario(linea):
@@ -143,30 +143,30 @@ def sin_cadenas_y_comentario(linea):
     return ''.join(fuera)
 
 
-malos = []
+bad = []
 for path in sorted(glob.glob(os.path.join(tests, '*.sh'))):
     for n, linea in enumerate(open(path, encoding='utf-8'), 1):
-        m = patron.search(sin_cadenas_y_comentario(linea))
+        m = pattern.search(sin_cadenas_y_comentario(linea))
         if m:
-            malos.append(f"{os.path.basename(path)}:{n}: {m.group(1)} -> {linea.strip()}")
-for m in malos:
+            bad.append(f"{os.path.basename(path)}:{n}: {m.group(1)} -> {linea.strip()}")
+for m in bad:
     print(f"      -> {m}")
-print(len(malos))
+print(len(bad))
 PYEOF
 )
-n="${malos##*$'\n'}"
+n="${bad##*$'\n'}"
 if [ "$n" = "0" ]; then
   ok "no test touches the live session (bus tools, effect load/unload, screenshots)"
 else
   fallo "a test touches the live session ($n hits)"
-  printf '%s\n' "$malos" | sed '$d' | sed 's/^/      /'
+  printf '%s\n' "$bad" | sed '$d' | sed 's/^/      /'
 fi
 
-echo "  -- el arnes distingue terminar de morir a medias --"
+echo "  -- the harness tells finishing from dying halfway --"
 # Measured, not theorised: a new check in test-scripts.sh referenced a variable that file
 # never defines, `set -u` killed the file, its EXIT trap still wrote the counter, and the
 # suite printed ALL PASS while the check never ran. The counter alone cannot tell a file
 # that finished from one that died; run-one.sh writes a marker AFTER the file returns, and
 # run.sh requires it.
-afirmar_codigo "the runner marks a file that reached its end" "$HERE/run-one.sh" 'CUENTA[.]fin'
-afirmar_codigo "and the suite requires that mark" "$HERE/run.sh" '! -s "\$cuenta[.]fin"'
+afirmar_codigo "the runner marks a file that reached its end" "$HERE/run-one.sh" 'COUNT_FILE[.]done'
+afirmar_codigo "and the suite requires that mark" "$HERE/run.sh" '! -s "\$countFile[.]done"'

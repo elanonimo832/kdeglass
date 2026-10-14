@@ -3,8 +3,8 @@
 #
 # Self-contained: it does not depend on binaries in build/ (which is regenerable).
 set -euo pipefail
-AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SO="$AQUI/build/plugins/kwin/effects/macosglass2.so"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SO="$HERE/build/plugins/kwin/effects/macosglass2.so"
 ID=macosglass2
 DEST=/usr/lib/qt6/plugins/kwin/effects/plugins
 
@@ -14,7 +14,7 @@ DEST=/usr/lib/qt6/plugins/kwin/effects/plugins
 # --source: check the SOURCE and the BUILD being installed, not the installed copy.
 # Checking the installed copy here is circular -- an older installed build would
 # fail and block the install that replaces it. That is exactly what happened.
-if ! "$AQUI/verify-chain.sh" --source >/dev/null 2>&1; then
+if ! "$HERE/verify-chain.sh" --source >/dev/null 2>&1; then
   echo "ABORTED: the .so does not continue the paint chain -> black screen."
   echo "Detail:  ./verify-chain.sh"
   exit 1

@@ -706,28 +706,41 @@ sentence stays because the shape of the mistake is the lesson -- a plausible
 mechanism ("state leaks between files") was written down as a finding before the
 tool that produced the evidence had been verified.
 
-## 10b. Known debt: the repo has drifted into mixed Spanish and English
+## 10b. The language drift, and where it stands
 
-The working agreement is **English in-repo** (Spanish is the language of the conversation).
-The repository has drifted away from it, and this session made it worse rather than better:
-measured on 2026-10-14, roughly **19 Spanish identifiers in `effect-kwin/src/glass.cpp`**,
-**4 in `glass.h`** and **18 across the test files**, plus Spanish comments in some of them
-(`tests/test-scripts.sh` opens with a Spanish paragraph, and that predates this session).
+The working agreement is **English in-repo**; Spanish is the language of the conversation. The
+repository had drifted, and one session made it worse rather than better.
 
-None of it is a defect: the code works and is tested. It is a *readability* debt, and it is
-listed here rather than fixed in passing because the rename touches the shader, the C++, the
-assertions that quote those names, and the documents that quote the assertions -- a broad,
-purely mechanical change that deserves its own pass with the suite green before and after,
-not a rewrite smuggled into a behaviour change. The names to move: `m_fondos`, `m_uso`,
-`m_reloj`, `m_fondoActual`, `m_tocaBorde`, `CapturaFondo`, `reducido`, `clave`, `encontrado`,
-`nuevoFondo`, `masViejo`, `pantalla`, `marco`, `seRedondea`, `loguear`, `cromo`, `fondo`,
-`salida`, `objetivo`, `mezcla`, `esquina`, `saturacion`, `porDesviacion`, `porColor`,
-`tonoRadio`, `cerca`, `cromoReserva`, and the test-side `cuerpo`, `limpiar`, `faltan`,
-`etiquetas`, `claves_fuente`, `claves_doc`, `sin_doc`, `sin_codigo`, `malos`, `sobran`,
-`esperados`, `captura`, `diag`, `CAJA_AL`.
+**Done (2026-10-14, same session that recorded it):**
 
-Recorded because an agreement nobody measures stops being an agreement -- the same reason the
-settings table became a test.
+- **`effect-kwin/src/` is English.** 133 identifiers renamed (123 in `glass.cpp`, 10 in
+  `glass.h`), including the shader's locals, the capture cache's members and the two that the
+  first sweep missed. The suite caught every assertion that quoted a renamed name and named
+  every pattern that had to follow -- a rename is what the assertions are for.
+- **The harness's shared variables are English**: `PROJECT`, `TEST_NAME`, `COUNT_FILE`,
+  `FAILURES_FILE`, `PASSED`, `FAILED`, `SOURCE`, `HEADER`, `TIME_LIMIT`, and the scripts'
+  `HERE`, plus the tests' own locals.
+- **The tests' labels and the Spanish comments** in `run.sh`, `test-claims.sh`,
+  `test-scripts.sh` and `test-harness.sh` are English.
+
+**Deliberately still Spanish, and it should stay that way:**
+
+- `tests/archive/` -- retired instruments are a RECORD, not live code. Rewriting history to
+  look tidy destroys what makes it evidence.
+- The user's own words, quoted in comments and docs ("los botones se ven algo extraños",
+  "creo que ya funcionan las esquinas"). A translated quotation is not a quotation.
+- `tests/test-claims.sh`'s `PALABRAS` list, which is DATA: the detector needs the Spanish
+  spellings. A rename translated one of them to `output` and the check started flagging the
+  `output/` directory.
+
+**Still owed:** `tools/*.py` (~7 files, roughly a hundred Spanish comment lines) and the
+`tokens/` headers. Nothing in the effect or the harness reads them, so they are lower risk --
+but they are the same debt.
+
+One thing the pass taught: a rename is not `sed`. It broke two checks in ways the suite could
+not have predicted -- one vacuous check came back to life as a false positive, and a data list
+of Spanish words got translated into `output`. Both are fixed and both now test the property
+they name.
 
 ## 11. Repository state
 
