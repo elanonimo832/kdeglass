@@ -1239,6 +1239,31 @@ edge does not use, and the refraction was carrying the environment's colour at t
 the interior, which is to say invisibly. Both were found by the user looking at a sample, and both
 would have passed any amount of arithmetic.
 
+## 9s. Three faults in one report, and only one of them was where it looked
+
+The user set `RimColour=2.6` and reported "se arruino... toda la linea se volvio blanca", still white
+after setting it back to 1.0. Three separate things were behind that, and none of them was `RimColour`:
+
+1. **The white line was `Specular=2`, set by the user on MY advice.** The message before this one
+   listed `Specular=2` among the knobs to try -- a stale suggestion for a term whose whole point had
+   just been retracted, and which is a fixed white highlight BY DESIGN. The knob is off by default and
+   labelled as not-Apple in the README; the failure was in the advice, not the code. Their `kwinrc`
+   showed it plainly: `Specular=2`, `SpecularWidth=12`, `RimColour=1.2`.
+2. **`RimColour` could blow out**: at high values the channels overshot 1, clamped, and the band went
+   white. A knob that can turn the edge into a white line is broken whatever its range reads, so the
+   boost is limited PER PIXEL to whatever keeps the strongest channel inside the display. Measured
+   after the fix: 1.0 -> chroma 29.1, 1.8 -> 36.5, 2.6 -> 43.0, and 6.0 and 20.0 give exactly 43.0.
+   The colour grows and stops; it cannot brighten.
+3. **The journal was missing `rimColour`**, because one of my edits -- the log field -- silently did
+   not apply while the other three did. I read that absence as "the uniform is never set, so the band
+   is grey" and was wrong: the plumbing was complete. A diagnostic that omits a field is a diagnostic
+   that lies, and this one lied to me within a minute of my writing it.
+
+The pattern worth keeping is the third one. Three times today a multi-part edit of mine applied in
+part: the header without the shader, the body without the signature, and now the plumbing without the
+log. Every one was caught by a grep rather than by the patch reporting success, which is why the
+verification step exists.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

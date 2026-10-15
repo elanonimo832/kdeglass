@@ -217,7 +217,13 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         rim_colour = np.clip(el + (desktop - el) * max(boost, 1.2), 0, 1)
         # the band's own chroma, stronger: the environment's colour as Apple's edge carries it
         rl = luma(rim_colour)[..., None]
-        rim_colour = np.clip(rl + (rim_colour - rl) * rim_colour_boost, 0, 1)
+        chroma = rim_colour - rl
+        highest = chroma.max(axis=2)[..., None]
+        lowest = chroma.min(axis=2)[..., None]
+        limit = np.full_like(highest, rim_colour_boost)
+        limit = np.where(highest > 0.001, np.minimum(limit, (1.0 - rl) / np.maximum(highest, 1e-6)), limit)
+        limit = np.where(lowest < -0.001, np.minimum(limit, rl / np.maximum(-lowest, 1e-6)), limit)
+        rim_colour = np.clip(rl + chroma * np.maximum(limit, 0.0), 0, 1)
         result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
         result = result * (1 - r * 0.15) + 1.0 * (r * 0.15)
         # the bend: the backdrop, displaced toward the interior

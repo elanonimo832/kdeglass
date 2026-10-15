@@ -531,7 +531,17 @@ void main()
         float edgeLuma = dot(desktop, kLuma);
         vec3 rimColour = clamp(edgeLuma + (desktop - edgeLuma) * max(uMaterialBoost, 1.2), 0.0, 1.0);
         float rimLuma = dot(rimColour, kLuma);
-        rimColour = clamp(vec3(rimLuma) + (rimColour - rimLuma) * uRimColour, 0.0, 1.0);
+        // A CHROMA BOOST THAT CANNOT BLOW OUT. The first version could: at a high value the channels
+        // overshot 1, clamped, and the band went WHITE -- and a knob that turns the edge into a white
+        // line is broken however its range reads. The boost is limited per pixel to whatever keeps the
+        // strongest channel inside the display, so the colour can get stronger and never brighter.
+        vec3 chroma = rimColour - rimLuma;
+        float highest = max(max(chroma.r, chroma.g), chroma.b);
+        float lowest = min(min(chroma.r, chroma.g), chroma.b);
+        float limit = uRimColour;
+        if (highest > 0.001) limit = min(limit, (1.0 - rimLuma) / highest);
+        if (lowest < -0.001) limit = min(limit, rimLuma / -lowest);
+        rimColour = clamp(vec3(rimLuma) + chroma * max(limit, 0.0), 0.0, 1.0);
         result = mix(result, rimColour, rim * 0.85);
         // M1.5 -- THE SPECULAR HIGHLIGHT, and the kit HAS its two numbers, in [liquid_glass]. Both
         // were sitting there unread: `light_angle = 0`, the direction of the light source, which
@@ -696,6 +706,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "materialGain=" << m_materialGain
             << "refraction=" << m_refraction
             << "rimWidth=" << m_rimWidth
+            << "rimColour=" << m_rimColour
             << "specular=" << m_specular
             << "specularWidth=" << m_specularWidth;
 
