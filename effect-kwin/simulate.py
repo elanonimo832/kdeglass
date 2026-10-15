@@ -260,6 +260,10 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
 
 def self_test():
     """The two cases whose answer is known by definition, plus the fringe's coverage."""
+    # EVERY EDGE TERM IS EXACTLY ZERO THIS FAR IN: the band reaches 12 px, the fillet 6, the hairline
+    # 2.5. Comparing the whole frame made both checks fail for a CORRECT change -- the edge terms are
+    # unconditional now -- which is the difference between a test and a tripwire.
+    INTERIOR = (slice(14, 46), slice(20, 180))
     rng = np.random.default_rng(7)
     backdrop = rng.random((60, 200, 3)) * 0.6
     # a synthetic title strip: a light bar with a dark glyph and a coloured disc
@@ -276,7 +280,7 @@ def self_test():
     sin_tono = simulate(plana, backdrop, glass_alpha=0.0, rim_strength=0.0, boost=1.0, gain=1.0,
                         refraction=0.0)
     esperado = frost(backdrop, BACKGROUND_RADIUS, max(1, BACKGROUND_RADIUS // 8))
-    e1 = np.abs(sin_tono - esperado).max()
+    e1 = np.abs(sin_tono[INTERIOR] - esperado[INTERIOR]).max()
     print(f"  GlassAlpha 0 -> the frosted backdrop            (max diff {e1:.4f})")
 
     sin_mezcla = simulate(window, backdrop, glass_alpha=1.0, rim_strength=0.0, boost=1.0, gain=1.0)
@@ -292,8 +296,7 @@ def self_test():
     # shader, so the edge rows deliberately differ from a formula that describes the material alone --
     # they are asserted by their own tests. Comparing the whole frame made this check fail for a
     # correct change, which is the difference between a test and a tripwire.
-    medio = slice(18, 42)
-    e2 = np.abs(sin_mezcla[medio] - (base * (1 - ch) + window * ch)[medio]).max()
+    e2 = np.abs(sin_mezcla[INTERIOR] - (base * (1 - ch) + window * ch)[INTERIOR]).max()
     print(f"  GlassAlpha 1 -> the bar's own tone              (max diff {e2:.4f})")
 
     # the glyph's EDGE must be PARTIAL, which is what removes the baked-in white fringe, and
