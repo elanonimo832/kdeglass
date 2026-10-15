@@ -1538,6 +1538,40 @@ The user's eye, on a real screenshot, was the instrument that found it -- and it
 after I had spent a session on the arithmetic. When the thing being judged is a SHAPE, the test that
 matters compares the shape, not two numbers extracted from it.
 
+### 10c-bis. The shape instrument exists now (2026-10-15)
+
+`effect-kwin/measure-corner.py` reads a corner's boundary out of a COVERAGE image and reports it row
+by row (`x_at_y_k`), plus the missing area and the length of the flat run, against closed-form
+arithmetic. `python3 measure-corner.py --self-test` checks five cases whose answers are known by
+construction, and the suite runs it (`tests/test-corner-shape.sh`). The first attempt was deleted
+three times; this one was built against the synthetic corners FIRST, as this section demanded.
+
+- **circle**: the arc of radius r centred at (r, r). Measured x at y=1/5/10 is 13.81/6.71/2.62
+  against the closed form 13.76/6.77/2.68, and the diagonal reads 11.80 px inside r.
+- **flat**: a square corner. It reads inset 0 everywhere -- described, not refused. That is the
+  measurement the naive row scan of the first attempt could not make.
+- **spike**: the wrong superellipse of this section (smoothing 0.6). It reads x=20.00 at y=5 and a
+  flat run of 14 rows: the near-square corner the user saw, named as such by the instrument.
+- **frame**: the same corner offset in a canvas and mirrored. The vertex is recovered and the profile
+  does not move. The frame is DERIVED from the bounding box and then CHECKED against the straight
+  edges; a profile that would be measured in the wrong frame is refused, not printed.
+- **refuse_empty**: an all-background image is refused instead of measured.
+
+TWO THINGS THE INSTRUMENT FOUND ON ITS FIRST RUN, both about frames rather than about curves:
+
+1. **The renderer and the reader have to agree on the half pixel.** With the synthetic corner sampled
+   at pixel CORNERS and the reader interpolating between pixel CENTRES, the circle read 5.64 where its
+   arc is at 6.77 for y=5 -- a systematic half-pixel, not a bad curve. The case is sampled at centres
+   now, which is what makes `y` mean `inset(y)`.
+2. **This section's "Apple's construction" column is non-monotonic** -- 16.12 at y=1, 12.55 at y=5,
+   13.25 at y=10 -- where a corner boundary's x can only fall as y grows. Either those three numbers
+   were taken in different frames or one of them is wrong. They are NOT used as known values
+   anywhere; the instrument settles Apple's construction from pixels, in one frame, when that curve
+   is built.
+
+The screenshot path (`--image`) exists and is NOT validated yet. The synthetic cases are the gate;
+the next session points it at an effect-off crop.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).

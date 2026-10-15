@@ -38,9 +38,11 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    superellipse with an invented calibration, and the user's screenshot showed a nearly square corner
    (at y=5 the circle's boundary is at x=6.8, mine at 20.0). Apple's construction -- an arc shrunk to
    `r*(1-s)` plus two tangent Bezier transitions -- bulges 0.23 px where mine bulged 4.62. Replace the
-   curve in `simulate.py` AND the shader together, and build the SHAPE instrument before using it on
-   a screenshot: an attempt at one failed three times in a single session and was thrown away
-   (see §10c for the three ways).
+   curve in `simulate.py` AND the shader together. The SHAPE instrument the last attempt lacked now
+   EXISTS: `effect-kwin/measure-corner.py`, whose `--self-test` runs in the suite against synthetic
+   corners whose answer is known. An earlier attempt failed three times in one session and was thrown
+   away, so the gate is the synthetic case first and an effect-off crop second, never a screenshot
+   straight away.
 2. **Audit finding 1 — capture the band, not the window.** `glass.cpp` blits `expandedGeometry` (up to
    3840x2160) per window per repaint when the band needs 3800x38 plus the kernels' reach: about 30x
    less traffic, and the audit calls it the only high-impact item. HIGH EFFORT: it changes the capture
@@ -65,6 +67,7 @@ to touch **with the measurement behind each one**. Read it before changing anyth
     ./tune.sh --show                  # what is set; ./tune.sh Key=Value applies in ONE call, live
     ./tune.sh --reset                 # back to the defaults above (safe: they are the user's taste)
     python3 simulate.py --self-test   # the model of the shader, checked against two known cases
+    python3 measure-corner.py --self-test  # the SHAPE of a corner, against five known synthetic cases
     ./capture-pair.sh                 # the two screenshots simulate.py needs, in one command
 
 `simulate.py` implements the band's arithmetic in numpy so a look can be judged WITHOUT a relogin, with

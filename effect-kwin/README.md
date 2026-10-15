@@ -169,12 +169,13 @@ headers; `_stub/vulkan` avoids the 42 MiB of `vulkan-headers`):
 | `src/probe-factory.cpp` | instantiates the factory and asks `isSupported()` |
 | `src/verify-load.cpp` | does the same as KWin at startup |
 
-And two instruments that measure the material rather than the loading:
+And three instruments that measure the material rather than the loading:
 
 | File | What for |
 |---|---|
 | `measure-glass.py` | does the bar take colour from what is behind it |
 | `measure-alignment.py` | is the backdrop sampled where it belongs (step 3d) |
+| `measure-corner.py` | the SHAPE of a corner, read from pixels; `--self-test` runs the synthetic known-value cases |
 
 These three answer «why does KWin not load my effect?» in seconds, which is what
 would have saved me half the incident.
