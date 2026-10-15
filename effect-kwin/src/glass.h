@@ -381,6 +381,21 @@ private:
     static constexpr int kCornerRadius = 20;   // 12 read small on a 4K 27" panel
     int m_cornerRadius = kCornerRadius;
 
+    // CORNER SMOOTHING: 0 is the circular arc of `kCornerRadius`; the squircle grows from there.
+    // THE KIT HAS THE NUMBER and this is it: `cornerSmoothing = 0.6`, measured over 2244 nodes of
+    // Apple's own file (`tokens/tokens-shape-effects.toml`). It becomes the exponent of a superellipse
+    // through `n = 2 + 5*smoothing`, a calibration with two anchors: `0 -> n=2`, which is EXACTLY the
+    // circular arc already approved on screen, and `0.6 -> n=5`, the squircle quoted for Apple. It is
+    // not Figma's formula, which is not published, and that is why the number is measured instead of
+    // believed: `simulate.py --corners` prints the bulge, and the suite pins the two known values
+    // (0.0000 with smoothing 0; 4.6229 px on a 20 px radius with the kit's 0.6).
+    //
+    // 0 is the DEFAULT on purpose: it is the shape the user has already looked at, so a relogin
+    // changes nothing until the value is asked for, and the first screen after this lands is the
+    // control rather than the experiment.
+    static constexpr float kCornerSmoothing = 0.0f;
+    float m_cornerSmoothing = kCornerSmoothing;
+
 
     // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
     // it belongs with the veil work in M1.5.

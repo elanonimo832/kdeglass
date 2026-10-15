@@ -66,6 +66,7 @@ uniform vec2 uBackgroundOffset;
 uniform vec2 uBackgroundScale;
 uniform float uChromeLow;
 uniform float uCornerRadius;
+uniform float uCornerSmoothing;
 uniform float uVibrancy;
 uniform float uRim;
 uniform float uMaterialBoost;
@@ -175,6 +176,57 @@ void main()
     vec2 cornerPos = vTexCoord * uTextureSize;
     vec2 cornerHalf = 0.5 * uTextureSize;
     vec2 q = abs(cornerPos - cornerHalf) - (cornerHalf - vec2(uCornerRadius));
+    // THE CORNER'S DISTANCE TO THE ARC, which is `length(max(q,0))` for the circle and the distance to
+    // the squircle's superellipse when `uCornerSmoothing` is on. It is a function because the squircle
+    // needs the nearest point of a curve and the circle does not.
+    //
+    // THE SQUIRCLE, AND WHAT IT COSTS. Apple's corners are continuous curvature, not circular arcs,
+    // and the kit carries the number (`cornerSmoothing = 0.6`, measured over 2244 nodes). The curve is
+    //     c(phi) = r * ( sin^p(phi), cos^p(phi) ),   p = 2/n,   n = 2 + 5*smoothing
+    // which at `n=2` IS the circular arc -- so this is the same shape generalised, not a second
+    // geometry that could drift from it -- and it is tangent to both straight edges at phi=0 and
+    // phi=pi/2, which is what stops it drawing a seam where the curve meets the edge.
+    //
+    // The nearest point is found by a COARSE SCAN plus a ternary refinement, and that is a measured
+    // choice: the simulator searches a table of 4000 points, which would be 8000 `pow()` per fragment
+    // here. Coarse 16 + 20 refinements is 112, and it is paid only inside the corner box -- 4.4% of a
+    // 3800x38 band -- against the 42 texture taps every fragment already does. Newton and bisection
+    // were both tried in the simulator and both fail near the vertices, where `sin^p` has infinite
+    // derivative and the minimum sits at an endpoint where the derivative does not change sign.
+    float cornerDistance;
+    {
+        bool inCornerBox = q.x > 0.0 && q.y > 0.0;
+        if (!inCornerBox || uCornerSmoothing <= 0.001) {
+            cornerDistance = length(max(q, vec2(0.0)));
+        } else {
+            float p = 2.0 / (2.0 + 5.0 * uCornerSmoothing);
+            // gruesa: 16 muestras, guardando las DOS mejores distancias
+            float best1 = 1e9, best2 = 1e9;
+            int ib = 0;
+            for (int i = 0; i <= 16; ++i) {
+                float phi = (float(i) / 16.0) * 1.5707963;
+                vec2 c = uCornerRadius * vec2(pow(sin(phi), p), pow(cos(phi), p));
+                float d2 = dot(c - q, c - q);
+                if (d2 < best1) { best2 = best1; best1 = d2; ib = i; }
+                else if (d2 < best2) { best2 = d2; }
+            }
+            // El intervalo son las DOS muestras vecinas a la mejor, o el minimo se queda fuera del
+            // bracket cuando cae entre las muestras 0/1 o las dos ultimas.
+            float lo = (float(max(0, ib - 1)) / 16.0) * 1.5707963;
+            float hi = (float(min(16, ib + 1)) / 16.0) * 1.5707963;
+            // refinado por tercios: solo hay que comparar, sin derivadas
+            for (int i = 0; i < 20; ++i) {
+                float m1 = lo + (hi - lo) / 3.0;
+                float m2 = hi - (hi - lo) / 3.0;
+                vec2 c1 = uCornerRadius * vec2(pow(sin(m1), p), pow(cos(m1), p));
+                vec2 c2 = uCornerRadius * vec2(pow(sin(m2), p), pow(cos(m2), p));
+                if (dot(c1 - q, c1 - q) < dot(c2 - q, c2 - q)) hi = m2; else lo = m1;
+            }
+            float phi = 0.5 * (lo + hi);
+            vec2 c = uCornerRadius * vec2(pow(sin(phi), p), pow(cos(phi), p));
+            cornerDistance = length(q - c);
+        }
+    }
     // SIGNED, NEGATIVE OUTSIDE. The first version read `uCornerRadius - (sdf - uCornerRadius)`, which is
     // the sdf mirrored about r: positive EVERYWHERE inside the box's corners, so the discard never fired
     // and the corners came out square -- the user's screenshot after the crash fix showed exactly that,
@@ -182,7 +234,12 @@ void main()
     // which is the drift this project keeps paying for. Verified numerically before the build: the exact
     // corner gives -8.28 here and +11.72 with the old expression, and 6 px inside a straight edge gives
     // +6.00 against +26.00.
-    float edgeDistance = -(length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - uCornerRadius);
+    //
+    // `min(max(q.x,q.y), 0.0)` is the flat part of the boundary and is common to both shapes; only the
+    // arc's term changes. With the circular arc this line is IN THE SAME ORDER OF OPERATIONS as it was,
+    // so the shape the user approved cannot move: the simulator's render is bit-identical between the
+    // two (`max |diff| = 0.000e+00`).
+    float edgeDistance = -(cornerDistance + min(max(q.x, q.y), 0.0) - uCornerRadius);
     // THE DISCARD TESTS THE FRAME'S BOUNDARY AND NOTHING ELSE. It used to test
     // `min(edgeDistance, uTitleBarHeight - topDistance)`, which is negative for EVERY PIXEL BELOW THE
     // BAR -- so the effect discarded the entire content of every window and left only the title bars.
@@ -723,6 +780,10 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // 1 px corner cells, so this is drawn here; 0 restores whatever the theme drew.
     m_cornerRadius = cfg.readEntry("CornerRadius", kCornerRadius);
 
+    // The squircle, off by default: 0 is the circular arc the user already looked at, so the first
+    // screen after an install is the control. 0.6 is the kit's own cornerSmoothing. See glass.h.
+    m_cornerSmoothing = float(cfg.readEntry("CornerSmoothing", double(kCornerSmoothing)));
+
     // Vibrancy, off unless asked for: the chrome's minimum contrast against the glass.
     m_vibrancy = float(cfg.readEntry("Vibrancy", double(kVibrancy)));
 
@@ -744,6 +805,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "glassAlpha=" << m_glassAlpha
             << "chromeLow=" << m_chromeLow
             << "cornerRadius=" << m_cornerRadius
+            << " cornerSmoothing=" << m_cornerSmoothing
             << "vibrancy=" << m_vibrancy
             << "rim=" << m_rim
             << "materialBoost=" << m_materialBoost
@@ -1249,6 +1311,10 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     const bool shouldRound = m_cornerRadius > 0
         && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen() && !m_touchesEdge;
     m_shader->setUniform("uCornerRadius", shouldRound ? float(m_cornerRadius) : 0.0f);
+    // smoothing 0 when the corners are not rounded, or the shader would compute a superellipse for a
+    // shape nobody draws: `shouldRound` is the same gate as the radius.
+    m_shader->setUniform("uCornerSmoothing",
+                         shouldRound ? m_cornerSmoothing : 0.0f);
     m_shader->setUniform("uVibrancy", m_vibrancy);
     m_shader->setUniform("uRim", m_rim);
     m_shader->setUniform("uMaterialBoost", m_materialBoost);

@@ -114,7 +114,12 @@ afirmar_codigo "by discarding what falls outside the rounding" "$SOURCE" 'discar
 # The condition itself, not just the two names: the first version of this assertion was
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
-afirmar_codigo "which is a rounded-box distance at the corners" "$SOURCE" 'length[(]max[(]q, vec2[(]0[.]0[)][)][)] [+] min[(]max[(]q[.]x, q[.]y[)], 0[.]0[)]'
+# La MISMA matematica, ahora nombrada: el termino del arco es `cornerDistance`, que con el circulo
+# es `length(max(q,0))` y con el squircle la distancia a la superelipse. La asercion fixa el termino
+# del arco y el de la parte plana por separado, que es lo que decide la forma; antes fijaba la linea
+# entera y un refactor que no cambia nada la rompia (hallazgo 6 de la auditoria en vivo).
+afirmar_codigo "which is a rounded-box distance at the corners" "$SOURCE"   'cornerDistance = length[(]max[(]q, vec2[(]0[.]0[)][)][)]'
+afirmar_codigo "y la parte plana del contorno sigue ahi" "$SOURCE"   'min[(]max[(]q[.]x, q[.]y[)], 0[.]0[)]'
 # ...and only for the windows the material covers. A fullscreen window IS the screen:
 # rounding it would carve arcs out of the screen and show the desktop through them. A
 # client-side decoration is the case this effect leaves alone everywhere else.
@@ -618,6 +623,30 @@ else
   fallo "el modo --corners FALLA con el smoothing del kit:"; sed 's/^/      /' /tmp/sim-corners-kit.txt | head -6
 fi
 
+echo "  -- M2 en el SHADER: la misma geometria, o las dos versiones divergen --"
+# El shader y simulate.py son DOS implementaciones de una formula y esta casa ya las ha visto
+# separarse cuatro veces. Estas aserciones son el cable que impide que eso pase otra vez: fijan que
+# el shader recibe la MISMA `n`, que la lee de la config, y que el default sigue siendo el arco.
+afirmar_codigo "el header define el knob del squircle" "$HEADER" 'kCornerSmoothing = 0[.]0f'
+afirmar_codigo "y su miembro, con el default puesto" "$HEADER" 'm_cornerSmoothing = kCornerSmoothing'
+afirmar_codigo "el shader declara el uniforme" "$SOURCE" 'uniform float uCornerSmoothing'
+# LA MISMA `n = 2 + 5*smoothing` EN LOS DOS SITIOS: es la calibracion, y si una cambia sin la otra
+# el squircle que se mide no es el que se dibuja.
+afirmar_codigo "el shader calcula la misma n que el simulador" "$SOURCE" \
+  '2[.]0 / [(]2[.]0 [+] 5[.]0 [*] uCornerSmoothing[)]'
+afirmar_codigo "y la curva es la misma superelipse tangente a los dos bordes" "$SOURCE" \
+  'pow[(]sin[(]phi[)], p[)], pow[(]cos[(]phi[)], p[)]'
+afirmar_codigo "la config se lee, como el resto de mandos" "$SOURCE" \
+  'readEntry[(]"CornerSmoothing", double[(]kCornerSmoothing[)][)]'
+afirmar_codigo "y el uniforme se pasa con el mismo gate que el radio" "$SOURCE" \
+  'shouldRound [?] m_cornerSmoothing : 0[.]0f'
+# El control tiene que seguir siendo el arco: la rama circular es la de siempre y el squircle es
+# opt-in, o el aspecto ya aprobado se moveria sin que nadie lo pidiera.
+afirmar_codigo "con smoothing 0 la rama es la del circulo" "$SOURCE" \
+  'uCornerSmoothing <= 0[.]001'
+afirmar_codigo "y el default del header es 0 (el arco aprobado)" "$HEADER" \
+  'static constexpr float kCornerSmoothing = 0[.]0f'
+
 echo "  -- no Spanish identifiers, checked instead of remembered --"
 # The language pass renamed 133 identifiers and I relapsed four times afterwards (salida, cromo,
 # desdeArriba, amplificado), each time in a patch written from memory. A habit cannot be the check;
@@ -815,7 +844,7 @@ echo "  -- the rounded distance is signed the way the discard needs --"
 # simulator had the correct expression and the shader did not, which is the drift this project keeps
 # paying for. Two checks together, because either alone is weak: the shader's sign by grep, and the
 # formula evaluated at the points where the sign decides.
-afirmar_codigo "the minus sign is OUTSIDE the sdf" "$SOURCE" 'edgeDistance = -[(]length'
+afirmar_codigo "the minus sign is OUTSIDE the sdf" "$SOURCE" 'edgeDistance = -[(]cornerDistance'
 if timeout 120 python3 - <<'PY' >/tmp/sdf.txt 2>&1
 def distance(px, py, w=900.0, h=300.0, r=20.0):
     """The shader's expression, transcribed from the source and evaluated."""

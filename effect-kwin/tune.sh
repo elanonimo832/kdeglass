@@ -78,6 +78,8 @@ range_of() { # range_of <Key> -> "min max", or nothing if unconstrained
         Refraction)                                      echo "0 32" ;;
         RimWidth)                                        echo "1 32" ;;
         BackgroundRadius|FrostRadius|CornerRadius)       echo "0 64" ;;
+        # 0..1 es el dominio del token de Figma (0 = arco circular, 1 = el squircle mas suave)
+        CornerSmoothing)                                 echo "0 1" ;;
         FrostDownsample)                                 echo "0 2" ;;
         ChromeLow)                                       echo "0 1" ;;
         Vibrancy)                                        echo "0 2" ;;

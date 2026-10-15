@@ -53,6 +53,7 @@ while the command reports success.
 | `FrostDownsample` | 0 | factor the backdrop is captured at; 0 derives it (radius/8). Capped at **2**, because a bilinear blit minifying by 2 reads exactly the four texels of each block -- a true box -- while by 4 it reads four of sixteen and aliases into Moire over text |
 | `GlassAlpha` | 0.25 | how much of the bar's own tone the glass keeps -- Apple's `[liquid_glass] opacity = 25` |
 | `CornerRadius` | 20 | radius of the window's corners; 0 leaves whatever the decoration drew |
+| `CornerSmoothing` | 0.0 | the squircle: Apple's corners are continuous curvature, not circular arcs. The kit's `cornerSmoothing = 0.6` becomes the exponent of a superellipse through `n = 2 + 5*smoothing`, calibrated so that **0 is exactly the circular arc that was approved on screen** and 0.6 is the squircle quoted for Apple. On a 20 px radius the 0.6 shape bulges 4.6229 px further out on the diagonal. `simulate.py --corners` prints it; the shader searches the curve's nearest point with a coarse scan plus a refinement, 112 `pow()` inside the corner box only |
 | `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |
 | `Vibrancy` | 0.0 (off) | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
 | `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |
