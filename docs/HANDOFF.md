@@ -1698,6 +1698,71 @@ accuracy against a 0.36 px difference, above). The figure makes the shape honest
 green appears only at the two ends of the transition and is absent along the whole middle arc, which
 is exactly the claim -- the smoothing changes how the curve MEETS the edges, not the arc itself.
 
+### 10c-quater. M2.5: the curvature instrument, and the CLOTHOID is the G2 candidate (2026-10-15)
+
+The user, on the whole bar over a busy backdrop: the refractory streaks come out vertical at the top
+and "en un angulo sin curvas hacia la derecha" low down, and they asked for the curvature of
+`muestras/Screenshot_20261014_214038.png`, where "es precioso como curvea todo el color verde de una
+forma bonita y elegante". The streak DIRECTION was a separate bug (section 9w, the invented diagonal).
+This is the SHAPE: the Figma construction on screen is tangent-continuous (G1) but its curvature
+OVERSHOOTS the arc's by **+47%**, and that overshoot is the angle the eye reads in the highlight.
+
+**THE INSTRUMENT FIRST**, and it is `measure-corner.py --curvature <curve>` plus the `curvature`
+self-test case. It measures kappa(s) as TURNING PER ARC LENGTH. Two estimators died before this one
+and both were mine: the second derivative of x and y against arc length read a spike at every SEAM
+where the sampling density changes (the transition and the arc are sampled differently), and
+pre-smoothing the POINTS rounded those seams and invented a bump of its own (+14% on a clothoid whose
+signed turning is provably at or below 1/R everywhere). The verdict is `spike`: kappa somewhere more
+than 1% above the arc's own 1/R. It is checked on the two cases whose answer is known by definition,
+and it must agree with the user's eye before it judges a replacement:
+
+    circular arc        kappa 0.05000..0.05000   +0.00%   spike=False   maxima=0
+    Figma, ON SCREEN    kappa 0.00001..0.07344   +46.89%  spike=True    maxima=2
+
+**THE CANDIDATES**, all at R=20 and the kit's s=0.6, measured with that instrument:
+
+| construction | kappa min..max | overshoot | spike | maxima |
+|---|---|---|---|---|
+| circular arc (the reference) | 0.05000..0.05000 | +0.00% | no | 0 |
+| **Figma, on screen today** | 0.00001..0.07344 | **+46.89%** | **yes** | 2 |
+| **clothoid (Euler spiral) + arc** | 0.00004..0.05000 | **+0.00%** | **no** | **0** |
+| curvature-matched cubic Bezier | 0.00001..0.06459 | +29.19% | yes | 2 |
+| superellipse centred on the ARC CENTRE, n=3 | 0.00107..0.08909 | +78.18% | yes | 1 |
+| the same, n=4 | 0.00017..0.12613 | +152.26% | yes | 1 |
+
+Two of them deserve a note, because both look right on paper:
+- the **arc-centred superellipse** is a DIFFERENT family from the one 10c threw away -- that one was
+  centred on the corner VERTEX with the invented `n = 2 + 5*s` -- and it was a legitimate candidate.
+  It is rejected by MEASUREMENT: it overshoots, and worse as n grows. Rejected on its numbers, not by
+  association with the old mistake.
+- a **curvature-matched cubic Bezier** -- kappa 0 at the straight edge and 1/R at the arc, both
+  tangents matched, which is textbook G2 at the JOINTS -- still overshoots +29% BETWEEN them. Matching
+  the ends is not enough; the curve has to be the right one in the middle.
+
+**RECOMMENDED: the clothoid.** kappa(s) = s/(R*L) rises LINEARLY from 0 at the straight edge to 1/R at
+the arc, monotone by construction, so it cannot overshoot: measured +0.00% with no maximum above the
+arc, which is exactly what the instrument tests. The transition's turn is fixed by the arc's measure
+(`dtheta = (90 - m)/2`, so `L = 2*R*dtheta`), and the corner's symmetry about `x = y` fixes where it
+meets the straight edge (`p = 30.09` at m=36, against the Figma construction's 32). It is the standard
+transition curve in road and rail design and is used in type design for G2 corners. It is NUMERICAL (a
+Fresnel integral), not closed-form, so both implementations will carry it as a sampled polyline --
+which is what they already do for the Figma piecewise curve, so the nearest-point search does not
+change shape.
+
+**THE SAMPLE could not be turned into a numerical target**, and saying so is part of the measurement:
+at 386x221 the green mask's boundary has one-pixel steps, and even a sub-pixel extraction of the 0.5
+crossing leaves 9 local maxima and a noisy kappa. It is the LOOK reference; the criterion that can be
+decided is the overshoot relative to the arc, and on that the clothoid is the only candidate that is
+G2. Its profile (0 -> 1/R, monotone) is also the character the sample shows, which is the qualitative
+comparison the resolution supports.
+
+**WHAT IS NOT DECIDED HERE:** the arc measure `m` -- the shape between 36 and 54 degrees is a taste
+and a comparison against the sample, not a curvature question -- and the implementation in
+`simulate.py` AND `src/glass.cpp`, which is the next step and touches both at once. **NOTHING in the
+effect changed in this step:** this is the instrument and the decision, and the suite pins all four
+verdicts (the arc continuous, the Figma curve flagged, the clothoid G2, the two rejected families
+overshooting) so a rewrite cannot quietly reach for one of the others.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
