@@ -606,5 +606,12 @@ afirmar_codigo "dispersion costs THREE frosts, which is why it was measured firs
 echo "  -- the capture's geometry is written down where the default lives --"
 # A default that encodes arithmetic must carry the arithmetic, or the next session flips it back
 # because the user "saw no difference".
-afirmar_codigo "the shadow margin is named in the header" "$HEADER" 'shadowMargin'
-afirmar_codigo "and so is the scale drift" "$HEADER" '1415/1387'
+#
+# AND THIS CHECK IS A DOCUMENTATION CHECK, not a code one: `codigo_contiene` strips comments, which
+# is right for code and wrong for prose. I made the same mistake twice -- asserting a phrase that
+# lives in a comment and watching it fail as "not found in the CODE" -- so the two kinds are named
+# here, and these use plain grep on purpose.
+afirmar_igual "the shadow margin is named in the header" "1" \
+  "$(grep -c 'shadowMargin' "$HEADER")"
+afirmar_igual "and so is the scale drift" "1" \
+  "$(grep -c '1415/1387' "$HEADER")"
