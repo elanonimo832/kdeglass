@@ -1170,9 +1170,13 @@ from `effect-kwin/`, so when the default changed and a measurement was taken fro
 the tool quietly used the old hardcoded 6 while the effect used 20. The same silent fallback that cost
 three contradictory measurements in 9o also protected a wrong decision from being re-examined.
 
-The test that replaces the old one asserts the INVARIANT rather than a value: the separation must
-scale with the bend (subtle at 6 px, visible at 20 px, in the ratio 20/6). An absolute threshold would
-have kept passing, or kept failing, for reasons unrelated to the model.
+The test that replaces the old one asserts the SHAPE rather than a value, and my first version of it
+was wrong too: I asserted that the separation scales in proportion to the bend, and it does not -- 17.9
+at 6 px against 31.9 at 20 px is a factor of 1.8 where the bend grew by 3.3. The bend is applied to the
+frost's uv, so a wider displacement is compressed by the same 16 px frost that smooths everything else,
+which is a rule this project has now met from four different sides. What the test asserts is what is
+true: a grey backdrop stays grey, a 6 px bend already fringes visibly (17.9 levels, not the 9 that 9l
+recorded with the specular suppressing it), and a larger bend fringes more but sub-linearly.
 
 So the dispersion moves from "not worth building" to "worth building, and there is a cheap shape for
 it": since the bend lives in the frost's uv now, the fringe can come from three fetches of the
