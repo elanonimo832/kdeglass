@@ -154,7 +154,8 @@ private:
     //   kwriteconfig6 ... --key Rim 0.3          (0 = no edge highlight; 0.2 is subtle)
     //   kwriteconfig6 ... --key MaterialBoost 1.6 (1.0 = off; 1.6 is what Apple measures)
     // ---------------------------------------------------------------------
-    static constexpr float kRim = 0.20f;
+    // 0.3, the user's last word on the edge band after comparing it with Apple's.
+    static constexpr float kRim = 0.30f;
     float m_rim = kRim;
     // THE GAIN, measured from Apple's Dock: `dock = 1.6 * backdrop + 0.42`. Ours was 0.75,
     // which is a veil; Apple amplifies. 1.0 reproduces the behaviour before this existed and
@@ -165,7 +166,9 @@ private:
     // How far the edge's copy of the backdrop is bent toward the interior, in screen pixels. The
     // kit calls it `refraction = 70`; the samples show the band carrying the backdrop's chroma
     // across the boundary, which is a displacement and not a brightening. 0 disables the bend.
-    static constexpr float kRefraction = 6.0f;
+    // 20, not 6, and the number comes from a measurement: against a 16 px frost a 6 px bend moves
+    // the rim 5.4 levels -- invisible -- while 20 moves it 14.9. The user tried 20 and kept it.
+    static constexpr float kRefraction = 20.0f;
     float m_refraction = kRefraction;
 
     // How wide the edge band is, in screen pixels. The user compared it with Apple's ("la de apple
@@ -323,7 +326,9 @@ private:
     // makes the corner round. The shadow lives outside the frame and is untouched.
     //
     // 0 disables it and leaves whatever the decoration drew.
-    static constexpr int kCornerRadius = 16;   // 12 read small on a 4K 27" panel
+    // 20, not 16: the user chose this early and kept it through every experiment, and a default
+    // that survives the work of finding it is worth more than the kit's 16.
+    static constexpr int kCornerRadius = 20;   // 12 read small on a 4K 27" panel
     int m_cornerRadius = kCornerRadius;
 
 

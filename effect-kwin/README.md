@@ -18,7 +18,7 @@ verified working and unusable, because it blurred the text you were reading.
 | **No ghost copies of the chrome** | ✅ the bar's tone is a MEDIAN of five samples, not a blur: a blur of the bar contains the chrome displaced by its radius, which read on screen as ghost buttons one radius above the real ones |
 | **Chrome readable** | ✅ the title and the traffic lights are drawn crisp over the glass: the bar's blur is the blank that isolates them, and a tight baseline of its own keeps the halo off them |
 | **Vibrancy** (chrome adapts to the glass) | 🟡 in the built plugin, **off by default** (`Vibrancy`, the minimum contrast; 0 disables). For dark backdrops, where the theme's dark title would otherwise disappear |
-| **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 16; only for normal, decorated, non-fullscreen windows -- a fullscreen window IS the screen). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
+| **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 20; only for normal, decorated, non-fullscreen windows -- a fullscreen window IS the screen). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
 | Refraction (70), dispersion (20), specular highlight | ❌ not started |
 
 ## The knobs, and which of them are live
@@ -47,14 +47,14 @@ while the command reports success.
 | `BackgroundRadius` | 16 | frost radius, in screen pixels (0 = the sharp composite) |
 | `FrostDownsample` | 0 | factor the backdrop is captured at; 0 derives it (radius/8). Capped at **2**, because a bilinear blit minifying by 2 reads exactly the four texels of each block -- a true box -- while by 4 it reads four of sixteen and aliases into Moire over text |
 | `GlassAlpha` | 0.25 | how much of the bar's own tone the glass keeps -- Apple's `[liquid_glass] opacity = 25` |
-| `CornerRadius` | 16 | radius of the window's corners; 0 leaves whatever the decoration drew |
+| `CornerRadius` | 20 | radius of the window's corners; 0 leaves whatever the decoration drew |
 | `ChromeLow` | 0.06 | luminance deviation that counts as chrome (the upper threshold is 3x this) |
 | `Vibrancy` | 0.0 (off) | minimum contrast the achromatic chrome keeps against the glass; try 0.30-0.45 on dark backdrops |
 | `FrostRadius` | 6 | floor for the radius the bar's tone is averaged over (the tone is averaged over half the bar's height, which is what keeps the title out of the glass) |
 | `CaptureSubRect` | false (off) | sample the capture at the FRAME's sub-rectangle instead of the whole texture. It exists because the capture covers the expanded geometry while the shader's sizes come from the frame; run `measure-alignment.py` with each value and keep the one that reports (0, 0) |
-| `Rim` | 0.20 | the edge highlight: the AMPLIFIED backdrop over a 5-texel falloff, not a white line. Apple's edge is refraction (it bends the background), measured as bright coloured bands 215-236 top and 206-218 bottom against a middle of 168-190 |
+| `Rim` | 0.30 | the edge highlight: the AMPLIFIED backdrop over a `RimWidth`-wide falloff, not a white line. Apple's edge is refraction (it bends the background), measured as bright coloured bands 215-236 top and 206-218 bottom against a middle of 168-190 |
 | `MaterialGain` | 1.60 | multiplies the frosted backdrop before the bar's tone is mixed in: the GAIN that Apple's Dock measures at 1.6 and that a plain blend cannot produce (it would need `1-a > 1`). 1.0 is off |
-| `Refraction` | 6.0 | how far the edge's copy of the backdrop is bent toward the interior, in pixels: the kit's `refraction = 70`. 0 disables the bend |
+| `Refraction` | 20.0 | how far the edge's copy of the backdrop is bent toward the interior, in pixels: the kit's `refraction = 70`. 0 disables the bend |
 | `RimWidth` | 12.0 | how wide the edge band is, in pixels: Apple's reads as a border, five pixels read as a seam |
 | `MaterialBoost` | 1.20 | how much the material AMPLIFIES the backdrop's colour instead of veiling it. 1.0 is off; the value measured on Apple's Dock is **1.6** |
 | `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |
