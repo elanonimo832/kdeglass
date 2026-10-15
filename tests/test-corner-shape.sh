@@ -26,7 +26,7 @@ fi
 # EVERY failure mode needs a named case, or the self-test can pass while checking nothing. That is
 # exactly the M2 mistake: two anchors were pinned, both true by construction, and the SHAPE was not
 # checked at all. A case that stops running must be a failure, not a smaller number of passes.
-for name_ in circle flat spike frame image_png refuse_empty; do
+for name_ in circle flat spike apple frame image_png refuse_empty; do
   afirmar "the self-test exercises '$name_' and it passes" \
     grep -qE "^case=$name_( |$).*verdict=ok" /tmp/corner-selftest.txt
 done
@@ -53,3 +53,14 @@ afirmar "the circle's boundary at y=5 is the closed form (6.77)" \
 # and the wrong curve is reported at x=20.00, the value the user saw as "esquinas arruinadas".
 afirmar "the wrong curve's boundary at y=5 is 20.00 (the near-square corner)" \
   grep -qE '^case=spike .*x_at_y_5=20\.0[0-9]' /tmp/corner-selftest.txt
+
+# THE CONSTRUCTION THE KIT'S cornerSmoothing NAMES, which 10c described wrongly in prose and in a
+# table. Three facts, each one a number that section got wrong, pinned so a rewrite cannot drift:
+# the middle of the corner IS the circle, it is fuller only at the transition, and the straight
+# edges end at p=(1+s)*R=32 -- not at r*s=12 and not at r=20.
+afirmar "the Figma construction matches the circle at y=5 (6.7x)" \
+  grep -qE '^case=apple .*x_at_y_5=6\.7[0-9]' /tmp/corner-selftest.txt
+afirmar "and is fuller at y=1 (14.1x against the circle's 13.76)" \
+  grep -qE '^case=apple .*x_at_y_1=14\.1[0-9] .*circle_x_at_y_1=13\.7[0-9]' /tmp/corner-selftest.txt
+afirmar "and reaches the straight edges at p=32, not at r*s and not at r" \
+  grep -qE '^case=apple .*p=32\.00' /tmp/corner-selftest.txt

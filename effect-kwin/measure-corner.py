@@ -104,6 +104,95 @@ def diagonal_superellipse(r, smoothing):
 
 
 # --------------------------------------------------------------------------------------------
+# THE CONSTRUCTION THE KIT'S `cornerSmoothing` ACTUALLY NAMES: Figma's squircle.
+#
+# Section 10c described Apple's construction as "an arc shrunk to r*(1-s) plus two tangent Bezier
+# transitions that reach the straight edge at r*s from the vertex". Measured against the canonical
+# algorithm, none of those three numbers is right -- and the "Apple's construction" column of that
+# section's table (16.12 / 12.55 / 13.25) is non-monotonic and reproduced by neither this curve nor
+# any other. What the algorithm does, from Figma's "Desperately seeking squircles" as implemented
+# by MartinRGB and the `figma_squircle` crate:
+#
+#   p          = (1 + s) * R     the straight edges end p from the vertex, NOT R and NOT s*R
+#   arc        = radius R, its MEASURE shrunk to 90*(1-s) degrees, centred at (R, R)
+#   transition = two cubic Beziers, tangent to the edge at p and to the arc
+#
+# At s=0 it collapses exactly to the circular corner (p=R, measure 90, zero-length transitions).
+# --------------------------------------------------------------------------------------------
+def figma_params(radius, smoothing):
+    R, s = float(radius), float(smoothing)
+    p = (1.0 + s) * R
+    arc_measure = 90.0 * (1.0 - s)
+    chord = math.sin(math.radians(arc_measure / 2.0)) * R * math.sqrt(2.0)
+    alpha = (90.0 - arc_measure) / 2.0
+    p3p4 = R * math.tan(math.radians(alpha / 2.0))
+    beta = 45.0 * s
+    c = p3p4 * math.cos(math.radians(beta))
+    d = c * math.tan(math.radians(beta))
+    b = (p - chord - c - d) / 3.0
+    return {"p": p, "chord": chord, "a": 2.0 * b, "b": b, "c": c, "d": d}
+
+
+def _bezier(p0, c1, c2, p3, t):
+    u = 1.0 - t
+    return (u ** 3 * p0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t ** 3 * p3[0],
+            u ** 3 * p0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t ** 3 * p3[1])
+
+
+def figma_curve(radius, smoothing, samples=180):
+    """The top-left corner as a polyline, from (0, p) on the left edge to (p, 0) on the top."""
+    q = figma_params(radius, smoothing)
+    p, chord, a, b, c, d = q["p"], q["chord"], q["a"], q["b"], q["c"], q["d"]
+    R = float(radius)
+    start, p1 = (0.0, p), (d, p - (a + b + c))
+    p2 = (p1[0] + chord, p1[1] - chord)          # the arc's endpoints, radius R centred at (R, R)
+    c1, c2 = (0.0, p - a), (0.0, p - (a + b))
+    c3, c4 = (p2[0] + c, p2[1] - d), (p2[0] + b + c, p2[1] - d)
+    points = []
+    for i in range(samples + 1):
+        t = i / samples
+        if t < 1.0 / 3.0:
+            points.append(_bezier(start, c1, c2, p1, t * 3.0))
+        elif t < 2.0 / 3.0:
+            ang1 = math.atan2(p1[1] - R, p1[0] - R)
+            ang2 = math.atan2(p2[1] - R, p2[0] - R)
+            while ang2 - ang1 > math.pi:
+                ang2 -= 2.0 * math.pi
+            while ang1 - ang2 > math.pi:
+                ang2 += 2.0 * math.pi
+            ang = ang1 + (ang2 - ang1) * ((t - 1.0 / 3.0) * 3.0)
+            points.append((R + R * math.cos(ang), R + R * math.sin(ang)))
+        else:
+            points.append(_bezier(p2, c3, c4, (p, 0.0), (t - 2.0 / 3.0) * 3.0))
+    return points
+
+
+def inset_figma(y, radius, smoothing):
+    """x(y) of the Figma corner in the corner's own frame: the curve, then the straight edge."""
+    y = np.asarray(y, dtype=float)
+    points = np.array(figma_curve(radius, smoothing))
+    order = np.argsort(points[:, 1])
+    ys, xs = points[order, 1], points[order, 0]
+    return np.interp(y, ys, xs)
+
+
+def render_inset(inset_fn, extent, pad=6, ss=8):
+    """Coverage of a corner given its boundary as x(y) = inset_fn(y), over a [0, extent] box.
+
+    The composite corner runs to p = (1+s)*R, further than R, so the corner box has to be given
+    explicitly: the box used for the single-circle cases stops at R and would call the transition
+    region "outside the corner" and fill it with the straight edge.
+    """
+    n = int(round(extent)) + 1 + pad
+    sub = (np.arange(ss) + 0.5) / ss - 0.5
+    rows = (np.arange(n)[:, None] + sub[None, :]).ravel()
+    cols = (np.arange(n)[:, None] + sub[None, :]).ravel()
+    grid_x, grid_y = np.meshgrid(cols, rows)
+    inside = grid_x >= inset_fn(grid_y)
+    return inside.reshape(n, ss, n, ss).mean(axis=(1, 3))
+
+
+# --------------------------------------------------------------------------------------------
 # Rendering a synthetic corner, and reading a corner out of coverage.
 # --------------------------------------------------------------------------------------------
 def render_corner(shape_test, r, pad=6, ss=8):
@@ -318,6 +407,44 @@ def _case_spike():
     return problems, fields
 
 
+def _case_apple():
+    """The construction the kit's cornerSmoothing names, measured from pixels.
+
+    It is the case 10c got wrong BOTH in prose and in a table: the arc keeps radius R and only its
+    measure shrinks, the straight edges end at p=(1+s)*R, and the middle of the corner is EXACTLY
+    the circle. The case pins those three facts by measurement, so a future rewrite cannot quietly
+    become a superellipse again.
+    """
+    smoothing = SUPERELLIPSE_SMOOTHING
+    params = figma_params(RADIUS, smoothing)
+    extent = int(round(params["p"]))
+    coverage = render_inset(lambda y: inset_figma(y, RADIUS, smoothing), extent, ss=RENDER_SS)
+    measured = measure_corner(coverage, extent)
+    expected = {k: float(inset_figma(k, RADIUS, smoothing)) for k in (1, 5, 10)}
+    errors = [abs(measured["profile"][k] - expected[k]) for k in expected]
+    profile = measured["profile"]
+    problems = []
+    if max(errors) > 0.2:
+        problems.append(f"profile error {max(errors):.3f} > 0.2")
+    if any(profile[i] < profile[i + 1] - 1e-6 for i in range(len(profile) - 1)):
+        problems.append("the boundary is not monotone")
+    # THE THREE FACTS 10c GOT WRONG.
+    if abs(float(inset_figma(params["p"], RADIUS, smoothing))) > 0.01:
+        problems.append("the curve does not meet the left edge at p")
+    if abs(float(inset_figma(0.0, RADIUS, smoothing)) - params["p"]) > 0.01:
+        problems.append("the curve does not reach the top edge at p")
+    # The middle of the corner IS the circle: the smoothing changes the transitions, not the arc.
+    for k in (5, 10):
+        if abs(expected[k] - float(inset_circle(k, RADIUS))) > 0.01:
+            problems.append(f"the arc at y={k} is not the circle ({expected[k]:.3f})")
+    fields = (f"p={_fmt(params['p'])} extent={extent} sweep_err_max={_fmt(max(errors), 3)}"
+              f" x_at_y_1={_fmt(measured['x_at_y'][1])} x_at_y_5={_fmt(measured['x_at_y'][5])}"
+              f" x_at_y_10={_fmt(measured['x_at_y'][10])}"
+              f" circle_x_at_y_1={_fmt(float(inset_circle(1, RADIUS)))}"
+              f" flat_run={measured['flat_run']}")
+    return problems, fields
+
+
 def _case_frame():
     """The frame-of-reference guard: the same corner, offset in a canvas and mirrored."""
     base = render_corner(inside_circle, RADIUS, ss=RENDER_SS)
@@ -385,6 +512,7 @@ def self_test():
         ("circle", _case_circle),
         ("flat", _case_flat),
         ("spike", _case_spike),
+        ("apple", _case_apple),
         ("frame", _case_frame),
         ("image_png", _case_image_png),
         ("refuse_empty", _case_refuse_empty),
