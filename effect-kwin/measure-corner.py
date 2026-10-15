@@ -176,6 +176,193 @@ def inset_figma(y, radius, smoothing):
     return np.interp(y, ys, xs)
 
 
+# --------------------------------------------------------------------------------------------
+# THE CURVATURE INSTRUMENT (M2.5). The shape instrument above judges where the boundary IS; this
+# one judges HOW IT TURNS. A circular arc has constant curvature 1/R by definition, Apple's
+# continuous corner spreads that curvature without ever exceeding it, and the Figma construction
+# on screen today OVERSHOOTS: its kappa reaches 0.0735 where the arc is 0.05 (+47%), which is the
+# "angle" the user sees in the highlight. Overshoot is the measurable form of "not G2", so that is
+# what the verdict tests.
+#
+# The curvature is computed from an ordered polyline, with the derivatives taken against ARC LENGTH
+# (not the sample index, which is not uniform on a piecewise curve) and a moving average to keep
+# the segment/pixel noise from inventing maxima. `radius` is the reference: the arc's own 1/R.
+# --------------------------------------------------------------------------------------------
+def circle_arc_points(radius, samples=2000):
+    """The corner's circular arc, centred at (R, R), from (0, R) to (R, 0). Curvature = 1/R."""
+    r = float(radius)
+    phi = np.linspace(0.0, math.pi / 2.0, int(samples) + 1)
+    return np.stack([r - r * np.cos(phi), r - r * np.sin(phi)], axis=1)
+
+
+def curvature_along(points, smooth=9):
+    """kappa(s) along an ordered polyline, in 1/px, as TURNING PER ARC LENGTH.
+
+    Two estimators died before this one, and both were mine:
+      * the second derivative of x and y against arc length reads a SPIKE at every seam where the
+        sampling density changes (the transition and the arc are sampled differently), which on the
+        clothoid invented a +10% bump exactly at the two joins;
+      * pre-smoothing the POINTS rounds those seams and invents a bump of its own (measured +14% on
+        a clothoid whose signed turning is provably <= 1/R everywhere).
+    The turning angle between consecutive segments over their mean length is the same quantity, is
+    immune to the sampling, and is smoothed only AFTERWARDS -- the geometry is never touched.
+    """
+    P = np.asarray(points, dtype=float)
+    if P.shape[0] < 4:
+        return np.zeros(P.shape[0])
+    seg = np.diff(P, axis=0)
+    length = np.hypot(seg[:, 0], seg[:, 1])
+    if float(length.max()) <= 1e-12:
+        return np.zeros(P.shape[0])
+    angle = np.unwrap(np.arctan2(seg[:, 1], seg[:, 0]))
+    turning = np.abs(np.diff(angle))
+    mean_len = 0.5 * (length[:-1] + length[1:])
+    kappa = turning / np.maximum(mean_len, 1e-12)
+    kappa = np.concatenate([[kappa[0]], kappa, [kappa[-1]]])
+    k = int(smooth) | 1                     # odd
+    if k > 1 and kappa.size > k:
+        pad = k // 2
+        padded = np.concatenate([np.repeat(kappa[:1], pad), kappa, np.repeat(kappa[-1:], pad)])
+        kappa = np.convolve(padded, np.ones(k) / k, mode="valid")
+    return kappa
+
+
+def curvature_verdict(points, radius, tolerance=0.01, smooth=9):
+    """Judge a boundary's curvature against the arc's own 1/R.
+
+    `spike` is the verdict: TRUE when the curvature somewhere EXCEEDS the arc's by more than
+    `tolerance` (1% by default). That is what makes a corner read as an angle, and it is what the
+    current Figma curve does by +47%. `maxima` counts interior local maxima ABOVE the arc, so a
+    profile that oscillates instead of turning once is visible too.
+    """
+    k = curvature_along(points, smooth)
+    arc = 1.0 / float(radius)
+    kmax, kmin = float(k.max()), float(k.min())
+    # A maximum only counts when it is ABOVE the arc: on a constant-curvature arc every sample is a
+    # local maximum by `>=` and floating point supplies hundreds of them (measured: 570 on a circle),
+    # which is a metric flattering itself rather than a finding.
+    maxima = 0
+    if k.size >= 3:
+        above = k > arc * (1.0 + tolerance)
+        maxima = int(np.sum(above[1:-1] & (k[1:-1] >= k[:-2]) & (k[1:-1] >= k[2:])))
+    return {"curvature_min": kmin, "curvature_max": kmax, "arc_curvature": arc,
+            "overshoot_pct": (kmax / arc - 1.0) * 100.0,
+            "spike": kmax > arc * (1.0 + tolerance), "maxima": maxima}
+
+
+# --------------------------------------------------------------------------------------------
+# THE CANDIDATES for a curvature-continuous corner. Each returns an ordered polyline in the corner's
+# own frame from (0, p) on the left edge to (p, 0) on the top, so they can be measured with the same
+# instrument and, later, dropped into the same nearest-point search.
+# --------------------------------------------------------------------------------------------
+def superellipse_arc_points(radius, exponent, samples=2000):
+    """A superellipse CENTRED AT THE ARC CENTRE (R, R): |x-R|^n + |y-R|^n = R^n.
+
+    At n=2 this IS the circular arc, so the family generalises the approved shape instead of
+    replacing it. THIS IS NOT THE FAMILY 10c THREW AWAY: that one was centred on the corner VERTEX,
+    `c(phi) = r*(sin^p, cos^p)` with the invented `n = 2 + 5*s`, and it produced a nearly square
+    corner (at y=5 its boundary was at x=20 where the circle's was at 6.8). Here the vertex is not
+    the centre of anything.
+    """
+    r, n = float(radius), float(exponent)
+    q = 2.0 / n
+    phi = np.linspace(0.0, math.pi / 2.0, int(samples) + 1)
+    x = r - r * np.power(np.cos(phi), q)
+    y = r - r * np.power(np.sin(phi), q)
+    return np.stack([x, y], axis=1)
+
+
+def g2_bezier_corner_points(radius, arc_measure_deg, edge_offset, samples=2000):
+    """Apple-style corner: a circular arc of `arc_measure_deg` plus two cubic Beziers whose curvature
+    MATCHES the arc (1/R) at one end and the straight edge (0) at the other, so both junctions are
+    G2 instead of the Figma construction's G1.
+
+    The construction, for the top transition. Let A be the arc's top endpoint, `tA` its tangent
+    (pointing from the edge into the arc), E=(p,0) the point on the straight edge.
+        C2 = A - b*tA, with b chosen so C2 lies ON the edge line  ->  kappa(E) = 0
+        C1 = (E - a*(1,0)), with a chosen so kappa(A) = 1/R
+    Both tangents are matched by construction, so the only thing left to MEASURE is whether the
+    curvature between them stays at or below 1/R -- which is exactly what the instrument does.
+    """
+    R, p = float(radius), float(edge_offset)
+    m = math.radians(float(arc_measure_deg))
+    cc = np.array([R, R])
+    alpha_top = 5.0 * math.pi / 4.0 + m / 2.0
+    alpha_left = 5.0 * math.pi / 4.0 - m / 2.0
+    A = cc + R * np.array([math.cos(alpha_top), math.sin(alpha_top)])
+    # tangent along the arc travelling from the top endpoint towards the left one (decreasing alpha)
+    tA = np.array([math.sin(alpha_top), -math.cos(alpha_top)])
+    if abs(tA[1]) < 1e-9:
+        tA[1] = 1e-9
+    b = A[1] / tA[1]
+    C2 = A - b * tA                              # on y = 0, which is what makes kappa(E) = 0
+    d = 1.5 * float(np.linalg.norm(A - C2)) ** 3 / (R * A[1])
+    # two solutions for C1's x; keep the one BETWEEN the edge point and C2, or the control polygon
+    # doubles back and the Bezier wiggles instead of turning once.
+    candidates = [C2[0] + d, C2[0] - d]
+    inside = [cx for cx in candidates if min(C2[0], p) < cx < max(C2[0], p)]
+    C1x = inside[0] if inside else min(candidates, key=lambda cx: abs(cx - 0.5 * (C2[0] + p)))
+    E = np.array([p, 0.0])
+    C1 = np.array([C1x, 0.0])
+    n1 = max(2, int(samples) // 2)
+    top = np.array([_bezier(E, C1, C2, A, i / n1) for i in range(n1 + 1)])
+    # the arc, sampled from alpha_top down to alpha_left
+    n2 = max(2, int(samples) // 2)
+    alphas = np.linspace(alpha_top, alpha_left, n2 + 1)
+    arc = cc + R * np.stack([np.cos(alphas), np.sin(alphas)], axis=1)
+    # the left transition is the mirror of the top one (the corner is symmetric about x = y), so it
+    # runs from A_left back out to (0, p).
+    left = top[::-1][:, ::-1]
+    return np.vstack([top, arc[1:], left[1:]])
+
+
+def clothoid_corner_points(radius, arc_measure_deg, samples=4000):
+    """A true G2 corner: an Euler-spiral (clothoid) transition whose curvature rises LINEARLY from 0
+    at the straight edge to 1/R at the arc, then the circular arc for the middle.
+
+    kappa(s) = s/(R*L) is monotone by construction, so it can never overshoot -- which is exactly
+    what the instrument measures. The clothoid is the standard transition curve in road and rail
+    design and is used in type design for G2 corners; here it is the candidate that the two
+    algebraic families above fail to be.
+
+    The transition's turn is fixed by the arc's measure (`dtheta = (90 - m)/2`), which fixes its
+    length, and the corner's symmetry about x = y then fixes where it meets the straight edge.
+    """
+    R = float(radius)
+    m = math.radians(float(arc_measure_deg))
+    dtheta = (math.pi / 2.0 - m) / 2.0
+    L = 2.0 * R * dtheta
+    n = max(8, int(samples) // 2)
+    s = np.linspace(0.0, L, n + 1)
+    theta = math.pi - (s * s) / (2.0 * R * L)     # heading: starts at 180 deg (-x), turns toward +y
+    ds = L / n
+    xs = np.zeros(n + 1)
+    ys = np.zeros(n + 1)
+    for i in range(1, n + 1):
+        xs[i] = xs[i - 1] + ds * 0.5 * (math.cos(theta[i - 1]) + math.cos(theta[i]))
+        ys[i] = ys[i - 1] + ds * 0.5 * (math.sin(theta[i - 1]) + math.sin(theta[i]))
+    # the arc's centre must sit on the diagonal for the corner to be symmetric, and that fixes the
+    # edge offset p. The normal towards the centre is perpendicular to the end heading.
+    nx, ny = math.cos(theta[-1] + math.pi / 2.0), math.sin(theta[-1] + math.pi / 2.0)
+    if nx + ny < 0.0:
+        nx, ny = -nx, -ny
+    p = float(ys[-1] - xs[-1] + R * (ny - nx))
+    top = np.stack([p + xs, ys], axis=1)
+    A = top[-1]
+    cc = A + R * np.array([nx, ny])
+    # TRAVERSE THE ARC THE WAY THE TRANSITION ARRIVES. `atan2` returns an angle in (-pi, pi], so
+    # `a0 +/- m` picked the MAJOR arc (324 degrees instead of 36) and left a cusp worth +5408% of
+    # curvature. The direction is chosen by matching the tangent, not by the sign of a subtraction.
+    a0 = math.atan2(A[1] - cc[1], A[0] - cc[0])
+    heading = np.array([math.cos(theta[-1]), math.sin(theta[-1])])
+    increasing = np.array([-math.sin(a0), math.cos(a0)])
+    step = m if float(np.dot(increasing, heading)) > 0.0 else -m
+    alphas = a0 + np.linspace(0.0, step, max(4, n // 2) + 1)
+    arc = cc + R * np.stack([np.cos(alphas), np.sin(alphas)], axis=1)
+    left = top[::-1][:, ::-1]
+    return np.vstack([top, arc[1:], left[1:]])
+
+
 def render_inset(inset_fn, extent, pad=6, ss=8):
     """Coverage of a corner given its boundary as x(y) = inset_fn(y), over a [0, extent] box.
 
@@ -549,12 +736,42 @@ def _case_realistic():
     return problems, fields
 
 
+def _case_curvature():
+    """The curvature instrument, judged FIRST on cases whose answer is known by definition.
+
+    A circular arc has CONSTANT curvature 1/R, so the instrument must call it continuous and read
+    1/R. The Figma construction is the curve on screen today, and its curvature SPIKE is the "angle"
+    the user sees in the highlight; the instrument must FLAG it. If it cannot tell those two apart it
+    cannot judge a replacement either -- which is the whole reason this case exists before any
+    candidate is written.
+    """
+    problems = []
+    arc = curvature_verdict(circle_arc_points(RADIUS), RADIUS)
+    if arc["spike"]:
+        problems.append(f"a circular arc was called non-continuous ({arc['overshoot_pct']:+.1f}% over)")
+    if abs(arc["curvature_max"] - 1.0 / RADIUS) > 0.02 / RADIUS:
+        problems.append(f"the arc read {arc['curvature_max']:.5f}, 1/R is {1.0 / RADIUS:.5f}")
+    figma = curvature_verdict(figma_curve(RADIUS, SUPERELLIPSE_SMOOTHING, samples=2000), RADIUS)
+    if not figma["spike"]:
+        problems.append("the Figma curve's curvature spike was NOT detected: the instrument cannot "
+                        "see what the user sees, so it cannot judge its replacement")
+    if figma["overshoot_pct"] < 20.0:
+        problems.append(f"the Figma spike read {figma['overshoot_pct']:+.1f}%, expected about +47%")
+    fields = (f"arc_max={_fmt(arc['curvature_max'], 5)} (1/R={_fmt(1.0 / RADIUS, 5)})"
+              f" figma_max={_fmt(figma['curvature_max'], 5)}"
+              f" figma_overshoot={_fmt(figma['overshoot_pct'], 1)}%"
+              f" figma_spike={figma['spike']}"
+              f" arc_maxima={arc['maxima']} figma_maxima={figma['maxima']}")
+    return problems, fields
+
+
 def self_test():
     cases = (
         ("circle", _case_circle),
         ("flat", _case_flat),
         ("spike", _case_spike),
         ("apple", _case_apple),
+        ("curvature", _case_curvature),
         ("frame", _case_frame),
         ("image_png", _case_image_png),
         ("realistic", _case_realistic),
@@ -670,10 +887,37 @@ def main(argv=None):
     parser.add_argument("--radius", type=float, default=RADIUS)
     parser.add_argument("--background", help="auto by default; else 'R,G,B' in 0..255")
     parser.add_argument("--tolerance", type=float, default=0.15)
+    parser.add_argument("--smoothing", type=float, default=SUPERELLIPSE_SMOOTHING,
+                        help="the kit's cornerSmoothing, for the curves that take one")
+    parser.add_argument("--curvature", metavar="CURVE",
+                        help="judge a named corner curve's curvature profile and exit: "
+                             "circle | figma | superellipse:N | g2bezier")
     args = parser.parse_args(argv)
 
     if args.self_test:
         return self_test()
+    if args.curvature:
+        name = args.curvature
+        if name == "circle":
+            points = circle_arc_points(args.radius)
+        elif name == "figma":
+            points = figma_curve(args.radius, args.smoothing, samples=4000)
+        elif name.startswith("superellipse"):
+            n = float(name.split(":")[1]) if ":" in name else 4.0
+            points = superellipse_arc_points(args.radius, n)
+        elif name == "g2bezier":
+            points = g2_bezier_corner_points(args.radius, 90.0 * (1.0 - args.smoothing),
+                                             (1.0 + args.smoothing) * args.radius)
+        elif name == "clothoid":
+            points = clothoid_corner_points(args.radius, 90.0 * (1.0 - args.smoothing))
+        else:
+            parser.error(f"unknown curve '{name}'")
+        v = curvature_verdict(points, args.radius)
+        print(f"curve={name} radius={args.radius:g} smoothing={args.smoothing:g}"
+              f" kappa_min={v['curvature_min']:.5f} kappa_max={v['curvature_max']:.5f}"
+              f" arc={v['arc_curvature']:.5f} overshoot_pct={v['overshoot_pct']:+.1f}"
+              f" spike={v['spike']} maxima={v['maxima']}")
+        return 0
     if not args.image:
         parser.error("one of --self-test or --image is required")
 
