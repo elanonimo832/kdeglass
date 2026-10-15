@@ -67,7 +67,8 @@ BACKGROUND_RADIUS = int(DEFAULTS.get("BackgroundRadius", 16))
 MATERIAL_BOOST = DEFAULTS.get("MaterialBoost", 1.20)
 MATERIAL_GAIN = DEFAULTS.get("MaterialGain", 1.60)
 REFRACTION = DEFAULTS.get("Refraction", 3.0)
-SPECULAR = DEFAULTS.get("Specular", 0.75)
+RIM_COLOUR = DEFAULTS.get("RimColour", 1.8)
+SPECULAR = DEFAULTS.get("Specular", 0.0)
 SPECULAR_WIDTH = DEFAULTS.get("SpecularWidth", 6.0)
 RIM = DEFAULTS.get("Rim", 0.20)
 RIM_WIDTH = DEFAULTS.get("RimWidth", 12.0)
@@ -157,7 +158,7 @@ def smoothstep(edge0, edge1, x):
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
              gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0,
-             specular=SPECULAR, specular_width=SPECULAR_WIDTH):
+             specular=SPECULAR, specular_width=SPECULAR_WIDTH, rim_colour_boost=RIM_COLOUR):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
     # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
@@ -214,6 +215,9 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         r = (1.0 - smoothstep(0.0, rim_width, to_edge))[..., None] * rim_strength
         el = luma(desktop)[..., None]
         rim_colour = np.clip(el + (desktop - el) * max(boost, 1.2), 0, 1)
+        # the band's own chroma, stronger: the environment's colour as Apple's edge carries it
+        rl = luma(rim_colour)[..., None]
+        rim_colour = np.clip(rl + (rim_colour - rl) * rim_colour_boost, 0, 1)
         result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
         result = result * (1 - r * 0.15) + 1.0 * (r * 0.15)
         # the bend: the backdrop, displaced toward the interior
@@ -301,6 +305,7 @@ def main():
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
     ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
+    ap.add_argument("--RimColour", type=float, default=RIM_COLOUR)
     ap.add_argument("--Specular", type=float, default=SPECULAR)
     ap.add_argument("--SpecularWidth", type=float, default=SPECULAR_WIDTH)
     ap.add_argument("--Dispersion", type=float, default=0.0,
@@ -335,7 +340,7 @@ def main():
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
                    args.Refraction, args.RimWidth, args.Dispersion, args.Specular,
-                   args.SpecularWidth)
+                   args.SpecularWidth, args.RimColour)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0

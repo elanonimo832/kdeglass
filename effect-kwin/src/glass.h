@@ -187,6 +187,14 @@ private:
     //
     // It also re-reads the kit's token: `splay_regular = 20` is the SPREAD OF THE REFRACTION, not the
     // width of a white highlight, which is the reading this default was built on.
+    // How much the edge band's own chroma is multiplied, around its own luminance. The user's reading
+    // of Apple's material -- the edge takes the environment's colours -- measured on their sample: the
+    // band against the dock's edge is blue at a chroma of 57 where its surroundings are at 1. The
+    // refraction brings that colour; the frost and the knee mute it; this is what restores it, and it
+    // applies to the band alone. 1.0 leaves it as the frost delivered it.
+    static constexpr float kRimColour = 1.8f;
+    float m_rimColour = kRimColour;
+
     static constexpr float kSpecular = 0.0f;
     float m_specular = kSpecular;
     static constexpr float kSpecularWidth = 6.0f;

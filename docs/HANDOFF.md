@@ -1209,6 +1209,36 @@ M1.5 therefore closes as a negative result with a knob attached: the highlight i
 default, and the edge's colour behaviour is the refraction's job -- which is where the user's
 description points.
 
+## 9r. The term Apple actually uses: the edge carries the environment's colour
+
+With the white specular off, the user's reading of Apple's material became the work: "toma del entorno
+los colores... la linea superior tomo el color predominante de la parte inferior de lo que habia bajo
+el dock, y la linea inferior tomo el color de lo que habia arriba". Their sample agrees -- the band at
+that edge is a clear blue, chroma 57, where its surroundings sit at chroma 1.
+
+The mechanism was already there and was not doing enough: the refraction displaces the frost's uv
+toward the interior, so the band DOES sample the backdrop opposite the edge, but the frost averages
+that colour and the soft knee compresses it. Measured, the band arrived at a chroma of **35.1** against
+an interior of **34.2** -- the same colour, which is precisely what the user was reporting.
+
+`RimColour` multiplies the BAND's chroma around its own luminance, and nothing else:
+
+| `RimColour` | band chroma | interior |
+|---|---|---|
+| 1.0 (as the frost delivered it) | 35.1 | 34.2 |
+| 1.4 | 39.7 | 34.2 |
+| **1.8 (default)** | **44.2** | 34.2 |
+| 2.6 | 52.4 | 34.2 |
+
+The middle of the bar does not move, which the test asserts, and the term is a knob because the
+amount is a screen judgement like every other one in this file.
+
+Two lessons landed together here, and they are the same lesson: MY MEASUREMENTS WERE RIGHT AND THE
+QUANTITY WAS WRONG. The white specular was calibrated to half a level against a number that Apple's
+edge does not use, and the refraction was carrying the environment's colour at the exact strength of
+the interior, which is to say invisibly. Both were found by the user looking at a sample, and both
+would have passed any amount of arithmetic.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

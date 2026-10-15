@@ -72,6 +72,7 @@ uniform float uMaterialBoost;
 uniform float uMaterialGain;
 uniform float uRefraction;
 uniform float uRimWidth;
+uniform float uRimColour;
 uniform float uSpecular;
 uniform float uSpecularWidth;
 in vec2 vTexCoord;
@@ -518,8 +519,19 @@ void main()
         // approximates that first: the amplified backdrop, over a wider falloff, with a small
         // specular lift on top instead of a white line. True refraction displaces the sample
         // (that is `refraction = 70`) and is the next milestone, not this.
+        // THE EDGE CARRIES THE ENVIRONMENT'S COLOUR, which is the user's own reading of Apple's
+        // material and the reason the white specular was turned off: "toma del entorno los colores...
+        // la linea superior tomo el color predominante de la parte inferior de lo que habia bajo el
+        // dock". Measured on their sample, the band at that edge is a clear blue -- 129, 150, 186, a
+        // chroma of 57 -- while its surroundings sit at a chroma of 1. The refraction already brings
+        // that colour, because it displaces the frost's uv toward the interior, but the frost
+        // averages it and the soft knee compresses it, so it arrives muted. This is the band's own
+        // chroma around its own luminance: the environment's colour, STRONGER, without touching the
+        // middle of the bar -- which is what a glass bevel does and what a fixed white line destroyed.
         float edgeLuma = dot(desktop, kLuma);
         vec3 rimColour = clamp(edgeLuma + (desktop - edgeLuma) * max(uMaterialBoost, 1.2), 0.0, 1.0);
+        float rimLuma = dot(rimColour, kLuma);
+        rimColour = clamp(vec3(rimLuma) + (rimColour - rimLuma) * uRimColour, 0.0, 1.0);
         result = mix(result, rimColour, rim * 0.85);
         // M1.5 -- THE SPECULAR HIGHLIGHT, and the kit HAS its two numbers, in [liquid_glass]. Both
         // were sitting there unread: `light_angle = 0`, the direction of the light source, which
@@ -666,6 +678,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     m_materialGain = float(cfg.readEntry("MaterialGain", double(kMaterialGain)));
     m_refraction = float(cfg.readEntry("Refraction", double(kRefraction)));
     m_rimWidth = float(cfg.readEntry("RimWidth", double(kRimWidth)));
+    m_rimColour = float(cfg.readEntry("RimColour", double(kRimColour)));
     m_specular = float(cfg.readEntry("Specular", double(kSpecular)));
     m_specularWidth = float(cfg.readEntry("SpecularWidth", double(kSpecularWidth)));
 
@@ -1171,6 +1184,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uMaterialGain", m_materialGain);
     m_shader->setUniform("uRefraction", m_refraction);
     m_shader->setUniform("uRimWidth", m_rimWidth);
+    m_shader->setUniform("uRimColour", m_rimColour);
     m_shader->setUniform("uSpecular", m_specular);
     m_shader->setUniform("uSpecularWidth", m_specularWidth);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);

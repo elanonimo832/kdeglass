@@ -73,7 +73,7 @@ show() {
 # given. Ranges are checked BEFORE anything is written, so a rejected argument changes nothing.
 range_of() { # range_of <Key> -> "min max", or nothing if unconstrained
     case "$1" in
-        GlassAlpha|Rim|MaterialBoost)                    echo "0 2" ;;
+        GlassAlpha|Rim|MaterialBoost|RimColour)          echo "0 3" ;;
         MaterialGain)                                    echo "0.5 3" ;;
         Refraction)                                      echo "0 32" ;;
         RimWidth)                                        echo "1 32" ;;

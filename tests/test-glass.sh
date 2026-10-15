@@ -591,9 +591,10 @@ sep = {}
 # SPECULAR OFF: it saturates the edge toward white, and where one channel clips before another the
 # clipping itself creates red-blue separation -- a real effect and a different one.
 def sep_at(refraction):
-    out = S.simulate(tema, fondo, dispersion=0.29, specular=0.0, refraction=refraction)
+    out = S.simulate(tema, fondo, dispersion=0.29, specular=0.0, refraction=refraction,
+                     rim_colour_boost=1.0)
     return np.abs(out[1:9, 40:480, 0] - out[1:9, 40:480, 2]).max() * 255
-sin = S.simulate(tema, fondo, dispersion=0.0, specular=0.0)
+sin = S.simulate(tema, fondo, dispersion=0.0, specular=0.0, rim_colour_boost=1.0)
 print(f"sin dispersion {np.abs(sin[1:9,40:480,0]-sin[1:9,40:480,2]).max()*255:.1f}  "
       f"con refraction 6: {sep_at(6.0):.1f}  con refraction 20: {sep_at(20.0):.1f}")
 assert np.abs(sin[1:9, 40:480, 0] - sin[1:9, 40:480, 2]).max() == 0, "grey must stay grey"
@@ -644,7 +645,7 @@ import simulate as S
 h, w = 60, 500
 tema = np.full((h, w, 3), 0.93); tema[20:34, 200:300] = 0.15
 def bandas(nivel, spec):
-    out = S.simulate(tema, np.full((h, w, 3), nivel), specular=spec)
+    out = S.simulate(tema, np.full((h, w, 3), nivel), specular=spec, rim_colour_boost=1.0)
     c = out[12:24].mean()
     return (out[0:2].mean() - c) * 255, (out[h-2:h].mean() - c) * 255
 # IT IS OFF BY DEFAULT now -- the user's correction: Apple's edge carries the ENVIRONMENT's colour
@@ -669,3 +670,30 @@ afirmar_codigo "and a header that cannot be read is LOUD" "$EF/simulate.py" 'cou
 desde_raiz=$(python3 -c "import sys; sys.path.insert(0,'$EF'); import simulate as S; print(S.SPECULAR)")
 desde_tmp=$(cd /tmp && python3 -c "import sys; sys.path.insert(0,'$EF'); import simulate as S; print(S.SPECULAR)")
 afirmar_igual "the same default from any directory" "$desde_raiz" "$desde_tmp"
+
+echo "  -- the edge carries the environment's colour, which is the user's reading of Apple --"
+# "en apple no es color fijo, toma del entorno los colores... la linea superior tomo el color
+# predominante de la parte inferior de lo que habia bajo el dock". Measured on their sample, the band
+# at that edge is a clear blue (chroma 57) where its surroundings are near-grey (chroma 1). Without
+# this term the model gave the band a chroma of 35.1 against an interior of 34.2 -- the same colour,
+# which is exactly what they were reporting: the edge was NOT carrying the environment.
+if timeout 300 python3 - <<'PY' >/tmp/rimcolour.txt 2>&1
+import sys; sys.path.insert(0, "effect-kwin")
+import numpy as np
+import simulate as S
+h, w = 60, 500
+tema = np.full((h, w, 3), 0.93); tema[20:34, 200:300] = 0.15
+fondo = np.zeros((h, w, 3)); fondo[:, :, 2] = 0.82; fondo[:, :, 1] = 0.62; fondo[:, :, 0] = 0.45
+def croma(x):
+    return (x.max(axis=2) - x.min(axis=2)).mean() * 255
+sin = S.simulate(tema, fondo, rim_colour_boost=1.0, specular=0.0)
+con = S.simulate(tema, fondo, specular=0.0)
+b_sin, i_sin = croma(sin[0:3]), croma(sin[14:26, 60:440])
+b_con, i_con = croma(con[0:3]), croma(con[14:26, 60:440])
+print(f"sin el termino: banda {b_sin:.1f} interior {i_sin:.1f} | con {S.RIM_COLOUR}: banda {b_con:.1f} interior {i_con:.1f}")
+assert abs(b_sin - i_sin) < 3, f"without it the band must match the interior, got {b_sin:.1f} vs {i_sin:.1f}"
+assert b_con > 1.2 * i_con, f"with it the band must be clearly more colourful, got {b_con:.1f} vs {i_con:.1f}"
+assert abs(i_con - i_sin) < 0.5, "and the middle of the bar must not change"
+PY
+then ok "the edge carries the environment's colour and the middle does not change ($(cat /tmp/rimcolour.txt))"
+else fallo "the edge colour term failed:"; sed 's/^/      /' /tmp/rimcolour.txt | head -4; fi
