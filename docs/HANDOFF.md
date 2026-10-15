@@ -1451,6 +1451,20 @@ backdrop cannot show refraction (measured 0.0 and I blamed the model), a grey on
 a stripe-free one cannot show moire. All three were mine, all three measured something true about a
 question nobody asked.
 
+**AND THE SAME BEND INVENTED A DIAGONAL WHERE IT HAD NO GRADIENT (2026-10-15).** The user, on the
+whole bar rather than a corner: "desde la parte superior todo en 90 grados y casi en la parte baja de
+la barra se van a un angulo sin curvas hacia la derecha". The direction was
+`normalize(gradiente + vec2(0.0001))`, and `gradiente` is the gradient of the FRAME's rounded
+distance -- which is `(0,0)` in the interior of a flat edge, because the BAR'S BOTTOM is the BAND's
+boundary and not a frame edge at all. The epsilon INSIDE the vector turned that zero into a fixed
+diagonal, and the falloff is still on near the bar's bottom, so the backdrop was pushed down-right
+across the lower half of the bar while the upper half (where `q.y > 0` gives a real vertical
+gradient) stayed straight. **It was a drift the user SAW:** the simulator divides by
+`max(length, 1e-6)` and a zero gradient there moves the sample by ZERO, so the two implementations
+disagreed about where the material bends. The shader now matches the simulator and both are pinned.
+Two hypotheses of mine died first (the corner smoothing, then the capture's reach) and neither was
+the cause; the image the user sent was the instrument that found it.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
