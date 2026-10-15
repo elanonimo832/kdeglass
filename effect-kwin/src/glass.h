@@ -136,16 +136,18 @@ private:
 
     QSize m_captureRegion;    // the region the CURRENT capture covers, in screen px
 
-    // THE ONE OPEN QUESTION OF M1.3a, as a live switch. The capture covers the window's
-    // EXPANDED geometry while every size the shader uses comes from the FRAME; if vTexCoord
-    // runs across the frame, the backdrop has to be sampled at the frame's sub-rectangle.
-    // Off = identity = the sampling that was verified before this existed.
+    // THE CAPTURE'S EXTENT, as a live switch, and the escape hatch for audit finding 1.
+    // True (default) captures only the BAND -- the title bar plus the reach of the kernels that read
+    // the background -- instead of the whole expanded geometry (up to 3840x2160 per window per
+    // repaint). False captures the whole expanded geometry, the pre-audit behaviour, at ~10-30x the
+    // traffic.
+    //
+    // The frame-to-capture MAPPING is NOT this switch: it is applied in both modes, because the frame
+    // is a sub-rectangle of the capture either way. It used to be gated on this key, and its OFF sent
+    // the identity, which was the known 14 px offset settled in HANDOFF step 3d.
     //
     //   kwriteconfig6 --file kwinrc --group Effect-macosglass2 --key CaptureSubRect true
     //   qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect macosglass2
-    //
-    // Then run measure-alignment.py with BackgroundRadius=0: the setting that reports
-    // (0, 0) is the true one. Both are stable, so this is a measurement, not a guess.
     // ---------------------------------------------------------------------
     // The material's EDGE and its AMPLIFICATION, both from the user's own measurement of a
     // macOS Dock: bright bands of 215-236 along the top and 206-218 along the bottom (the rim),

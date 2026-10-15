@@ -45,14 +45,19 @@ afirmar_codigo "the blit source is clamped to the render target" "$SOURCE" 'inte
 # Device pixels, not logical ones: at scale != 1 the texture must be larger than
 # frameGeometry(). KWin's own transform, not arithmetic done by hand.
 afirmar_codigo "the capture is sized in device pixels" "$SOURCE" 'mapToRenderTargetTexture'
-# AND it must cover exactly the region KWin redirected: the offscreen texture is
-# expandedGeometry()*scale (frame PLUS shadow margins) and the shader's vTexCoord runs
-# across all of it. A frame-sized capture samples the desktop shifted by the shadow
-# margin -- a bug that would have looked like a uv or flip problem.
+# AND it must cover the region KWin redirected, or a SUB-RECTANGLE of it: the offscreen
+# texture is expandedGeometry()*scale (frame PLUS shadow margins), and after audit finding 1
+# the capture is the BAND -- the title bar plus the kernels' reach -- with the frame-to-capture
+# mapping doing the rest. What must NOT happen is a capture sized to the frame, which samples
+# the desktop shifted by the shadow margin.
 afirmar_codigo "the capture covers the EXPANDED geometry KWin redirected" "$SOURCE" 'expandedGeometry[(][)]'
 afirmar_codigo "and it is snapped to the device grid the way KWin does" "$SOURCE" 'snapToPixels'
-negar "the capture is not framed to frameGeometry" \
-  grep -qE 'snapToPixels[(]w->frameGeometry' "$SOURCE"
+afirmar_codigo "the capture can be bounded to the title band" "$SOURCE" 'barHeight'
+afirmar_codigo "with a reach that covers the background kernels" "$SOURCE" 'const int reach = '
+afirmar_codigo "and the band stops at the bar plus that reach" "$SOURCE" \
+  'frame[.]y[(][)] [+] int[(]std::ceil[(]barHeight[)][)] [+] reach'
+negar "the capture region is never the frame alone" \
+  grep -qE 'const Rect region = snapToPixels[(]w->frameGeometry' "$SOURCE"
 # The composite happens in the shader, so there is no second quad that could be
 # drawn under the window (HANDOFF section 5, risk 4).
 afirmar_codigo "the shader samples the captured background" "$SOURCE" 'texture[(]background'
@@ -438,16 +443,22 @@ afirmar_codigo "and its light end" "$SOURCE" 'kLabelLight = 245[.]0 / 255[.]0'
 afirmar_codigo "picking by the material's luminance" "$SOURCE" 'backdropLuma > 0[.]5 [?] kLabelDark : kLabelLight'
 afirmar_codigo "over a ramp, not an instant jump" "$SOURCE" 'falta = clamp'
 
-echo "  -- the sampling sub-rectangle, ON, decided by arithmetic --"
+echo "  -- the sampling sub-rectangle, ON, and now load-bearing --"
 # The last open question of M1.3a: the capture covers the window's EXPANDED geometry while every
 # size the shader uses comes from the FRAME. The user ran both and saw no difference -- correctly,
 # because a 16 px frost over a smooth backdrop absorbs a 14 px offset and a 2% scale. The
 # arithmetic decides it instead: the corners prove vTexCoord runs across the FRAME, so the capture
-# must be sampled at the frame's sub-rectangle, and the identity is a KNOWN offset.
+# is sampled at the frame's sub-rectangle, and the identity is a KNOWN offset.
+# AUDIT FINDING 1 made that mapping MANDATORY in both capture modes, so `CaptureSubRect` now selects
+# the capture's EXTENT -- the band (default) or the whole expanded geometry (the pre-audit escape
+# hatch) -- instead of switching the mapping off.
 afirmar_codigo "the sub-rectangle switch exists" "$HEADER" 'm_captureSubRect'
-afirmar_codigo "and it is ON, because the identity is a known 14 px offset" "$HEADER" 'kCaptureSubRect = true'
-afirmar_codigo "with it on the frame's place inside the capture is used" "$SOURCE" \
-  'm_captureSubRect [?] m_sampleOffset : QVector2D[(]0[.]0f, 0[.]0f[)]'
+afirmar_codigo "and it is ON, so the band is the default capture" "$HEADER" 'kCaptureSubRect = true'
+afirmar_codigo "the frame's place inside the capture is ALWAYS applied" "$SOURCE" \
+  'm_shader->setUniform[(]"uBackgroundOffset", m_sampleOffset'
+negar "the identity mapping path is gone" \
+  grep -qE 'm_captureSubRect [?] m_sampleOffset' "$SOURCE"
+afirmar_codigo "and the switch selects the band instead" "$SOURCE" 'Rect region = expanded'
 afirmar_codigo "the frame's place inside the capture is computed" "$SOURCE" \
   'm_sampleOffset = QVector2D[(]float[(]frameRect[.]x[(][)] - region[.]x[(][)][)]'
 afirmar_codigo "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" \

@@ -4,6 +4,9 @@
 #include <QLoggingCategory>
 #include <QString>
 
+#include <algorithm>
+#include <cmath>
+
 #include <core/pixelgrid.h>
 #include <core/region.h>
 #include <core/rendertarget.h>
@@ -1052,20 +1055,40 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     if (!sourceFbo) {
         return false;
     }
-    // CAPTURE THE **EXPANDED** GEOMETRY, NOT THE FRAME, and this is not a detail.
+    // AUDIT 1: CAPTURE THE BAND, NOT THE WHOLE WINDOW.
     //
-    // KWin redirects the window into a texture of expandedGeometry() * scale
-    // (offscreeneffect.cpp, OffscreenData::maybeRender) -- the frame PLUS the
-    // decoration's shadow margins -- and the shader's vTexCoord runs 0..1 across
-    // that whole texture. Capturing only the frame would therefore map a frame-sized
-    // texture onto expanded-sized coordinates: the desktop would be sampled shifted
-    // by the top/left shadow margin and scaled by expanded/frame. The band would show
-    // the wrong part of the background, and it would look like a uv or flip bug.
+    // KWin redirects the window into a texture of expandedGeometry() * scale -- the frame PLUS the
+    // decoration's shadow margins -- and the shader's vTexCoord runs across the FRAME. The mapping
+    // `uBackgroundOffset + vTexCoord * uBackgroundScale` already turns a frame coordinate into a
+    // coordinate of ANY sub-rectangle of that texture, so the capture does not have to be the whole
+    // expanded geometry: it can be just the band, which is the only place the material is drawn. On
+    // a maximised window that is 3840x2160 -> 3840x(barHeight + 2*reach), which is the audit's big
+    // win; on the Konsole measured here it is 933x762 -> 933x84.
     //
-    // snapToPixels is KWin's own rounding to the device grid, the same call
-    // maybeRender uses, so the captured region is the texture's region and not
-    // approximately it.
-    const Rect region = snapToPixels(w->expandedGeometry(), viewport.scale()).toRect();
+    // WHAT THE BAND MUST COVER, or the kernels clamp and the edge streaks: the title bar plus the
+    // reach of every kernel that reads the BACKGROUND (the frost's outer radius and the refraction's
+    // displacement) above and below it. The TOP is capped by the expanded geometry, which is the
+    // texture's own edge anyway: this theme's top shadow margin is 2 px, so the frost has always
+    // clamped above the bar and the band does not make that worse.
+    //
+    // `CaptureSubRect` selects the EXTENT now: true (default) is the band, false is the whole
+    // expanded geometry -- the pre-audit behaviour, kept as the escape hatch if a screen disagrees.
+    const qreal barHeight = w->hasDecoration()
+        ? (w->clientGeometry().top() - w->frameGeometry().top()) : 0.0;
+    if (barHeight <= 0.0) {
+        return false;   // client-side decoration: there is no band to cover
+    }
+    // snapToPixels is KWin's own rounding to the device grid, the same call maybeRender uses, so the
+    // captured region is the texture's region and not approximately it.
+    const Rect expanded = snapToPixels(w->expandedGeometry(), viewport.scale()).toRect();
+    const Rect frame = snapToPixels(w->frameGeometry(), viewport.scale()).toRect();
+    const int reach = m_backgroundRadius + int(std::ceil(m_refraction)) + 8;
+    Rect region = expanded;
+    if (m_captureSubRect) {
+        const int top = std::max(expanded.y(), frame.y() - reach);
+        const int bottom = std::min(expanded.bottom(), frame.y() + int(std::ceil(barHeight)) + reach);
+        region = Rect(expanded.x(), top, expanded.width(), std::max(1, bottom - top));
+    }
     if (region.isEmpty()) {
         return false;
     }
@@ -1415,10 +1438,11 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         // bigger per texel and would multiply every radius by that factor.
         // OFF BY DEFAULT: with the switch off this sends the identity, which is exactly the
         // sampling that was verified before this existed.
-        const QVector2D uvOffset = m_captureSubRect ? m_sampleOffset : QVector2D(0.0f, 0.0f);
-        const QVector2D uvScale = m_captureSubRect ? m_sampleScale : QVector2D(1.0f, 1.0f);
-        m_shader->setUniform("uBackgroundOffset", uvOffset);
-        m_shader->setUniform("uBackgroundScale", uvScale);
+        // THE SUB-RECTANGLE MAPPING IS MANDATORY, in BOTH capture modes: the capture is the band or
+        // the whole expanded geometry, and the frame is a sub-rectangle of it either way. This used
+        // to be gated on `CaptureSubRect`, whose OFF sent the identity -- the KNOWN 14 px offset.
+        m_shader->setUniform("uBackgroundOffset", m_sampleOffset);
+        m_shader->setUniform("uBackgroundScale", m_sampleScale);
         if (m_captureRegion.width() > 0 && m_captureRegion.height() > 0) {
             m_shader->setUniform("uBackgroundTexel",
                                  QVector2D(1.0f / m_captureRegion.width(),

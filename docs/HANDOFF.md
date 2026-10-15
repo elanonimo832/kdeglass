@@ -1366,6 +1366,17 @@ QUEUED, with the audit's pointers, in its own order of impact x effort:
 | 7 | dead code: `deviation`/`byDeviation`, `kFrostOpacity`, `m_active` (never written, so the documented "effect off" path is unreachable), a duplicated luma and one re-fetch | glass.cpp:298-299, 254, 92 | low |
 | 8 | 19 string-keyed `setUniform` per window per paint: cache the locations | glass.cpp:1200-1255 | low |
 
+AN UPDATE (2026-10-15): **#1 is IMPLEMENTED and waiting for a screen.** `CaptureSubRect` now selects
+the capture's EXTENT -- the band by default -- and the frame-to-capture mapping became mandatory in
+BOTH modes, because its OFF was the known 14 px offset and could never be the identity again. The
+reach is `BackgroundRadius + ceil(Refraction) + 8`; this theme's 2 px top shadow margin caps it at the
+texture's own edge, exactly as the full capture already did, so the band is not a new clamp. Measured
+before the change: Konsole `933x762 -> 933x84` (~9x), a maximised window `3840x2160 -> 3840x~126`.
+**#2 was already done** in an earlier pass (the `glClear` is gated on
+`destination.size() != reducedSize`). The live check is the point: install and the journal's
+`capture texture QSize(...)` must read the band, then `measure-glass.py` must still say the band takes
+its colour from behind it.
+
 DO NOT TOUCH, per the audit, with its reasons: the 36-tap pyramid and the finest level's weight 6 (four
 equal levels only killed 82.5% of the text contrast and the radius alone did nothing); the 5-tap vertical
 median and the 9-exchange network (a mean or a horizontal sample brings the ghosting back); the content
