@@ -114,7 +114,8 @@ afirmar_codigo "by discarding what falls outside the rounding" "$SOURCE" 'discar
 # The condition itself, not just the two names: the first version of this assertion was
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
-afirmar_codigo "outside the arc, and only there" "$SOURCE" 'dot[(]corner, corner[)] > uCornerRadius [*] uCornerRadius'
+afirmar_codigo "the discard is the SIGN of the rounded distance" "$SOURCE" 'roundedDistance < 0[.]0'
+afirmar_codigo "which is a rounded-box distance at the corners" "$SOURCE" 'length[(]max[(]q, vec2[(]0[.]0[)][)][)] [+] min[(]max[(]q[.]x, q[.]y[)], 0[.]0[)]'
 # ...and only for the windows the material covers. A fullscreen window IS the screen:
 # rounding it would carve arcs out of the screen and show the desktop through them. A
 # client-side decoration is the case this effect leaves alone everywhere else.
@@ -504,7 +505,7 @@ echo "  -- the material's edge and its amplification --"
 # bands of 215-236 (top) and 206-218 (bottom) around a middle of 168-190, and a colour that
 # tracks the backdrop with a gain of ~1.6 -- which a plain blend cannot produce.
 afirmar_codigo "the band has an edge highlight" "$SOURCE" 'float rim = falloff [*] uRim'
-afirmar_codigo "measured from the frame's own edges and the bar's bottom" "$SOURCE" 'float toEdge = min'
+afirmar_codigo "and every edge term measures from THAT, not from the box" "$SOURCE" 'float toEdge = roundedDistance'
 afirmar_codigo "and the material amplifies the backdrop's chroma" "$SOURCE" 'uMaterialBoost'
 afirmar_igual "1.0 is off, so the knob defaults above it" "1" \
   "$(grep -c 'kMaterialBoost = 1[.]20f' effect-kwin/src/glass.h)"
@@ -655,7 +656,10 @@ print(f"fila 0: sin filo {lum(sin,0):.1f}/{croma(sin,0):.1f}  con filo {lum(con,
 assert S.SPECULAR > 0 and S.SPECULAR_WIDTH <= 3, "the fillet is narrow and part of Apple's edge"
 assert lum(con, 0) > lum(sin, 0) + 15, "the fillet must brighten the outermost row"
 assert croma(con, 0) < croma(sin, 0) - 5, "and LOWER its chroma: it is bright and neutral"
-assert abs(lum(con, 4) - lum(sin, 4)) < 2, "and be gone a few rows in: a fillet, not a band"
+# It DECAYS rather than vanishing: at 6 px the fillet deliberately reaches further than the 2 px
+# version did, and asserting "zero by row 4" would have pinned the old width in place -- which is
+# exactly what the stale `SpecularWidth <= 3` assertion did until the suite caught it.
+assert (lum(con, 4) - lum(sin, 4)) < 0.4 * (lum(con, 0) - lum(sin, 0)), "and decay inward: a fillet, not a band"
 PY
 then ok "the fillet brightens, desaturates and is gone by row 4 ($(cat /tmp/fillet.txt))"
 else fallo "the fillet structure is wrong:"; sed 's/^/      /' /tmp/fillet.txt | head -4; fi

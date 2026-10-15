@@ -165,15 +165,24 @@ void main()
     // So the shape is ours: a rounded rectangle with uCornerRadius, and `discard` for
     // what falls outside it. Nothing else is touched -- the shadow lives outside the
     // frame and survives. Radius 0 disables it and leaves whatever the theme drew.
-    if (uCornerRadius > 0.5) {
-        vec2 pos = vTexCoord * uTextureSize;
-        vec2 d = min(pos, uTextureSize - pos);
-        if (d.x < uCornerRadius && d.y < uCornerRadius) {
-            vec2 corner = vec2(uCornerRadius) - d;
-            if (dot(corner, corner) > uCornerRadius * uCornerRadius) {
-                discard;
-            }
-        }
+    // THE DISTANCE TO THE ROUNDED BOUNDARY, computed ONCE, because two copies of this arithmetic is
+    // exactly how the corners broke. The user: "las esquinas izquierda y derecha superior, al ser
+    // redondeadas no se ve que siga bien la linea". The discard knew about the arcs and the edge
+    // terms did not: they measured to the BOX, whose distance at a corner is larger than the arc's,
+    // so the fillet and the band thinned out exactly where the rounding begins. This is the standard
+    // rounded-box distance -- positive inside, zero on the boundary -- and the discard is now just
+    // its sign.
+    vec2 cornerPos = vTexCoord * uTextureSize;
+    vec2 cornerHalf = 0.5 * uTextureSize;
+    vec2 q = abs(cornerPos - cornerHalf) - (cornerHalf - vec2(uCornerRadius));
+    float edgeDistance = uCornerRadius
+                       - (length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - uCornerRadius);
+    // The band's bottom is the TITLE BAR's bottom, not the frame's, so the frame's lower edge is
+    // deliberately not part of this.
+    float topDistance = (1.0 - vTexCoord.y) * uTextureSize.y;
+    float roundedDistance = min(edgeDistance, uTitleBarHeight - topDistance);
+    if (roundedDistance < 0.0) {
+        discard;
     }
 
     float yPixelsFromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
@@ -371,11 +380,17 @@ void main()
         // composite that step 2 was verified with.
         const float kInnerScale = 0.375;   // kit: frost 6/16/16 -> 6 / 16
         vec3 desktop;
+        // The rounded distance, so the fillet and the band follow the arc around the corners instead
+        // of stopping at where the box's edge used to be. `toEdge` is the same quantity the discard
+        // tests below zero.
+        float toEdge = roundedDistance;
+        // The four straight distances are kept ONLY to say which way is inward (for the refraction)
+        // and which edge is the top (for the fillet's bias). Removing them entirely, as the first
+        // version of this fix did, leaves those two uses undefined.
         float fromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
         float fromBottom = uTitleBarHeight - fromTop;
         float fromLeft = vTexCoord.x * uTextureSize.x;
         float fromRight = uTextureSize.x - fromLeft;
-        float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
         float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);
         vec2 inward = normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)) + vec2(0.001));
         vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;

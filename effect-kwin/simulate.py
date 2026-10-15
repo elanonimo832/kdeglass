@@ -72,6 +72,7 @@ SPECULAR = DEFAULTS.get("Specular", 0.7)
 SPECULAR_WIDTH = DEFAULTS.get("SpecularWidth", 2.0)
 RIM = DEFAULTS.get("Rim", 0.20)
 RIM_WIDTH = DEFAULTS.get("RimWidth", 12.0)
+CORNER_RADIUS = DEFAULTS.get("CornerRadius", 20.0)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
 INNER_SCALE = 0.375          # the kit's frost 6/16/16, as in the shader
 LUMA = np.array([0.2126, 0.7152, 0.0722])
@@ -158,13 +159,22 @@ def smoothstep(edge0, edge1, x):
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
              gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0,
-             specular=SPECULAR, specular_width=SPECULAR_WIDTH, rim_colour_boost=RIM_COLOUR):
+             specular=SPECULAR, specular_width=SPECULAR_WIDTH, rim_colour_boost=RIM_COLOUR,
+             corner_radius=CORNER_RADIUS):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
     # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
     h0, w0 = backdrop.shape[:2]
     yy0, xx0 = np.mgrid[0:h0, 0:w0].astype(float)
-    to_edge = np.minimum(np.minimum(yy0, h0 - 1 - yy0), np.minimum(xx0, w0 - 1 - xx0))
+    # THE ROUNDED BOUNDARY, the same arithmetic as the shader, because two copies of it is how the
+    # corners broke there: a box distance is larger than the arc's at a corner, so the fillet thinned
+    # out exactly where the rounding begins.
+    co = np.array([w0, h0], dtype=float) * 0.5
+    ppos = np.stack([xx0, yy0], axis=2)
+    q = np.abs(ppos - co) - (co - corner_radius)
+    sdf = (np.sqrt((np.maximum(q, 0.0) ** 2).sum(axis=2))
+           + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
+    to_edge = -sdf
     falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
     shift_y = -np.sign((h0 - 1 - yy0) - yy0) * refraction * falloff
     shift_x = np.sign((w0 - 1 - xx0) - xx0) * refraction * falloff
@@ -311,6 +321,7 @@ def main():
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
     ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
+    ap.add_argument("--CornerRadius", type=float, default=CORNER_RADIUS)
     ap.add_argument("--RimColour", type=float, default=RIM_COLOUR)
     ap.add_argument("--Specular", type=float, default=SPECULAR)
     ap.add_argument("--SpecularWidth", type=float, default=SPECULAR_WIDTH)
@@ -346,7 +357,7 @@ def main():
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
                    args.Refraction, args.RimWidth, args.Dispersion, args.Specular,
-                   args.SpecularWidth, args.RimColour)
+                   args.SpecularWidth, args.RimColour, args.CornerRadius)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0
