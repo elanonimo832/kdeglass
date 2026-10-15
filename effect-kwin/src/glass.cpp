@@ -450,9 +450,15 @@ void main()
         // pixel line AWAY from the backdrop -- darker on a light one, lighter on a dark one.
         float hair = 1.0 - smoothstep(0.0, 1.5, toEdge);
         float backLuma = dot(desktop, kLuma);
-        vec3 lineColour = clamp(vec3(backLuma) + (desktop - backLuma) * 0.5, 0.0, 1.0)
-                        * (backLuma > 0.5 ? 0.55 : 1.6);
-        result = mix(result, clamp(lineColour, 0.0, 1.0), hair * uRim * 0.6);
+        // NOT starting the continuation with '*' on purpose: tests/lib.sh strips lines that begin
+        // with one, because that is how a C block comment continues, and a code line shaped like
+        // one is invisible to every assertion in the suite. A false negative waiting to happen.
+        // Independent of Rim on purpose: Rim is a subtle band, and a boundary that is subtle is
+        // the problem the user reported. macOS's window border is a hairline you can SEE -- about
+        // 60 levels away from a white backdrop -- so this one has its own strength.
+        float lineFactor = (backLuma > 0.5) ? 0.35 : 1.7;
+        vec3 lineColour = clamp(vec3(backLuma) + (desktop - backLuma) * 0.5, 0.0, 1.0) * lineFactor;
+        result = mix(result, clamp(lineColour, 0.0, 1.0), hair * 0.35);
         // THE EDGE IS THE BACKDROP'S OWN COLOUR, NOT WHITE. The first version was a two-texel
         // white line and the user's verdict was exact: "el de apple es mas grueso y se adapta al
         // color del background, el nuestro es una simple linea fina delgada blanca". Apple's

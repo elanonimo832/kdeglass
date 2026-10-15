@@ -38,6 +38,10 @@ afirmar_contiene() { if grep -qE "$3" "$2" 2>/dev/null; then ok "$1"; else fallo
 #
 # codigo_contiene is the pure predicate: the counters live in afirmar_codigo so a
 # test can ask the question without printing an OK/FAIL.
+# LIMIT, found the hard way: this strips any line whose first non-blank characters are //, * or /*.
+# A line of CODE that begins with '*' -- a multiplication continued onto the next line, which is
+# what a wrapped expression produces -- is therefore invisible to every assertion that uses this.
+# The fix in the shader was to not write one; the alternative is parsing C++ here.
 codigo_contiene() { # codigo_contiene <file> <ere-pattern>
   local sin_comentarios
   sin_comentarios=$(grep -vE '^[[:space:]]*(//|\*|/\*)' "$1" 2>/dev/null) || true

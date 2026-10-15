@@ -547,4 +547,8 @@ echo "  -- the edge bends the backdrop and draws a line of contrast --"
 # the backdrop.
 afirmar_codigo "the edge samples the capture, bent toward the interior" "$SOURCE" 'bendUv = uvBackground [+] inward'
 afirmar_codigo "the bend is a knob, from the kit's refraction" "$SOURCE" 'uRefraction'
-afirmar_codigo "a hairline goes away from the backdrop, not toward white" "$SOURCE" '0[.]55 : 1[.]6'
+afirmar_codigo "a hairline goes away from the backdrop, not toward white" "$SOURCE" 'lineFactor = [(]backLuma > 0[.]5[)] [?] 0[.]35 : 1[.]7'
+# And it has its OWN strength, independent of Rim: a boundary that is subtle is the problem the
+# user reported, and macOS's window border is one you can see -- 52.7 levels away from a white app
+# in the simulation of their exact case.
+afirmar_codigo "the hairline strength does not depend on Rim" "$SOURCE" 'hair [*] 0[.]35'

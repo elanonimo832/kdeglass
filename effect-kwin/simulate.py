@@ -181,8 +181,11 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         # the hairline of contrast: away from the backdrop, so the boundary reads on any of them
         hair = (1.0 - smoothstep(0.0, 1.5, to_edge))[..., None]
         back = luma(desktop)[..., None]
-        line = np.clip(np.clip(back + (desktop - back) * 0.5, 0, 1) * np.where(back > 0.5, 0.55, 1.6), 0, 1)
-        result = result * (1 - hair * rim_strength * 0.6) + line * (hair * rim_strength * 0.6)
+        # the same numbers as the shader, deliberately: this file is a re-implementation, so the
+        # two can drift and the only thing keeping them honest is that they are written the same
+        line_factor = np.where(back > 0.5, 0.35, 1.7)
+        line = np.clip(np.clip(back + (desktop - back) * 0.5, 0, 1) * line_factor, 0, 1)
+        result = result * (1 - hair * 0.35) + line * (hair * 0.35)
     return np.clip(result, 0, 1)
 
 
