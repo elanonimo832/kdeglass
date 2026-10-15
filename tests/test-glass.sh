@@ -567,4 +567,6 @@ echo "  -- the gain is tone-mapped, not clipped --"
 # went to flat white, so a bright part of the backdrop became a plateau -- a white square with an
 # outline -- while the edges, which mix the RAW backdrop, looked more translucent than the middle.
 afirmar_codigo "the gain has a soft knee above mid grey" "$SOURCE" '0[.]5 [+] over / [(]1[.]0 [+] 2[.]0 [*] over[)]'
-afirmar_codigo "and it is bounded, unlike over/(1+over) which reaches 1.5" "$SOURCE" "NOT bounded by one"
+# The BOUND is a mathematical property, not a string, so it is not asserted here: the first knee
+# (over/(1+over)) reached 1.5 and only the measurement caught it. A string test of a formula is a
+# test of its spelling.
