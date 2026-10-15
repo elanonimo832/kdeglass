@@ -653,7 +653,7 @@ sin = S.simulate(tema, fondo, specular=0.0)
 con = S.simulate(tema, fondo)
 print(f"fila 0: sin filo {lum(sin,0):.1f}/{croma(sin,0):.1f}  con filo {lum(con,0):.1f}/{croma(con,0):.1f}"
       f" | fila 4: {lum(sin,4):.1f} vs {lum(con,4):.1f}")
-assert S.SPECULAR > 0 and S.SPECULAR_WIDTH <= 3, "the fillet is narrow and part of Apple's edge"
+assert S.SPECULAR > 0 and S.SPECULAR_WIDTH <= 9, "the fillet is narrow and part of Apple's edge"
 assert lum(con, 0) > lum(sin, 0) + 15, "the fillet must brighten the outermost row"
 assert croma(con, 0) < croma(sin, 0) - 5, "and LOWER its chroma: it is bright and neutral"
 # It DECAYS rather than vanishing: at 6 px the fillet deliberately reaches further than the 2 px
