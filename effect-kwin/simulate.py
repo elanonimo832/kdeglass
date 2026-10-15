@@ -179,11 +179,13 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
     falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
     # NORMALISED, as the shader does with normalize(): bending per axis independently gave a corner
     # sqrt(2) times the displacement, which is the fourth drift the audit found.
-    inward_y = -np.sign((h0 - 1 - yy0) - yy0)
-    inward_x = np.sign((w0 - 1 - xx0) - xx0)
-    largo = np.maximum(np.sqrt(inward_x ** 2 + inward_y ** 2), 1e-6)
-    shift_y = (inward_y / largo) * refraction * falloff
-    shift_x = (inward_x / largo) * refraction * falloff
+    # The inward direction is the GRADIENT of the distance, as in the shader: the per-axis signs flip
+    # where the top and bottom distances cross and leave a horizontal seam mid-bar.
+    grad_x = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
+    grad_y = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
+    largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)
+    shift_y = (-grad_y / largo) * refraction * falloff
+    shift_x = (-grad_x / largo) * refraction * falloff
     if dispersion > 0.001:
         # DISPERSION: the bend moves each wavelength a little differently, which is why Apple's
         # glass shows colour fringing at its edges and the kit carries `refraction = 70` next to

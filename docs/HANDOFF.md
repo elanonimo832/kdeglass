@@ -1373,6 +1373,32 @@ AND ONE DOCUMENTATION LIE the audit caught on its way out: README.md documents `
 false while glass.h has it true, and the suite's default check skips non-numeric defaults, so it cannot
 see it. That is the next thing to fix.
 
+## 9w. The horizontal seam was the bend's direction, and a metric that flattered itself
+
+The user, on a zoomed corner: "en la linea vertical derecha e izquierda, antes de que empiece la curva
+se ve una linea horizontal justo en medio, se puede arreglar?". Yes, and the cause was the direction of
+the refraction: it was `normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)))`, two
+per-axis signs, and those flip where the top and bottom distances cross -- the middle of the bar. The
+bend changed direction abruptly there and drew a seam. It is the GRADIENT of the distance now, which is
+the true normal: along an axis on a straight edge, radial inside an arc, and the two agree exactly where
+they meet, so there is nothing to see.
+
+AND THE DISPERSION VERDICT REVERSES BACK. Fixing the direction meant re-measuring, and the measurement
+was 2.0 levels at a 6 px bend and 5.7 at 20 -- where the previous pass, in 9p, had reported 13.1 and
+30.7 and used that to overturn 9l's "below the perceptible level". The old metric was `|R - B|` in the
+band, which on a coloured backdrop measures the BACKDROP, not the dispersion: the control already read
+135.7 in the last attempt. The honest metric isolates the effect -- how far red moves MINUS how far blue
+moves -- and with no bend it reads exactly 0.0. On that metric the dispersion is subtle after all, so
+9l was right, 9p's reversal was wrong, and the error in 9p came from the same drifted simulator that
+this pass put right. Two verifications of the same quantity disagreed because one of them was measuring
+something else.
+
+A TESTING LESSON, NOW THREE TIMES OVER: a test backdrop has to be able to SHOW the variable. A uniform
+backdrop cannot show refraction (measured 0.0 and I blamed the model), a grey one cannot show dispersion
+(every channel samples the same greys, so no red-blue difference can exist however far it is bent), and
+a stripe-free one cannot show moire. All three were mine, all three measured something true about a
+question nobody asked.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

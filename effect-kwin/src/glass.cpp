@@ -408,7 +408,15 @@ void main()
         float fromLeft = vTexCoord.x * uTextureSize.x;
         float fromRight = uTextureSize.x - fromLeft;
         float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);
-        vec2 inward = normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)) + vec2(0.001));
+        // THE INWARD DIRECTION IS THE GRADIENT OF THE DISTANCE, not the sign of each axis. The signs
+        // flip where the top and the bottom distances cross -- the middle of the bar -- so the bend
+        // changed direction abruptly and left a horizontal seam on both sides, which is what the user
+        // saw: "en la linea vertical derecha e izquierda, antes de que empiece la curva se ve una linea
+        // horizontal justo en medio, se puede arreglar?". The gradient of the rounded-box distance is
+        // the true normal: on a straight edge it points along that axis, inside the arc it is radial,
+        // and the two agree exactly at the transition, so there is no seam to see.
+        vec2 gradiente = max(q, vec2(0.0)) * sign(cornerPos - cornerHalf);
+        vec2 inward = -normalize(gradiente + vec2(0.0001));
         vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
 
         if (uBackgroundRadius > 0.5) {

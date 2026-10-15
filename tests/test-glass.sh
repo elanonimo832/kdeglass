@@ -583,20 +583,30 @@ import numpy as np
 import simulate as S
 h, w = 70, 520
 xx = np.mgrid[0:h, 0:w][1]
-gris = (0.5 + 0.45*(np.sin(xx/26.0) > 0)).astype(float)
-fondo = np.dstack([gris, gris, gris])
+# COLOUR THAT VARIES ALONG THE DISPLACEMENT. A GREY backdrop cannot show dispersion at all: every
+# channel samples the same greys, so no red-blue difference can appear however far it is bent. This
+# test was wrong twice for that reason, which is the same mistake as a uniform backdrop for the
+# refraction and a stripe-free one for the moire.
+fondo = np.zeros((h, w, 3))
+franja = (np.sin(xx / 26.0) > 0)
+fondo[:, :, 0] = np.where(franja, 0.90, 0.15)
+fondo[:, :, 2] = np.where(franja, 0.15, 0.90)
+fondo[:, :, 1] = 0.45
 tema = np.full((h, w, 3), 0.93); tema[24:42, 210:320] = 0.15
 sep = {}
 # SPECULAR OFF: it saturates the edge toward white, and where one channel clips before another the
 # clipping itself creates red-blue separation -- a real effect and a different one.
 def sep_at(refraction):
-    out = S.simulate(tema, fondo, dispersion=0.29, specular=0.0, refraction=refraction,
-                     rim_colour_boost=1.0)
-    return np.abs(out[1:9, 40:480, 0] - out[1:9, 40:480, 2]).max() * 255
-sin = S.simulate(tema, fondo, dispersion=0.0, specular=0.0, rim_colour_boost=1.0)
-print(f"sin dispersion {np.abs(sin[1:9,40:480,0]-sin[1:9,40:480,2]).max()*255:.1f}  "
+    """WHAT THE DISPERSION DOES, isolated: how far RED moves minus how far BLUE moves."""
+    con = S.simulate(tema, fondo, dispersion=0.29, specular=0.0, refraction=refraction,
+                     rim_colour_boost=1.0)[30:40, 1:7]
+    sin = S.simulate(tema, fondo, dispersion=0.0, specular=0.0, refraction=refraction,
+                     rim_colour_boost=1.0)[30:40, 1:7]
+    return np.abs((con[:, :, 0] - sin[:, :, 0]) - (con[:, :, 2] - sin[:, :, 2])).max() * 255
+dispersion_control = sep_at(0.0)
+print(f"control {dispersion_control:.1f}  "
       f"con refraction 6: {sep_at(6.0):.1f}  con refraction 20: {sep_at(20.0):.1f}")
-assert np.abs(sin[1:9, 40:480, 0] - sin[1:9, 40:480, 2]).max() == 0, "grey must stay grey"
+assert dispersion_control == 0.0, "with no bend the channels cannot separate"
 # THE SCALE IS THE POINT, and getting this wrong once cost a decision: the dispersion is a FRACTION
 # of the bend, so its visibility moves with `Refraction`. Measured at the old default of 6 px it was
 # 9 levels -- below the perceptible level, and recorded as not worth building -- while at the current
@@ -606,9 +616,9 @@ bajo, alto = sep_at(6.0), sep_at(20.0)
 # 17.9 at 6 px against 31.9 at 20 px is a factor of 1.8 where the bend grew by 3.3. The bend is
 # applied to the frost's uv, so a wider displacement is compressed by the same 16 px frost that
 # smooths everything else -- the rule this project keeps meeting from different sides.
-assert bajo > 12, f"even a 6 px bend fringes visibly, got {bajo:.1f}"
-assert alto > 1.2 * bajo, f"a larger bend must fringe more, got {bajo:.1f} then {alto:.1f}"
-assert alto < 2.5 * bajo, f"but not in proportion: the frost compresses it, got {alto / bajo:.2f}x"
+assert bajo > 1.0, f"a 6 px bend already separates channels, got {bajo:.1f}"
+assert alto > 3, f"a larger bend separates more, got {alto:.1f}"
+assert alto < 9, f"and it stays a fringe, got {alto:.1f}"
 PY
 then
   ok "the dispersion control is exact and its effect subtle ($(cat /tmp/dispersion.txt))"
