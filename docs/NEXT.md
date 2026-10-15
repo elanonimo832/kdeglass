@@ -3,6 +3,9 @@
 One page for whoever opens this repository cold, human or agent. It says where the work is, what to do
 next and in which order, and the three mistakes this project has paid for often enough to be rules.
 
+**Starting a new session? Paste [`docs/PROMPT.md`](PROMPT.md) into it.** That prompt fixes the
+working directory, forbids creating any other folder, and lists what to read and verify first.
+
 ## What this is
 
 A KWin 6 effect (`effect-kwin/`, C++/Qt6/GLSL) that draws Apple's "liquid glass" title bar over every
