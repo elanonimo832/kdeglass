@@ -368,6 +368,15 @@ void main()
         // composite that step 2 was verified with.
         const float kInnerScale = 0.375;   // kit: frost 6/16/16 -> 6 / 16
         vec3 desktop;
+        float fromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
+        float fromBottom = uTitleBarHeight - fromTop;
+        float fromLeft = vTexCoord.x * uTextureSize.x;
+        float fromRight = uTextureSize.x - fromLeft;
+        float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
+        float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);
+        vec2 inward = normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)) + vec2(0.001));
+        vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
+
         if (uBackgroundRadius > 0.5) {
             // A PYRAMID OF FOUR LEVELS, and the reason is measured. The two-scale kernel had five
             // sample positions per axis across a 16 px footprint, which SAMPLES a line of backdrop
@@ -381,22 +390,29 @@ void main()
             // sample the letters -- while the level that actually AVERAGES a stem is the innermost
             // one. Giving it six times the weight of each coarse level is what makes the strokes
             // dissolve; the coarse ones are still there to carry the spread.
+            // THE BEND LIVES IN THE FROST, NOT BESIDE IT, and the user asked for exactly this:
+            // "que pasaria si le dieramos el valor escarcha a la orilla pero manteniendo la
+            // refraccion". Their reasoning is Apple's. An edge that is a SHARP displaced copy of the
+            // backdrop is the same material behaving two ways -- blurred in the middle, sharp at the
+            // rim -- and that is what made the rim look "mas translucida" than the centre. Apple's
+            // edge is a blurred displaced copy. Displacing the uv BEFORE the frost costs nothing:
+            // it REPLACES the separate raw fetch rather than adding one.
             const float kLevelScale[3] = float[3](0.5, 0.25, 0.125);
             vec4 frostSum = vec4(0.0);
             for (int x = -1; x <= 1; ++x) {
                 for (int y = -1; y <= 1; ++y) {
                     vec2 dir = vec2(float(x), float(y)) * uBackgroundTexel;
-                    frostSum += texture(background, uvBackground + dir * uBackgroundRadius);
+                    frostSum += texture(background, uvFrost + dir * uBackgroundRadius);
                     for (int nivel = 0; nivel < 3; ++nivel) {
                         float peso = (nivel == 2) ? 6.0 : 1.0;
                         frostSum += peso * texture(background,
-                                                   uvBackground + dir * uBackgroundRadius * kLevelScale[nivel]);
+                                                   uvFrost + dir * uBackgroundRadius * kLevelScale[nivel]);
                     }
                 }
             }
             desktop = (frostSum / 81.0).rgb;
         } else {
-            desktop = texture(background, uvBackground).rgb;
+            desktop = texture(background, uvFrost).rgb;
         }
 
         // APPLE'S MATERIAL DOES NOT VEIL THE BACKDROP, IT AMPLIFIES IT. Measured on the user's
@@ -454,12 +470,7 @@ void main()
         // tiene como un borde"). The band's four edges are all known here: the top and the sides
         // from the frame's own rectangle, and the bottom from the title bar's height, where the
         // hairline goes that macOS draws between the bar and the content.
-        float fromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
-        float fromBottom = uTitleBarHeight - fromTop;
-        float fromLeft = vTexCoord.x * uTextureSize.x;
-        float fromRight = uTextureSize.x - fromLeft;
-        float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
-        float rim = (1.0 - smoothstep(0.0, uRimWidth, toEdge)) * uRim;
+        float rim = falloff * uRim;
 
         // THE BEND, and this is what the user's new samples show. In one of them the edge carries
         // the backdrop's chroma as a GRADIENT across the boundary -- 62, 45, 19 over four rows --
@@ -474,12 +485,9 @@ void main()
         // ningun desplazamiento del color por las orillas". The band's blend weight had the same
         // mistake -- at most 20% of the bend could reach the screen. The falloff is 0..1 and it is
         // what both should scale by; Rim decides how much of the band is the bend at all.
-        float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);
-        if (uRefraction > 0.01 && falloff > 0.01) {
-            vec2 inward = normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)) + vec2(0.001));
-            vec2 bendUv = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
-            result = mix(result, texture(background, bendUv).rgb, falloff * clamp(uRim * 4.0, 0.0, 1.0));
-        }
+        // The bend is not here any more: it is applied to the frost's own uv above, so the rim is a
+        // blurred displaced copy of the backdrop like the centre, only bent. One fetch FEWER than
+        // the version that sampled the raw backdrop here.
 
         // AND A HAIRLINE OF CONTRAST, because the bend alone cannot save the case the user found:
         // a white window behind makes the band white too, and the boundary disappears where it

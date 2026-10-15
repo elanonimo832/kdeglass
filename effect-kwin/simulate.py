@@ -95,7 +95,7 @@ def bilinear(img, ys, xs):
             + img[y0, x1] * (1 - fy) * fx + img[y1, x1] * fy * fx)
 
 
-def frost(backdrop, radius, factor):
+def frost(backdrop, radius, factor, shift_y=None, shift_x=None):
     """The two scales of the kit's frost, over the reduced capture, as the shader does it.
 
     The output is at FULL size: the shader computes it per screen fragment by sampling the
@@ -108,6 +108,10 @@ def frost(backdrop, radius, factor):
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     # where this fragment is, in the reduced texture's own coordinates
     y0, x0 = yy / factor, xx / factor
+    if shift_y is not None:                      # the bend, applied BEFORE the frost as in the shader
+        y0 = y0 + shift_y / factor
+    if shift_x is not None:
+        x0 = x0 + shift_x / factor
     # FOUR LEVELS, equal weight each: the coarsest carries the spread and the finest (r/8 = 2 px)
     # averages a letter's stem. Measured: the surviving contrast of backdrop text fell sharply with
     # this, where raising the radius alone did nothing (100% at 16 px, 98% at 40 px).
@@ -143,7 +147,15 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
              gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH):
     factor = min(2, max(1, factor or max(1, radius // 8)))
-    desktop = frost(backdrop, radius, factor)
+    # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
+    # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
+    h0, w0 = backdrop.shape[:2]
+    yy0, xx0 = np.mgrid[0:h0, 0:w0].astype(float)
+    to_edge = np.minimum(np.minimum(yy0, h0 - 1 - yy0), np.minimum(xx0, w0 - 1 - xx0))
+    falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
+    shift_y = -np.sign((h0 - 1 - yy0) - yy0) * refraction * falloff
+    shift_x = np.sign((w0 - 1 - xx0) - xx0) * refraction * falloff
+    desktop = frost(backdrop, radius, factor, shift_y, shift_x)
 
     # the amplification: the backdrop's chroma around its own luminance, which a blend cannot do
     if boost > 1.001:
@@ -183,14 +195,7 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         # the bend: the backdrop, displaced toward the interior
         # the same correction as the shader: the displacement is in PIXELS, and the blend weight is
         # the falloff, not the falloff times Rim (which made a six pixel bend into 1.2)
-        falloff = (1.0 - smoothstep(0.0, rim_width, to_edge))
-        if refraction > 0.01:
-            inward_y = -np.sign((h - 1 - yy) - yy)
-            inward_x = np.sign((w - 1 - xx) - xx)
-            by = yy + inward_y * refraction * falloff
-            bx = xx + inward_x * refraction * falloff
-            w_bend = (falloff * min(1.0, rim_strength * 4.0))[..., None]
-            result = result * (1 - w_bend) + bilinear(backdrop, by, bx) * w_bend
+        # the bend is in the frost's own uv above; nothing to blend here
         # the hairline of contrast: away from the backdrop, so the boundary reads on any of them
         hair = (1.0 - smoothstep(0.0, 2.5, to_edge))[..., None]
         back = luma(desktop)[..., None]
@@ -217,7 +222,8 @@ def self_test():
     # boost 1.0 here: with alpha 0 the band is the frosted backdrop and NOTHING else, and the
     # amplification is a separate step that the comparison would otherwise include
     plana = np.full((60, 200, 3), 0.96)          # a bar with no chrome at all
-    sin_tono = simulate(plana, backdrop, glass_alpha=0.0, rim_strength=0.0, boost=1.0, gain=1.0)
+    sin_tono = simulate(plana, backdrop, glass_alpha=0.0, rim_strength=0.0, boost=1.0, gain=1.0,
+                        refraction=0.0)
     esperado = frost(backdrop, BACKGROUND_RADIUS, max(1, BACKGROUND_RADIUS // 8))
     e1 = np.abs(sin_tono - esperado).max()
     print(f"  GlassAlpha 0 -> the frosted backdrop            (max diff {e1:.4f})")

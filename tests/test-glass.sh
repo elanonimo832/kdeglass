@@ -136,7 +136,7 @@ afirmar_codigo "the shader can blur the captured background" "$SOURCE" 'uBackgro
 afirmar_codigo "the frost is measured in the capture's own texels" "$SOURCE" 'uBackgroundTexel'
 # Radius 0 must be the SINGLE-sample path, not a stack of samples of the same texel:
 # the sharp state has to stay identical to what was verified.
-afirmar_codigo "radius 0 keeps the single-sample path" "$SOURCE" 'desktop = texture[(]background, uvBackground[)]'
+afirmar_codigo "radius 0 keeps the single-sample path" "$SOURCE" 'desktop = texture[(]background, uvFrost[)]'
 # TWO SCALES, because one 3x3 at the outer spacing samples nine isolated points and a
 # background with text reads as nine ghost copies of it -- seen on screen at radius 16.
 # The pair is the kit's `frost 6/16/16`, the outer sampled twice because that is how the
@@ -458,7 +458,7 @@ echo "  -- the bar's kernels do not look outside the bar --"
 afirmar_codigo "the band's v span is computed" "$SOURCE" 'vBandBottom = 1[.]0 - uTitleBarHeight [*] uTexelSize[.]y'
 afirmar_codigo "the tone can only sample inside the bar" "$SOURCE" 'clamp[(]vTexCoord[.]y - toneRadius [*] uTexelSize[.]y, vBandBottom, vBandTop[)]'
 afirmar_igual "the backdrop kernel is NOT clamped (the backdrop goes past the bar)" "2" \
-  "$(grep -c 'uvBackground + dir' effect-kwin/src/glass.cpp)"
+  "$(grep -c 'uvFrost + dir' effect-kwin/src/glass.cpp)"
 
 echo "  -- the tone is a median, not a displaced blur --"
 # The user's second look, in their own words: "hay como botones fantasma arriba de los
@@ -503,7 +503,7 @@ echo "  -- the material's edge and its amplification --"
 # transparencia, y este toma el color del background pero lo hace mas fuerte". Measured: bright
 # bands of 215-236 (top) and 206-218 (bottom) around a middle of 168-190, and a colour that
 # tracks the backdrop with a gain of ~1.6 -- which a plain blend cannot produce.
-afirmar_codigo "the band has an edge highlight" "$SOURCE" 'float rim = [(]1[.]0 - smoothstep'
+afirmar_codigo "the band has an edge highlight" "$SOURCE" 'float rim = falloff [*] uRim'
 afirmar_codigo "measured from the frame's own edges and the bar's bottom" "$SOURCE" 'float toEdge = min'
 afirmar_codigo "and the material amplifies the backdrop's chroma" "$SOURCE" 'uMaterialBoost'
 afirmar_igual "1.0 is off, so the knob defaults above it" "1" \
@@ -545,7 +545,7 @@ echo "  -- the edge bends the backdrop and draws a line of contrast --"
 # outside, which is refraction. And the bend alone cannot fix their concrete complaint -- a white
 # window behind makes the band white, so the boundary vanishes -- which needs a hairline AWAY from
 # the backdrop.
-afirmar_codigo "the edge samples the capture, bent toward the interior" "$SOURCE" 'bendUv = uvBackground [+] inward'
+afirmar_codigo "the bend is applied to the frost's own uv" "$SOURCE" 'uvFrost = uvBackground [+] inward'
 afirmar_codigo "the bend is a knob, from the kit's refraction" "$SOURCE" 'uRefraction'
 afirmar_codigo "a hairline goes away from the backdrop, not toward white" "$SOURCE" 'lineFactor = [(]backLuma > 0[.]5[)] [?] 0[.]35 : 1[.]7'
 # And it has its OWN strength, independent of Rim: a boundary that is subtle is the problem the
@@ -560,7 +560,10 @@ echo "  -- the bend is measured in pixels, not in Rim units --"
 # Rim decides how much of the band is the bend at all. Simulated on a striped backdrop, the fix
 # moves edge pixels by up to 157.6 levels.
 afirmar_codigo "the displacement scales with the falloff" "$SOURCE" 'uRefraction [*] uBackgroundTexel [*] falloff'
-afirmar_codigo "and the band is mostly the bend at the edge" "$SOURCE" 'clamp[(]uRim [*] 4[.]0, 0[.]0, 1[.]0[)]'
+# The bend is no longer blended beside the frost -- it is the frost's own uv, which is why
+# frosting the rim costs a fetch LESS and makes the band one material instead of two.
+afirmar_codigo "the rim is the same frost, only bent" "$SOURCE" 'uvFrost = uvBackground [+] inward'
+afirmar_codigo "and its strength comes from the same falloff" "$SOURCE" 'float rim = falloff [*] uRim'
 
 echo "  -- the gain is tone-mapped, not clipped --"
 # "se ve un como cuadro blancoso en la parte central" was the hard clamp: everything above 0.625
