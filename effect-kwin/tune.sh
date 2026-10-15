@@ -85,8 +85,26 @@ range_of() { # range_of <Key> -> "min max", or nothing if unconstrained
     esac
 }
 
-valid_value() { # valid_value <Key> <Value> -> 0 if it is a number in range
+# THE BOOLEAN KEYS ARE NOT NUMBERS, and the range check refused them the day it landed: from then
+# until the user tried to run the alignment test, `CaptureSubRect` and `BackgroundFlipV` could not be
+# set at all -- "OUT OF RANGE: CaptureSubRect=false". A guard that makes two settings unreachable is
+# worse than the typo it was written to prevent.
+BOOLEAN_KEYS="CaptureSubRect BackgroundFlipV"
+
+allowed_of() { # allowed_of <Key> -> what the refusal should say
+    case " $BOOLEAN_KEYS " in
+        *" $1 "*) echo "true|false" ;;
+        *) local r; r=$(range_of "$1")
+           if [ -n "$r" ]; then echo "$r" | sed 's/ /../'; else echo "a number"; fi ;;
+    esac
+}
+
+valid_value() { # valid_value <Key> <Value> -> 0 if it is acceptable
     local k="$1" v="$2" rango min max
+    case " $BOOLEAN_KEYS " in
+        *" $k "*)
+            case "$v" in true|false|0|1) return 0 ;; *) return 1 ;; esac ;;
+    esac
     case "$v" in
         "" | *[!0-9.]*)  return 1 ;;                 # only digits and one dot
         *.*.*)           return 1 ;;                 # at most one dot
@@ -115,7 +133,7 @@ apply() { # apply <key=value>...
             return 2
         fi
         if ! valid_value "$k" "$v"; then
-            echo "OUT OF RANGE: $k=$v (allowed $(range_of "$k" | tr ' ' '.'))"
+            echo "OUT OF RANGE: $k=$v (allowed $(allowed_of "$k"))"
             case "$k" in
                 GlassAlpha) echo "  it is how much of the bar's colour stays: 0.25, not 40. At 40 the"
                             echo "  band becomes bar*40 - backdrop*39, which is how the buttons and the" ;;
@@ -158,7 +176,7 @@ case "${1:-}" in
         for par in "$@"; do
             k="${par%%=*}"; v="${par#*=}"
             if ! grep -qx "$k" <<< "$(known_keys)"; then echo "UNKNOWN KEY: $k"; exit 2; fi
-            valid_value "$k" "$v" || { echo "OUT OF RANGE: $k=$v"; exit 2; }
+            valid_value "$k" "$v" || { echo "OUT OF RANGE: $k=$v (allowed $(allowed_of "$k"))"; exit 2; }
         done
         echo "ok"
         ;;

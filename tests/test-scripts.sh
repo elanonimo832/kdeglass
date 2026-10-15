@@ -167,21 +167,31 @@ echo "  -- tune.sh refuses a value that would break the material --"
 # RimWidth=90: the values I had suggested, each with its DECIMAL POINT LOST. GlassAlpha=40 makes the
 # band `bar*40 - backdrop*39`, which is why the buttons and the title vanished, and nothing refused
 # it. --validate checks without writing, so this test cannot damage the user's settings.
+# The refusal's HEAD is the behaviour; the "(allowed ...)" tail is advice and may be reworded, so
+# the tests compare the head only. Asserting a whole message makes a test that breaks when somebody
+# improves the sentence, which is a test of prose rather than of the guard.
+refusa() { "$EF/tune.sh" --validate "$1" 2>&1 | tail -1 | cut -d'(' -f1 | sed 's/ *$//'; }
 afirmar_igual "a sane alpha passes" "ok" "$("$EF/tune.sh" --validate GlassAlpha=0.15 2>&1 | tail -1)"
-afirmar_igual "a lost decimal point is refused" "OUT OF RANGE: GlassAlpha=40" \
-  "$("$EF/tune.sh" --validate GlassAlpha=40 2>&1 | tail -1)"
-afirmar_igual "and so is its little brother" "OUT OF RANGE: GlassAlpha=15" \
-  "$("$EF/tune.sh" --validate GlassAlpha=15 2>&1 | tail -1)"
+afirmar_igual "a lost decimal point is refused" "OUT OF RANGE: GlassAlpha=40" "$(refusa GlassAlpha=40)"
+afirmar_igual "and so is its little brother" "OUT OF RANGE: GlassAlpha=15" "$(refusa GlassAlpha=15)"
 # Every key has its own range, not one global one: a radius of 50 is odd but legal, a GAIN of 50 is not.
 afirmar_igual "a large radius is still allowed" "ok" "$("$EF/tune.sh" --validate BackgroundRadius=50 2>&1 | tail -1)"
-afirmar_igual "a gain of 15 is not" "OUT OF RANGE: MaterialGain=15" \
-  "$("$EF/tune.sh" --validate MaterialGain=15 2>&1 | tail -1)"
-afirmar_igual "nor a refraction of 80" "OUT OF RANGE: Refraction=80" \
-  "$("$EF/tune.sh" --validate Refraction=80 2>&1 | tail -1)"
-afirmar_igual "nor a band 90 pixels wide" "OUT OF RANGE: RimWidth=90" \
-  "$("$EF/tune.sh" --validate RimWidth=90 2>&1 | tail -1)"
+afirmar_igual "a gain of 15 is not" "OUT OF RANGE: MaterialGain=15" "$(refusa MaterialGain=15)"
+afirmar_igual "nor a refraction of 80" "OUT OF RANGE: Refraction=80" "$(refusa Refraction=80)"
+afirmar_igual "nor a band 90 pixels wide" "OUT OF RANGE: RimWidth=90" "$(refusa RimWidth=90)"
 # A non-number is not a number either.
-afirmar_igual "words are refused" "OUT OF RANGE: GlassAlpha=none" \
-  "$("$EF/tune.sh" --validate GlassAlpha=none 2>&1 | tail -1)"
+afirmar_igual "words are refused" "OUT OF RANGE: GlassAlpha=none" "$(refusa GlassAlpha=none)"
 # And validation happens BEFORE anything is written: a good key next to a bad one changes nothing.
 afirmar_codigo "all arguments are validated before any is written" "$EF/tune.sh" 'VALIDATE EVERYTHING FIRST'
+
+echo "  -- the boolean keys are settable, which a range check once made impossible --"
+# The range check refused true/false from the day it landed until the user tried to run the alignment
+# test and got "OUT OF RANGE: CaptureSubRect=false". Two settings were unreachable for hours, and it
+# took somebody trying to USE one to find out: a guard that blocks a legitimate value is a worse bug
+# than the typo it prevents.
+afirmar_igual "CaptureSubRect=true is accepted" "ok" "$("$EF/tune.sh" --validate CaptureSubRect=true 2>&1 | tail -1)"
+afirmar_igual "and false too" "ok" "$("$EF/tune.sh" --validate CaptureSubRect=false 2>&1 | tail -1)"
+afirmar_igual "BackgroundFlipV as well" "ok" "$("$EF/tune.sh" --validate BackgroundFlipV=true 2>&1 | tail -1)"
+afirmar_igual "but not a word that is neither" "OUT OF RANGE: CaptureSubRect=maybe" "$(refusa CaptureSubRect=maybe)"
+afirmar_igual "and the refusal names the two it accepts" "true|false" \
+  "$("$EF/tune.sh" --validate CaptureSubRect=maybe 2>&1 | tail -1 | grep -o 'true|false')"
