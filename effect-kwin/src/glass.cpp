@@ -1192,17 +1192,23 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     // chase is a window that HAD the material and lost it when another window was
     // created. A single global counter cannot show that: what matters is whether
     // apply() keeps being called for a window that is still on screen.
-    static QHash<QString, int> counts;
+    // A DIAGNOSTIC MUST NOT GROW WITHOUT LIMIT, and this one did: it hashed `w->caption()` on every
+    // window on every repaint -- a QString copy and an allocation each -- accumulated an UNBOUNDED map
+    // (dynamic titles grow it forever, and nothing pruned it on window deletion), and formatted EVERY
+    // entry into a journal line every 300 paints. It is the same class as the prePaintWindow flood
+    // fixed earlier, and that fix was not applied here (audit finding 5). Keyed on the window pointer
+    // now, which costs nothing, bounded at 64 entries, and the report is a count rather than a
+    // concatenation of every caption ever seen.
+    static QHash<const void *, int> paintsPerWindow;
     static int total = 0;
-    const QString key = w->caption();
-    ++counts[key];
+    ++paintsPerWindow[w];
     ++total;
+    if (paintsPerWindow.size() > 64) {
+        paintsPerWindow.clear();
+    }
     if (total == 200 || (total % 300) == 0) {
-        QString resumen;
-        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) {
-            resumen += QStringLiteral("[%1 x%2] ").arg(it.key().left(14)).arg(it.value());
-        }
-        qInfo() << "[macos-glass] apply() totals:" << resumen;
+        qInfo() << "[macos-glass] apply() totals:" << total << "paints over"
+                << paintsPerWindow.size() << "windows";
     }
     if (!m_shader) {
         return;
