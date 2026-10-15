@@ -389,7 +389,7 @@ void main()
     // few pixels tall and the nearest sample is nineteen away, so up, down and further out are
     // all bar. The clamp keeps them inside the band, which is also what stops the strip at the
     // bar's bottom from coming back.
-    vec4 c0 = texture(sampler, vTexCoord);
+    vec4 c0 = window;   // the texel the band already fetched: re-reading it was one fetch too many
     vec4 c1 = texture(sampler, vec2(vTexCoord.x,
                                     clamp(vTexCoord.y - toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
     vec4 c2 = texture(sampler, vec2(vTexCoord.x,
@@ -432,9 +432,8 @@ void main()
     // needs to measure against: a glyph deviates from it (chrome), a bar pixel beside the
     // glyph does not (no halo), and a traffic light deviates from it (solid).
     //
-    // `high` is derived from `low` (3x) so there is ONE knob to turn on a screen.
-    float deviation = abs(dot(window.rgb - baseline, vec3(0.2126, 0.7152, 0.0722)));
-    float byDeviation = smoothstep(uChromeLow, uChromeLow * 3.0, deviation);
+    // The old `deviation`/`byDeviation` mask lived here. It was superseded by the COVERAGE below,
+    // which measures against the same median tone and is the one knob a screen turns.
 
     // COLOUR IS CHROME TOO, and it is the term that keeps the traffic lights SOLID.
     // A tight baseline sees the same colour in the middle of a 12 px disc as around it,
@@ -896,11 +895,9 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // `tune.sh` call pay a compile and a link on the compositor thread. loadShader()
     // already returns early when the shader exists; the uniforms are re-read per paint.
     loadShader();
-    if (m_active) {
-        const auto windows = effects->stackingOrder();
-        for (EffectWindow *w : windows) {
-            redirect(w);
-        }
+    const auto windows = effects->stackingOrder();
+    for (EffectWindow *w : windows) {
+        redirect(w);
     }
 
     // ASK FOR A FULL REPAINT, or the new values arrive only where a window happens to
@@ -937,11 +934,11 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
     static int logged = 0;
     const bool normal = w->isNormalWindow();
 
-    if (!m_active || !normal) {
+    if (!normal) {
         if (logged < 8) {
             ++logged;
             qInfo() << "[macos-glass] DIAGNOSE skip" << w->caption()
-                    << "active=" << m_active << "normal=" << normal;
+                    << "normal=" << normal;
         }
         return;
     }
@@ -1042,7 +1039,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // that the comment and the test claimed "at the start of every capture" and the code
     // did not deliver it; now it does.
     m_currentCapture = nullptr;
-    if (!m_active || !w->isNormalWindow() || !w->hasDecoration()) {
+    if (!w->isNormalWindow() || !w->hasDecoration()) {
         return false;
     }
     // No shader means apply() returns before drawing the band, so a capture would be
@@ -1308,13 +1305,13 @@ void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowP
     // second (seen in the real journal, 2026-10-14). A counter that stops incrementing
     // cannot be used as a gate, and a diagnostic that floods the log destroys the thing
     // it exists for: the journal stopped being readable exactly when it was needed.
-    const bool shouldLog = m_active && w->isNormalWindow() && pre < 6;
+    const bool shouldLog = w->isNormalWindow() && pre < 6;
     if (shouldLog) {
         ++pre;
         qInfo() << "[macos-glass] prePaintWindow" << w->caption().left(20)
-                << "normal=" << w->isNormalWindow() << "active=" << m_active;
+                << "normal=" << w->isNormalWindow();
     }
-    if (m_active && w->isNormalWindow()) {
+    if (w->isNormalWindow()) {
         // The scene blends a window only if it is told the window is translucent.
         // The shader writing an alpha is not enough on its own.
         data.setTranslucent();

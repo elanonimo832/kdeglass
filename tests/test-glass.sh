@@ -71,7 +71,7 @@ echo "  -- the chrome stays readable, and the corners stay round --"
 # were smeared into it. Now the blur is the BASELINE, and what deviates from it is the
 # chrome, which is drawn crisp over the glass -- the way macOS does it: the glass is
 # behind the chrome, not over it.
-afirmar_codigo "the chrome is found by its deviation from the bar's median tone" "$SOURCE" 'abs[(]dot[(]window[.]rgb - baseline'
+afirmar_codigo "the chrome is found by its coverage against the bar's median tone" "$SOURCE" 'byCoverage = smoothstep[(]uChromeLow'
 # The glass carries the bar's TONE, so any chrome left in it is a ghost of the title
 # behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
 # bar's height keeps ~4, which cannot be seen.
@@ -96,7 +96,7 @@ afirmar_codigo "and the adapted chrome is the one composited" "$SOURCE" 'mix[(]g
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar
 # pixels AROUND them were classified as chrome and drawn crisp: a bright halo around
 # each letter and each traffic light, which is what the user saw.
-afirmar_codigo "the chrome is measured against the bar's own median tone" "$SOURCE" 'window[.]rgb - baseline'
+afirmar_codigo "the chrome is measured against the bar's own median tone" "$SOURCE" 'toneLuma = dot[(]baseline, kLuma[)]'
 afirmar_codigo "and its threshold is one tunable knob" "$SOURCE" 'uChromeLow'
 # Colour is chrome too. Without this the traffic lights come out as bright rings with
 # glass in the middle, because a tight baseline sees the same colour in the centre of a
@@ -108,6 +108,21 @@ afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" 
 # anti-aliased boundary pixel, so drawing those "crisp" is a white fringe over our glass. The
 # estimated coverage turns a half-covered pixel into half glass.
 afirmar_codigo "the chrome weight is an estimated coverage" "$SOURCE" 'clamp[(][(]toneLuma - luma[)] / toneLuma'
+# #7 -- THE RETIRED DEVIATION MASK AND THE KNOBS THAT WERE NEVER WIRED. `deviation`/`byDeviation`
+# were superseded by the coverage above and left behind; `m_active` is never assigned, so every
+# `if (!m_active ...)` was dead and the documented "effect off" path was unreachable; `kFrostOpacity`
+# is a constant nothing reads. Absence is asserted by name, because a cleanup is exactly what puts
+# dead code back -- and the two assertions above used to pin the RETIRED expression, which kept it
+# alive (an assertion on a name, not on the wiring).
+#
+# The removals are checked with codigo_contiene, which IGNORES comments: a name kept alive in the
+# comment that explains its removal is not code, and an assertion that cannot tell them apart is noise.
+negar "the retired deviation mask is gone" codigo_contiene "$SOURCE" 'byDeviation'
+negar "the never-assigned effect-off flag is gone from the source" codigo_contiene "$SOURCE" 'm_active'
+negar "and from the header" codigo_contiene "$HEADER" 'm_active'
+negar "the unread frost-opacity constant is gone" codigo_contiene "$HEADER" 'kFrostOpacity'
+# The tone median's centre tap re-read the texel the band had already fetched; it reuses it now.
+afirmar_codigo "the tone median reuses the window fetch" "$SOURCE" 'vec4 c0 = window'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
 afirmar_codigo "the band's colour is premultiplied by its alpha" "$SOURCE" 'result [*] alfa'
