@@ -933,3 +933,16 @@ afirmar_codigo "and resolved by a helper" "$SOURCE" 'int MacosGlassEffect::unifo
 afirmar_codigo "with the per-paint uniforms going through it" "$SOURCE" 'setUniform[(]uniformLocation[(]'
 nombres=$(grep -c 'm_shader->setUniform("' "$SOURCE")
 afirmar_igual "no name-keyed setUniform is left in the paint path" "0" "$nombres"
+
+echo "  -- #4: the capture cache is per window AND per size --"
+# The audit's finding: an LRU of 4 keyed only by SIZE is pessimal for a cyclic set of windows with
+# distinct sizes -- each repaint evicts the entry the next one needs. Keying by the WINDOW too means
+# a repainting window keeps ITS slot, and keeping the SIZE in the key is what guarantees the texture
+# matches after a resize. The bound rises because audit 1 shrank each slot from up to 8 MiB of
+# expanded window to a band of ~0.5 MiB, so eight band slots cost less than one old slot.
+afirmar_codigo "the cache key carries the window and the size" "$HEADER" 'struct CaptureKey'
+afirmar_codigo "with the window as its first field" "$HEADER" 'EffectWindow [*]window'
+afirmar_codigo "and it is built from the current window and reduced size" "$SOURCE" 'CaptureKey key[{]w, reducedSize'
+afirmar_igual "the bound covers a desktop without evicting" "8" \
+  "$(grep -oE 'kMaxCaptureSlots = [0-9]+' "$HEADER" | grep -oE '[0-9]+')"
+afirmar_codigo "a deleted window's slots are dropped" "$SOURCE" 'it->first[.]window == w'
