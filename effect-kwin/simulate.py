@@ -295,7 +295,7 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
              gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0,
              specular=SPECULAR, specular_width=SPECULAR_WIDTH, rim_colour_boost=RIM_COLOUR,
-             corner_radius=CORNER_RADIUS):
+             corner_radius=CORNER_RADIUS, corner_smoothing=0.0):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
     # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
@@ -307,16 +307,47 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
     co = np.array([w0, h0], dtype=float) * 0.5
     ppos = np.stack([xx0, yy0], axis=2)
     q = np.abs(ppos - co) - (co - corner_radius)
-    sdf = (np.sqrt((np.maximum(q, 0.0) ** 2).sum(axis=2))
-           + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
+    if corner_smoothing > 0.001:
+        # EL SQUIRCLE EN EL RENDER, con la misma geometria que `corner_sd`: en la caja de la esquina
+        # `largo` (la distancia al centro del arco) se sustituye por la distancia recta al arco de
+        # superelipse, y la direccion del doblado por la del punto mas cercano de la curva. Con
+        # `smoothing=0` NO se entra aqui, para que el caso ya aprobado en pantalla quede literal.
+        qp = np.maximum(q, 0.0)
+        largo_circ = np.hypot(qp[..., 0], qp[..., 1])
+        r_sq = float(corner_radius)
+        n_sq = squircle_n(corner_smoothing)
+        p_sq = 2.0 / n_sq
+        phi = np.linspace(0.0, np.pi / 2, 4000)
+        bx_t = r_sq * np.power(np.sin(phi), p_sq)
+        by_t = r_sq * np.power(np.cos(phi), p_sq)
+        QX, QY = qp[..., 0].ravel(), qp[..., 1].ravel()
+        idx = np.argmin((QX[:, None] - bx_t[None, :]) ** 2 + (QY[:, None] - by_t[None, :]) ** 2,
+                        axis=1)
+        cxq, cyq = bx_t[idx], by_t[idx]
+        largo_sq = r_sq - np.hypot(QX - cxq, QY - cyq).reshape(largo_circ.shape)
+        dentro_caja = (q[..., 0] > 0) & (q[..., 1] > 0)
+        largo = np.where(dentro_caja, largo_sq, largo_circ)
+        # la direccion hacia dentro: hacia el punto mas cercano de la curva (cero en la boundary), y
+        # fuera de la caja de la esquina la de siempre, para no cambiar el resto de la forma
+        gx_sq = (cxq - QX).reshape(largo_circ.shape)
+        gy_sq = (cyq - QY).reshape(largo_circ.shape)
+        gl = np.maximum(np.hypot(gx_sq, gy_sq), 1e-6)
+        gx_rect = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
+        gy_rect = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
+        grad_x = np.where(dentro_caja, gx_sq / gl, gx_rect)
+        grad_y = np.where(dentro_caja, gy_sq / gl, gy_rect)
+        sdf = largo + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius
+    else:
+        sdf = (np.sqrt((np.maximum(q, 0.0) ** 2).sum(axis=2))
+               + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
+        # NORMALISED, as the shader does with normalize(): bending per axis independently gave a corner
+        # sqrt(2) times the displacement, which is the fourth drift the audit found.
+        # The inward direction is the GRADIENT of the distance, as in the shader: the per-axis signs
+        # flip where the top and bottom distances cross and leave a horizontal seam mid-bar.
+        grad_x = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
+        grad_y = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
     to_edge = -sdf
     falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
-    # NORMALISED, as the shader does with normalize(): bending per axis independently gave a corner
-    # sqrt(2) times the displacement, which is the fourth drift the audit found.
-    # The inward direction is the GRADIENT of the distance, as in the shader: the per-axis signs flip
-    # where the top and bottom distances cross and leave a horizontal seam mid-bar.
-    grad_x = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
-    grad_y = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
     largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)
     shift_y = (-grad_y / largo) * refraction * falloff
     shift_x = (-grad_x / largo) * refraction * falloff
@@ -502,7 +533,8 @@ def main():
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
                    args.Refraction, args.RimWidth, args.Dispersion, args.Specular,
-                   args.SpecularWidth, args.RimColour, args.CornerRadius)
+                   args.SpecularWidth, args.RimColour, args.CornerRadius,
+                   args.CornerSmoothing)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0
