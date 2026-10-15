@@ -173,6 +173,20 @@ private:
 
     // How wide the edge band is, in screen pixels. The user compared it with Apple's ("la de apple
     // es mas amplia") and the first version was five, which reads as a seam rather than a border.
+    // M1.5. Two numbers, both from the kit's [liquid_glass] and both cross-checked against Apple's
+    // own sample: `light_angle = 0` puts the reflection at the top, and `splay_regular = 20` is its
+    // spread (about 6 px at the scale refraction 70 -> 20 px, matching the 6 logical px bright band
+    // measured on the user's Dock). The strength is the sample's own: 236 over a middle of 180.
+    // 1.3: calibrated against Apple's own sample, whose upper band rises 56 levels over the middle.
+    // Measured curve after fixing the order (the hairline was clipping it) and raising the cap to 2:
+    // 1.0 -> +37, 1.2 -> +49.5, 1.3 -> ~+56, 1.4 -> +62. A specular is the saturated image of the
+    // light source, so a weight past 1 is not an error: 1.0 would mean "all white" and could not lift
+    // a mid-grey edge to 236 at all.
+    static constexpr float kSpecular = 1.3f;
+    float m_specular = kSpecular;
+    static constexpr float kSpecularWidth = 6.0f;
+    float m_specularWidth = kSpecularWidth;
+
     static constexpr float kRimWidth = 12.0f;
     float m_rimWidth = kRimWidth;
 

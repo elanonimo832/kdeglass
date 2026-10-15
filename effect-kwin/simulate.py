@@ -26,13 +26,20 @@ The two inputs must be the SAME crop of the SAME region, one with the window and
 GlassAlpha 0 the band is the frosted backdrop, and with GlassAlpha 1 it is the bar's own tone.
 """
 import argparse
+import pathlib
 import sys
 
 import numpy as np
 from PIL import Image
 
 # The defaults are the effect's own, and they are read from the source so the two cannot drift.
-HEADER = "src/glass.h"
+#
+# ANCHORED TO THIS FILE, NOT TO THE WORKING DIRECTORY. It used to be "src/glass.h", which resolves
+# only when the tool is run from effect-kwin/ -- from anywhere else the open fails, the except below
+# swallows it, and every knob silently falls back to the hardcoded number next to it. That cost me
+# three contradictory measurements in a row before I found it: the header said 1.3 and the tool was
+# using 0.75. A default that depends on WHERE you stand is worse than no default.
+HEADER = str(pathlib.Path(__file__).resolve().parent / "src" / "glass.h")
 
 
 def defaults_from_source(ruta=HEADER):
@@ -47,8 +54,10 @@ def defaults_from_source(ruta=HEADER):
                 nombre = linea.split("k", 1)[1].split(" =")[0]
                 valor = linea.split("=", 1)[1].strip().split("f")[0]
                 valores[nombre] = float(valor)
-    except OSError:
-        pass
+    except OSError as e:
+        # LOUD, not silent: a header that cannot be read means every default below is a stale
+        # hardcoded guess, and pretending otherwise is how three measurements went wrong.
+        print(f"warning: could not read {ruta} ({e}); using the hardcoded fallbacks", file=sys.stderr)
     return valores
 
 
@@ -58,6 +67,8 @@ BACKGROUND_RADIUS = int(DEFAULTS.get("BackgroundRadius", 16))
 MATERIAL_BOOST = DEFAULTS.get("MaterialBoost", 1.20)
 MATERIAL_GAIN = DEFAULTS.get("MaterialGain", 1.60)
 REFRACTION = DEFAULTS.get("Refraction", 3.0)
+SPECULAR = DEFAULTS.get("Specular", 0.75)
+SPECULAR_WIDTH = DEFAULTS.get("SpecularWidth", 6.0)
 RIM = DEFAULTS.get("Rim", 0.20)
 RIM_WIDTH = DEFAULTS.get("RimWidth", 12.0)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
@@ -145,7 +156,8 @@ def smoothstep(edge0, edge1, x):
 
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
-             gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0):
+             gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0,
+             specular=SPECULAR, specular_width=SPECULAR_WIDTH):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
     # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
@@ -213,9 +225,21 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         back = luma(desktop)[..., None]
         # the same numbers as the shader, deliberately: this file is a re-implementation, so the
         # two can drift and the only thing keeping them honest is that they are written the same
+        # M1.5, the specular highlight: white, about six pixels, strongest at the TOP -- the kit's
+        # `light_angle = 0` -- and fading on a bright backdrop, which is physics rather than taste.
+        # `step(fromTop, fromBottom)` in the shader is 1 unless the bottom edge is nearer, so only
+        # the bottom gets the 0.5 that Apple's sample measures (206 against 236 at the top).
         line_factor = np.where(back > 0.5, 0.35, 1.7)
         line = np.clip(np.clip(back + (desktop - back) * 0.5, 0, 1) * line_factor, 0, 1)
         result = result * (1 - hair * 0.35) + line * (hair * 0.35)
+        # THE SPECULAR GOES LAST, because a reflection is the outermost thing that happens to the
+        # surface: the material, then its edge line, and only then the light bouncing off it. With
+        # this in front of the hairline the line clipped 35% of it back out -- measured, not guessed:
+        # a 0.40 specular weight produced a lift of 23.5 levels where the arithmetic said 49.
+        fillet = 1.0 - smoothstep(0.0, specular_width, to_edge)
+        above = np.where((h - 1 - yy) < yy, 0.55, 1.0)
+        spec = (fillet * specular * above * (1.0 - 0.85 * back[..., 0]))[..., None]
+        result = result * (1 - np.clip(spec, 0, 2)) + 1.0 * np.clip(spec, 0, 2)
     return np.clip(result, 0, 1)
 
 
@@ -277,6 +301,8 @@ def main():
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
     ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
+    ap.add_argument("--Specular", type=float, default=SPECULAR)
+    ap.add_argument("--SpecularWidth", type=float, default=SPECULAR_WIDTH)
     ap.add_argument("--Dispersion", type=float, default=0.0,
                     help="fraction of the bend that separates per channel; the kit says 20/70")
     ap.add_argument("--Rim", type=float, default=RIM)
@@ -308,7 +334,8 @@ def main():
         return 2
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
-                   args.Refraction, args.RimWidth, args.Dispersion)
+                   args.Refraction, args.RimWidth, args.Dispersion, args.Specular,
+                   args.SpecularWidth)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0

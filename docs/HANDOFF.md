@@ -1117,6 +1117,46 @@ becomes a transparent pane with no effect, which is not a sharper version of the
 of it. Sharpness is what the test needs: `BackgroundRadius=0` alone keeps the material and shows the
 offset.
 
+## 9o. M1.5: the kit had the numbers, and the tool was lying about where they were
+
+The specular highlight is done, and it needed no invention. `[liquid_glass]` had TWO keys this
+project had never used: **`light_angle = 0`**, the direction of the light source, which puts the
+reflection at the top; and **`splay_regular = 20`**, its spread -- about 6 px at the same scale that
+maps `refraction = 70` to 20 px, which is exactly the bright band measured on the user's Dock (12
+rows at 2x). The strength comes from that sample too: its upper band sits 56 levels over the middle
+and its lower one 26.
+
+Three things had to be right before the numbers landed, and two of them were bugs of mine:
+
+1. **Order.** With the specular in front of the hairline, the line clipped 35% of it: a weight that
+   the arithmetic said would lift 49 levels lifted 23.5. A reflection is the outermost thing that
+   happens to a surface -- material, edge line, then the light bouncing off it -- and now it is last.
+2. **The cap.** `clamp(specular, 0, 1)` cannot express this: 1.0 means "all white", so no weight at all
+   could lift a mid-grey edge to Apple's 236 over a middle of 180. A specular is the SATURATED image
+   of the light source; the weight goes to 2, and `tune.sh` caps the knob there.
+3. **The simulator was reading the wrong header.** `HEADER = "src/glass.h"` resolved only from
+   `effect-kwin/`; from anywhere else the open failed, an `except OSError: pass` swallowed it, and
+   every knob silently fell back to the hardcoded number beside it. That produced three contradictory
+   measurements in a row while the header said 1.3 and the tool used 0.75. It is anchored to
+   `__file__` now and a header it cannot read is LOUD. A default that depends on where you stand is
+   worse than no default.
+
+Measured, on a dark backdrop, against Apple's own bands:
+
+| backdrop | upper band | lower band |
+|---|---|---|
+| dark (0.35) | **+55.6** (Apple: +56) | **+18.4** (Apple: +26) |
+| mid (0.60) | +14.8 | +6.1 |
+| light (0.85) | **+1.5** | -4.7 |
+
+The upper band matches Apple's measurement almost exactly and the fade over a bright backdrop is the
+physics working: adding light to something already bright is invisible. The lower band is short --
+18.4 against 26 -- and the cause is structural rather than a value, because the bottom edge's baseline
+is not the top's. Recorded rather than papered over.
+
+The two new tests keep it honest: the acceptance bands are asserted (45..66 and 18..34, with the fade
+under 8), and so is the anchoring, by comparing the default read from two different directories.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

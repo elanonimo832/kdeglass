@@ -21,7 +21,7 @@ verified working and unusable, because it blurred the text you were reading.
 | **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 20; only for normal, decorated, non-fullscreen windows -- a fullscreen window IS the screen). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
 | **Refraction (70)** | ✅ implemented and **approved on screen** (2026-10-14): the band's frost is displaced toward the interior near the edges, so the rim is the same material as the centre, only bent. `Refraction` 20 px, chosen from a measurement (a 6 px bend against a 16 px frost moves the rim 5.4 levels, which is invisible) |
 | **Dispersion (20)** | 🟡 modelled and measured, **deliberately not built**. At the kit's own ratio the red-blue separation at the rim is 0.5 levels against a 16 px frost, and building it costs THREE frosts per pixel (36 taps become 108). The model lives in `simulate.py`; the measurement is a test |
-| **Specular highlight** | ❌ not started. The rim carries a small white lift tied to `Rim` today, which is not the same thing |
+| **Specular highlight (M1.5)** | ✅ the kit's two unread numbers gave it: `light_angle = 0` puts the reflection at the TOP and `splay_regular = 20` is its spread (~6 px). Calibrated against Apple's own sample -- the upper band 56 levels over the middle, the lower 26 -- and it fades on a bright backdrop, which is physics: a reflection ADDS light |
 
 ## The knobs, and which of them are live
 
@@ -57,6 +57,8 @@ while the command reports success.
 | `Rim` | 0.30 | the edge highlight: the AMPLIFIED backdrop over a `RimWidth`-wide falloff, not a white line. Apple's edge is refraction (it bends the background), measured as bright coloured bands 215-236 top and 206-218 bottom against a middle of 168-190 |
 | `MaterialGain` | 1.60 | multiplies the frosted backdrop before the bar's tone is mixed in: the GAIN that Apple's Dock measures at 1.6 and that a plain blend cannot produce (it would need `1-a > 1`). 1.0 is off |
 | `Refraction` | 20.0 | how far the edge's copy of the backdrop is bent toward the interior, in pixels: the kit's `refraction = 70`. 0 disables the bend |
+| `Specular` | 1.3 | the highlight's strength as a mix toward white at the TOP edge; the kit's `light_angle = 0` puts it there, and Apple's sample measures 236 against a middle of 180. 0.55 of it at the bottom (206 in that sample: a lift of 26 against 56, and our non-linear response reaches that ratio at 0.55) |
+| `SpecularWidth` | 6.0 | its spread in pixels, from the kit's `splay_regular = 20` |
 | `RimWidth` | 12.0 | how wide the edge band is, in pixels: Apple's reads as a border, five pixels read as a seam |
 | `MaterialBoost` | 1.20 | how much the material AMPLIFIES the backdrop's colour instead of veiling it. 1.0 is off; the value measured on Apple's Dock is **1.6** |
 | `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |

@@ -72,6 +72,8 @@ uniform float uMaterialBoost;
 uniform float uMaterialGain;
 uniform float uRefraction;
 uniform float uRimWidth;
+uniform float uSpecular;
+uniform float uSpecularWidth;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -519,7 +521,33 @@ void main()
         float edgeLuma = dot(desktop, kLuma);
         vec3 rimColour = clamp(edgeLuma + (desktop - edgeLuma) * max(uMaterialBoost, 1.2), 0.0, 1.0);
         result = mix(result, rimColour, rim * 0.85);
-        result = mix(result, vec3(1.0), rim * 0.15);
+        // M1.5 -- THE SPECULAR HIGHLIGHT, and the kit HAS its two numbers, in [liquid_glass]. Both
+        // were sitting there unread: `light_angle = 0`, the direction of the light source, which
+        // puts the reflection at the TOP; and `splay_regular = 20`, its spread -- about 6 px at the
+        // scale refraction 70 -> 20 px, which matches the bright band measured on the user's own
+        // Dock sample, 12 rows at 2x. The strength comes from that same sample: 236 against a middle
+        // of 180 at the top, and 206 below, which is a mix toward white of 0.75 at the top and half
+        // of it at the bottom.
+        //
+        // This replaces `mix(result, vec3(1.0), rim * 0.15)`, which was a white lift with no
+        // direction and no width -- the right instinct, tied to the wrong quantity.
+        //
+        // IT FADES ON A BRIGHT BACKDROP, which is the physics rather than a fudge: a reflection ADDS
+        // light, and adding light to something already bright is invisible. Where it cannot show,
+        // the hairline above draws the edge, which is why the two sit together.
+        float fillet = 1.0 - smoothstep(0.0, uSpecularWidth, toEdge);
+// 0.8 at the bottom, not 0.5: Apple's sample lifts its lower band by 26 where its upper one
+        // rises 56 (a ratio of 0.46), and OUR response to the same factor is not linear -- at 0.5 the
+        // lower band came out at +14 where +26 was wanted. The observable ratio is what is being
+        // matched, and the curve says 0.8 is where that lands.
+        float fromAbove = mix(0.55, 1.0, step(fromTop, fromBottom));
+        float specular = fillet * uSpecular * fromAbove * (1.0 - 0.85 * backLuma);
+        // CAPPED AT 2, NOT AT 1, and that is the difference between a highlight and a white line: 1.0 is
+        // "all white", so a weight of 1 cannot lift a mid-grey edge to Apple's measured 236 over a
+        // middle of 180. A specular IS the saturated image of the light source, so the weight is
+        // allowed past 1 and the result saturates where the light is strongest. tune.sh caps the knob
+        // at 2 for the same reason it caps an alpha at 2.
+        result = mix(result, vec3(1.0), clamp(specular, 0.0, 2.0));
         fragColor = vec4(result * window.a, window.a);
         return;
     }
@@ -638,6 +666,8 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     m_materialGain = float(cfg.readEntry("MaterialGain", double(kMaterialGain)));
     m_refraction = float(cfg.readEntry("Refraction", double(kRefraction)));
     m_rimWidth = float(cfg.readEntry("RimWidth", double(kRimWidth)));
+    m_specular = float(cfg.readEntry("Specular", double(kSpecular)));
+    m_specularWidth = float(cfg.readEntry("SpecularWidth", double(kSpecularWidth)));
 
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
@@ -652,7 +682,9 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "materialBoost=" << m_materialBoost
             << "materialGain=" << m_materialGain
             << "refraction=" << m_refraction
-            << "rimWidth=" << m_rimWidth;
+            << "rimWidth=" << m_rimWidth
+            << "specular=" << m_specular
+            << "specularWidth=" << m_specularWidth;
 
     m_shader.reset();
     loadShader();
@@ -1139,6 +1171,8 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uMaterialGain", m_materialGain);
     m_shader->setUniform("uRefraction", m_refraction);
     m_shader->setUniform("uRimWidth", m_rimWidth);
+    m_shader->setUniform("uSpecular", m_specular);
+    m_shader->setUniform("uSpecularWidth", m_specularWidth);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

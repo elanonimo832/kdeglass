@@ -589,7 +589,10 @@ fondo = np.dstack([gris, gris, gris])
 tema = np.full((h, w, 3), 0.93); tema[24:42, 210:320] = 0.15
 sep = {}
 for d in (0.0, 0.29):
-    out = S.simulate(tema, fondo, dispersion=d)
+    # SPECULAR OFF: it saturates the edge toward white, and where one channel clips before another
+    # the clipping itself creates red-blue separation. That is a real effect and a different one, so
+    # the dispersion control isolates it rather than measuring both at once.
+    out = S.simulate(tema, fondo, dispersion=d, specular=0.0)
     sep[d] = np.abs(out[1:9, 40:480, 0] - out[1:9, 40:480, 2]).max() * 255
 print(f"sin dispersion {sep[0.0]:.1f}  con dispersion {sep[0.29]:.1f}")
 assert sep[0.0] == 0, f"a grey backdrop must stay grey without dispersion, got {sep[0.0]}"
@@ -615,3 +618,39 @@ afirmar_igual "the shadow margin is named in the header" "1" \
   "$(grep -c 'shadowMargin' "$HEADER")"
 afirmar_igual "and so is the scale drift" "1" \
   "$(grep -c '1415/1387' "$HEADER")"
+
+echo "  -- M1.5: the specular highlight reproduces Apple's own numbers --"
+# The kit had its two numbers unread -- `light_angle = 0` (the reflection at the TOP) and
+# `splay_regular = 20` (about 6 px at the refraction's scale) -- and the strength comes from the
+# user's Dock sample: 236 over a middle of 180 at the top, 206 below. On a dark backdrop the model
+# must lift the upper band by about 56 and the lower one by about 26, and on a light one it must
+# nearly vanish: a reflection ADDS light, and adding it to something bright is invisible.
+if timeout 300 python3 - <<'PY' >/tmp/especular.txt 2>&1
+import sys; sys.path.insert(0, "effect-kwin")
+import numpy as np
+import simulate as S
+h, w = 60, 500
+tema = np.full((h, w, 3), 0.93); tema[20:34, 200:300] = 0.15
+def bandas(nivel):
+    out = S.simulate(tema, np.full((h, w, 3), nivel))
+    c = out[12:24].mean()
+    return (out[0:2].mean() - c) * 255, (out[h-2:h].mean() - c) * 255
+arriba, abajo = bandas(0.35)
+claro, _ = bandas(0.85)
+print(f"oscuro arriba {arriba:.1f} abajo {abajo:.1f} | claro arriba {claro:.1f}")
+assert 45 <= arriba <= 66, f"the top band should match Apple's +56, got {arriba:.1f}"
+assert 18 <= abajo <= 34, f"the bottom band should match Apple's +26, got {abajo:.1f}"
+assert abs(claro) < 8, f"the specular must fade on a bright backdrop, got {claro:.1f}"
+PY
+then ok "the specular matches Apple's bands and fades on light ($(cat /tmp/especular.txt))"
+else fallo "the specular does not reproduce Apple's numbers:"; sed 's/^/      /' /tmp/especular.txt | head -4; fi
+
+echo "  -- the simulator's defaults do not depend on where you stand --"
+# "src/glass.h" resolved only from effect-kwin/. Run from anywhere else the open failed, the except
+# swallowed it, and every knob silently fell back to the hardcoded number beside it -- which cost
+# three contradictory measurements before it was found.
+afirmar_codigo "the header path is anchored to the file" "$EF/simulate.py" '__file__'
+afirmar_codigo "and a header that cannot be read is LOUD" "$EF/simulate.py" 'could not read.*using the hardcoded fallbacks'
+desde_raiz=$(python3 -c "import sys; sys.path.insert(0,'$EF'); import simulate as S; print(S.SPECULAR)")
+desde_tmp=$(cd /tmp && python3 -c "import sys; sys.path.insert(0,'$EF'); import simulate as S; print(S.SPECULAR)")
+afirmar_igual "the same default from any directory" "$desde_raiz" "$desde_tmp"
