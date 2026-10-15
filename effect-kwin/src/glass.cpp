@@ -1045,6 +1045,21 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
 void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
 {
     qInfo() << "[macos-glass] UNREDIRECT (window deleted)" << w->caption().left(20);
+    // AUDIT 4: DROP THIS WINDOW'S SLOTS. The cache key holds the pointer, and a new window can be
+    // allocated at the same address -- the size in the key would then match and a stale entry would
+    // be reused. It is re-blitted before use, so that was harmless, but a key that can outlive its
+    // window is a question nobody should have to answer twice.
+    for (auto it = m_captures.begin(); it != m_captures.end();) {
+        if (it->first.window == w) {
+            if (m_currentCapture == it->second.get()) {
+                m_currentCapture = nullptr;
+            }
+            m_lastUse.erase(it->first);
+            it = m_captures.erase(it);
+        } else {
+            ++it;
+        }
+    }
     unredirect(w);
 }
 
@@ -1161,7 +1176,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
 
     // Looked up, not rebuilt: two windows of different sizes used to allocate and free a
     // texture and a framebuffer twice per frame for as long as both kept repainting.
-    const auto key = std::make_pair(reducedSize.width(), reducedSize.height());
+    const CaptureKey key{w, reducedSize.width(), reducedSize.height()};
     auto slot = m_captures.find(key);
     if (slot == m_captures.end()) {
         auto newSlot = std::make_unique<CaptureSlot>();

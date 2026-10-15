@@ -136,14 +136,38 @@ private:
         std::unique_ptr<GLTexture> texture;   // declared first, so the FBO dies first
         std::unique_ptr<GLFramebuffer> fbo;
     };
-    std::map<std::pair<int, int>, std::unique_ptr<CaptureSlot>> m_captures;
+    // AUDIT 4: THE KEY CARRIES THE WINDOW AS WELL AS THE SIZE. Keyed by size alone, a cyclic set of
+    // windows with distinct sizes evicts the entry the next repaint needs -- an LRU of 4 against five
+    // windows rebuilt a texture and a framebuffer on every frame. The window is part of the key so a
+    // repainting window keeps ITS slot, and the SIZE stays in it so a resize can never be served the
+    // old texture: a new size is a new key and the stale one ages out. A destroyed window's entries
+    // are dropped in slotWindowDeleted, so its pointer cannot alias a later window.
+    struct CaptureKey {
+        EffectWindow *window;
+        int width;
+        int height;
+        bool operator<(const CaptureKey &other) const
+        {
+            if (window != other.window) {
+                return window < other.window;
+            }
+            if (width != other.width) {
+                return width < other.width;
+            }
+            return height < other.height;
+        }
+    };
+    std::map<CaptureKey, std::unique_ptr<CaptureSlot>> m_captures;
     // When each entry was last used, so the cap evicts the LEAST RECENTLY USED rather than
     // whatever `std::map` happens to put first -- which is the smallest size, and a small
     // terminal is the window this cache exists for.
-    std::map<std::pair<int, int>, quint64> m_lastUse;
+    std::map<CaptureKey, quint64> m_lastUse;
     quint64 m_useClock = 0;
     CaptureSlot *m_currentCapture = nullptr;   // the one this paint uses; apply() binds it
-    static constexpr int kMaxCaptureSlots = 4;   // enough for a desktop, bounded on purpose
+    // EIGHT, not four. Audit 1 shrank a slot from the window's expanded geometry (up to 8 MiB) to
+    // the band (~0.5 MiB for a maximised 4K window), so a desktop's windows fit without thrashing
+    // and eight band slots still cost a fraction of what four full-window slots did.
+    static constexpr int kMaxCaptureSlots = 8;
 
     QSize m_captureRegion;    // the region the CURRENT capture covers, in screen px
 
