@@ -1628,6 +1628,14 @@ is `tune.sh CornerSmoothing=0` or the §9u runbook.
 not. `cd effect-kwin && ./install.sh`, then a relogin or the §9u hot path, then
 `./tune.sh CornerSmoothing=0.6` and LOOK.
 
+THE VISUAL COMPARISON M2's done criterion asks for is
+[`evidence/2026-10-15-m2-figma-vs-arc.png`](../evidence/2026-10-15-m2-figma-vs-arc.png): both
+boundaries at radius 20, 10x, with the sliver the smoothing removes from the arc drawn in green.
+It is a SYNTHETIC comparison on purpose, because a screenshot cannot resolve the difference (0.36 px
+accuracy against a 0.36 px difference, above). The figure makes the shape honest at a glance: the
+green appears only at the two ends of the transition and is absent along the whole middle arc, which
+is exactly the claim -- the smoothing changes how the curve MEETS the edges, not the arc itself.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
