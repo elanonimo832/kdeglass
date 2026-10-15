@@ -11,6 +11,7 @@
 #include <QHash>
 #include <QString>
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <utility>
@@ -149,7 +150,9 @@ private:
         bool operator<(const CaptureKey &other) const
         {
             if (window != other.window) {
-                return window < other.window;
+                // std::less, not `<`: comparing two UNRELATED pointers with `<` is unspecified, and
+                // a std::map comparator has to be a total order. std::less gives one for pointers.
+                return std::less<EffectWindow *>()(window, other.window);
             }
             if (width != other.width) {
                 return width < other.width;
