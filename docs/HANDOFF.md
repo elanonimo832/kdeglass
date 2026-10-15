@@ -397,7 +397,7 @@ can see exactly where it stopped.
 | **M1.3a step 1** — the chain rule accepts a correct override | ✅ done, and the verifier is shown to fail on defective sources |
 | **M1.3a step 2** — the desktop is captured and composited | ✅ **VERIFIED ON SCREEN** (2026-10-14): window held still, only the background changed, the band moved by **73.8** where 12 is the threshold (the alpha-only attempt scored 3.2), and the effect's own counter read `capture: ok=1200 refused=0` -- the blit never failed once |
 | **M1.3a step 3a** — the frost over the capture | 🟡 shipped in that same build, off by default; switched on with a config key. See §7 |
-| **M1.3a step 3b** — alpha, and the frame-vs-expanded geometry | ✅ the alpha half is long done and superseded by the material itself (`GlassAlpha`, the rim, the knee). ⬜ the frame-vs-expanded question is the ONE box still open, and it costs a setting rather than a build: `CaptureSubRect` exists for it |
+| **M1.3a step 3b** — alpha, and the frame-vs-expanded geometry | ✅ **CLOSED (2026-10-14)**: `CaptureSubRect=true` is confirmed ON SCREEN by the user ("me agrada esta opcion"), which settles that `vTexCoord` runs across the FRAME and the capture -- expandedGeometry, frame plus shadow margins -- must be sampled at the frame's sub-rectangle. The arithmetic is in 9m |
 | M1.3 refraction (70) | ✅ **approved on screen** (2026-10-14): the bend is applied to the frost's own uv, so the band is one material. `Refraction` 20 |
 | M1.4 dispersion (20) | 🟡 measured, not built: 0.5 levels at the kit's ratio, three frosts to build (see 9l) |
 | M1.5 specular highlight | ⬜ next candidate; the rim has a small white lift, not a specular |
@@ -1073,13 +1073,39 @@ vertical, and a 2% scale** (1415/1387) that drifts to roughly 28 px at the far e
 through a 16 px frost over a smooth backdrop -- and visible in one second over structure with the
 frost off:
 
-    ./tune.sh BackgroundRadius=0 GlassAlpha=0 CaptureSubRect=false   # the backdrop will be SHIFTED
-    ./tune.sh CaptureSubRect=true                                    # aligned
-    ./tune.sh --reset                                                # back to the approved look
+    ./tune.sh BackgroundRadius=0 CaptureSubRect=false   # the backdrop will be SHIFTED
+    ./tune.sh CaptureSubRect=true                       # aligned
+    ./tune.sh --reset                                   # back to the approved look
+
+`GlassAlpha=0` was in the first version of that recipe and it was a bad ingredient: it means ZERO
+material, so the bar becomes a transparent pane with no effect at all -- "todo se vio completamente
+transparente", in the user's words, and they did not like it. Sharpness is what the test needs, not
+the absence of glass. What saved the session from a half-applied mess was the all-or-nothing
+validation: the command that failed on `CaptureSubRect=false` wrote NEITHER of the other two keys,
+which is exactly the reason that rule exists.
 
 The default is `true` now, decided on that arithmetic rather than on a preference. The switch stays
 because a future session may want to re-check it on hardware this one never saw, and because
 `measure-alignment.py` reports (0, 0) for whichever is the truth.
+
+## 9n. M1.3a is closed, and the recipe that nearly cost the user their settings
+
+The user ran the two settings and reported: "me agrada esta opcion" for `CaptureSubRect=true`, and for
+the sharp version "hizo que todo se viera completamente transparente y no me gusto". Their `kwinrc`
+settles what happened and it is the best evidence for the all-or-nothing rule: the ONLY key written
+that day is `CaptureSubRect=true`, because the command that carried `BackgroundRadius=0 GlassAlpha=0`
+failed on the boolean and therefore wrote NOTHING. Two settings I had told them to use were never
+applied -- the validation rule that was written for a different reason is what prevented a
+half-applied material.
+
+So M1.3a's last box is closed: `vTexCoord` runs across the FRAME, the capture covers the expanded
+geometry, and sampling the frame's sub-rectangle is the truth. The default in `glass.h` is `true` and
+the switch stays for hardware this session never saw.
+
+And the recipe is fixed. `GlassAlpha=0` was a bad ingredient -- it means ZERO material, so the bar
+becomes a transparent pane with no effect, which is not a sharper version of the glass but the absence
+of it. Sharpness is what the test needs: `BackgroundRadius=0` alone keeps the material and shows the
+offset.
 
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
