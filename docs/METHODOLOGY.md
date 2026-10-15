@@ -222,3 +222,32 @@ over time is the reason.
   A token in git history is permanent.
 - **Do not accept «it works on my machine».** It is measured, and the measurement
   stays in the project as a test.
+
+
+## Five ways this went wrong, and the rule each one produced
+
+Written after a single session that produced five bugs of the same family. They are in `docs/NEXT.md`
+too, because they are cheap to state and expensive to rediscover.
+
+**1. Verify the file, not the patch.** Five times a multi-part edit applied in part: the header without
+the shader, the body without the signature, the plumbing without the log, an assertion I "fixed" whose
+edit never landed, and a regex with an unbalanced parenthesis that aborted before the write. Every one
+was caught by grepping the file afterwards, and none by the patch reporting success. Write, then look.
+
+**2. A test backdrop has to be able to SHOW the variable.** A uniform backdrop cannot show refraction
+(measured 0.0 and the model was blamed), a grey one cannot show dispersion (every channel samples the
+same greys, so no red-blue difference can exist however far it is bent), and one without stripes cannot
+show moire. Three tests in a row measured something true about a question nobody asked -- and two of
+them were used to reverse a correct decision.
+
+**3. A metric can flatter itself.** `|R - B|` in the band on a coloured backdrop measures the BACKDROP;
+the control read 135.7 where the effect being measured was worth 5.7. The honest metric isolates the
+effect: how far red moves MINUS how far blue moves, which reads exactly 0.0 with the effect off.
+
+**4. Never report green without having seen it.** Twice a commit message said "suite green" while the
+run in that same call had failed. The fix is mechanical: `bash tests/run.sh && git commit ...`.
+
+**5. Two implementations of one formula drift, silently.** The shader and `simulate.py` disagreed four
+times, and the disagreement was invisible precisely because their numbers never contradicted each other
+-- they were measuring different shapes. A default that depends on where you stand (a relative path that
+silently fell back to stale constants) hid one of them for three measurements.

@@ -1,5 +1,8 @@
 # KWin effect: macOS-style material
 
+**Starting cold? Read [`docs/NEXT.md`](../docs/NEXT.md) first**: where the work is, what
+to do next in order, the toolbox, and the three rules this repository learned the hard way.
+
 Compositor effect that draws the material on the window chrome. The band covers the
 **title bar only**, and the content stays sharp: the first full-window version was
 verified working and unusable, because it blurred the text you were reading.

@@ -1,5 +1,9 @@
 # Handoff — where this stands and what comes next
 
+**Starting here? `docs/NEXT.md` is the one-page entry point**: the current state, the
+ordered next steps and the rules. This file is the long record, in order, with the
+measurements behind every decision.
+
 Written at the end of a long session so the next one does not have to reconstruct
 anything. Everything below is either verified in this repository, measured on the
 real machine, or explicitly marked as an open question.
