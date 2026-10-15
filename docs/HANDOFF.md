@@ -1503,6 +1503,48 @@ and it must not be asked to -- the mapping is arithmetic between two rectangles,
 `measure-capture-map.py`. Stated here because "the simulator is green" was about to be read as "the
 screen is right", which is the same mistake this file exists to prevent.
 
+## 9y. The band's bottom edge bent NOTHING, and the cause was which edge the direction came from
+
+The user, twice: "en el fondo de la barra se ven lineas verticales, no curvea nada de ese fondo" and
+"la refraccion doble el fondo a lo largo de TODO el filo de la banda (arriba, abajo, izquierda,
+derecha) y alcance hacia dentro, no solo en las esquinas".
+
+**The defect was a drift between the two implementations.** The bend's direction was the gradient of
+the FRAME's rounded distance. The band's bottom -- where the glass meets the content -- is NOT an edge
+of the frame: the window continues below it. The frame's distance is FLAT there, its gradient is zero,
+and `inward` came out `(0, 0)`: the bend along the bottom was exactly nothing. The SIMULATOR never had
+this, because it measures the whole box whose bottom IS the band's bottom, so it always bent there --
+measured `shift_y ~ -20` at the bottom rows while the shader's own expression gave `0.00`. Which of
+the two was right was never in doubt: the user's eye.
+
+**The fix.** The band's bottom is its own edge (`bandEdge = uTitleBarHeight - topDistance`), `toEdge`
+is the nearer of the frame's and that one, and the direction is a BLEND of the two edges' inward
+normals, each weighted by its own proximity, normalised, with the magnitude the stronger of the two. A
+hard `min` was the obvious alternative and it is WRONG: it leaves a seam wherever two edges are equally
+far -- the middle of the band, and the diagonal out of every corner -- which is the defect 9w already
+paid for once. The blend fades out at the middle instead of flipping through it.
+
+**The reach is its own number.** It was `RimWidth`, the rim's own width, so the bend could not reach
+further without widening the rim -- and the user asked for exactly that. `RefractionReach` (default
+16 px) is separate, and 16 is MEASURED rather than chosen: with the bar at 38 px it is the largest
+reach whose falloff is still exactly zero at the middle, so the top and bottom bends meet without a
+seam. At 18 the middle flips +/-0.69 px, at 20 +/-2.08 and at 24 +/-5.19, which is the seam returning.
+
+**The measurement, because a transcription can drift from the GLSL.** `effect-kwin/measure-refraction.py`
+transcribes the shader's expressions and compares them with the simulator's field at the middle of each
+of the four edges. Before the fix it read `bottom 0.00 px` against the simulator's 19.90
+(`parity_max_mismatch=19.899`); after it the two agree to **0.000 px** at all four edges, and the
+bottom's direction is vertical and upward. The suite also asserts the deciding GLSL expressions by
+text, so the transcription and the shader check each other.
+
+**The rest does not change.** Against the previous code on a high-contrast backdrop, the interior rows
+18..26 are identical to the bit (max|diff| 0.0000); only the rows within a reach of an edge move.
+Suite 430 pass / 0 fail, and the GLSL compiles under KWin's preambles for desktop GLSL 140 and ES 300.
+
+**Still not seen on a screen.** Nothing here has been looked at: the install is pending (build
+`50a68291...` against the installed `7ae6e419...`). The case to look at is the user's own -- a window
+over an app with vertical lines.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
