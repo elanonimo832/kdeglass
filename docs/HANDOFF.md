@@ -1326,6 +1326,14 @@ picked up the newly installed library with no relogin. If it does not, the tell 
 square again -- and a relogin is the guaranteed path, because the plugin stays enabled and the disk has
 the fix.
 
+**AND IT FAILED A THIRD TIME (2026-10-15, audit 1).** The install landed at 15:17:08, the hot path
+re-created the effect at 15:18:01 (`M1.2 loaded` in the journal), and the library that ran was still
+the OLD one: the capture texture read `QSize(466, 381)` -- `933x762`, the whole expanded window --
+where the new band code had to produce `QSize(466, 42)` from `933x84`. The unload/load DOES create a
+new instance; what it did not do is re-read the file. A relogin fixed it on the first try. **The tell
+is now cheaper than the shape: the `capture texture QSize(...)` line names the library.** Check it
+before believing a hot reload, and do not conclude that new code is broken until it has been loaded.
+
 FOUR TESTS came out of this, and none of the previous ones could have caught either bug: the discard
 tests the frame's distance alone, the bar's bottom appears only in the band, the retired expression is
 gone by name, and the rounded distance is checked numerically -- negative at the corner, exact inside a
@@ -1366,16 +1374,19 @@ QUEUED, with the audit's pointers, in its own order of impact x effort:
 | 7 | dead code: `deviation`/`byDeviation`, `kFrostOpacity`, `m_active` (never written, so the documented "effect off" path is unreachable), a duplicated luma and one re-fetch | glass.cpp:298-299, 254, 92 | low |
 | 8 | 19 string-keyed `setUniform` per window per paint: cache the locations | glass.cpp:1200-1255 | low |
 
-AN UPDATE (2026-10-15): **#1 is IMPLEMENTED and waiting for a screen.** `CaptureSubRect` now selects
+AN UPDATE (2026-10-15): **#1 is DONE and VERIFIED ON SCREEN.** `CaptureSubRect` now selects
 the capture's EXTENT -- the band by default -- and the frame-to-capture mapping became mandatory in
 BOTH modes, because its OFF was the known 14 px offset and could never be the identity again. The
 reach is `BackgroundRadius + ceil(Refraction) + 8`; this theme's 2 px top shadow margin caps it at the
 texture's own edge, exactly as the full capture already did, so the band is not a new clamp. Measured
-before the change: Konsole `933x762 -> 933x84` (~9x), a maximised window `3840x2160 -> 3840x~126`.
+BEFORE the change: Konsole `933x762 -> 933x84` (~9x), a maximised window `3840x2160 -> 3840x~126`.
+Measured AFTER it, on screen: the journal reads
+`capture texture QSize(466, 42) (1/2 de QSize(933, 84))` where it read `QSize(466, 381)`, and
+`test-glass.sh` still returns **GLASS** -- the band moves 146.2 with the background, against a
+threshold of 12, with `capture: ok=3000 refused=0`. The hot path did NOT pick the new library up and a
+relogin did (see the runbook above: the `capture texture` size is the tell now).
 **#2 was already done** in an earlier pass (the `glClear` is gated on
-`destination.size() != reducedSize`). The live check is the point: install and the journal's
-`capture texture QSize(...)` must read the band, then `measure-glass.py` must still say the band takes
-its colour from behind it.
+`destination.size() != reducedSize`).
 
 DO NOT TOUCH, per the audit, with its reasons: the 36-tap pyramid and the finest level's weight 6 (four
 equal levels only killed 82.5% of the text contrast and the radius alone did nothing); the 5-tap vertical

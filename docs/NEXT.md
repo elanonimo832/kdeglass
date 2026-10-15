@@ -42,11 +42,16 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    (`effect-kwin/measure-corner.py`, run by the suite against synthetic known-value corners) and it
    measured the construction back from pixels. NEXT: install the new `.so`, set
    `CornerSmoothing=0.6` and LOOK, then point `measure-corner.py --image` at an effect-off crop --
-   its screenshot path is validated only on a synthetic PNG so far.
-2. **Audit finding 1 — capture the band, not the window.** `glass.cpp` blits `expandedGeometry` (up to
-   3840x2160) per window per repaint when the band needs 3800x38 plus the kernels' reach: about 30x
-   less traffic, and the audit calls it the only high-impact item. HIGH EFFORT: it changes the capture
-   geometry and the uv mapping, so it wants a session of its own WITH the simulator to hand.
+   its screenshot path is validated on synthetic captures and was run on a real one; its own accuracy
+   (0.36 px) is the same size as the Figma-to-arc difference, so a capture proves the corner is a round
+   arc of about the right radius, not which of the two curves it is.
+2. **Audit finding 1 — DONE (2026-10-15), and verified on screen.** The capture is the BAND now: the
+   journal reads `capture texture QSize(466, 42)` where it read `QSize(466, 381)` (Konsole `933x762 ->
+   933x84`, ~9x; a maximised window ~17x), and `test-glass.sh` still returns GLASS (146.2 against 12).
+   The shader needed no change: `uBackgroundOffset + vTexCoord*uBackgroundScale` already maps the frame
+   into any sub-rectangle. `CaptureSubRect` is now the EXTENT switch (band / whole window, the escape
+   hatch). The hot reload did NOT pick the library up and a relogin did; the tell is the
+   `capture texture` size.
 3. **Audit findings 4, 7 and 8 — small and safe.** Cache the capture per window instead of per size
    (an LRU of 4 is pessimal for five cyclically repainting windows); delete the dead code, including
    `m_active`, which is never written and makes the documented "effect off" measurement path
