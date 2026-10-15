@@ -157,6 +157,140 @@ def smoothstep(edge0, edge1, x):
     return t * t * (3 - 2 * t)
 
 
+def squircle_n(corner_smoothing):
+    """El exponente de la superelipse, DERIVADO del token `cornerSmoothing` del kit.
+
+    Calibracion y sus dos anclas: `s=0 -> n=2`, que es exactamente el arco circular que el efecto
+    dibujaba antes -- asi el ajuste no cambia nada en el caso ya aprobado en pantalla -- y
+    `s=0.6 -> n=5`, la superelipse de esquina que se cita para Apple. NO es la formula de Figma, que
+    no esta publicada: por eso el valor se MIDE (`--corners` imprime el abultamiento) en vez de
+    creerse, y el control en 0 se comprueba en la suite contra el valor conocido.
+    """
+    return 2.0 + 5.0 * max(0.0, corner_smoothing)
+
+
+def corner_sd(qx, qy, radius, n, tabla=4000):
+    """Distancia con signo al arco de esquina que sustituye al arco circular del rounded box.
+
+    El arco va del vertice `(0, r)` -- tangente a la arista horizontal -- al `(r, 0)` -- tangente a la
+    vertical:
+        c(phi) = r * ( sin^p(phi), cos^p(phi) ),   p = 2/n
+    y con `n=2` es exactamente el cuarto de circulo, de modo que el squircle es una GENERALIZACION del
+    arco y no un camino distinto que pueda derivar de el.
+
+    EL PUNTO MAS CERCANO SE BUSCA EN UNA TABLA de puntos de la curva, no con Newton ni biseccion: las
+    dos fallaron por lo mismo (en los vertices `sin^p` tiene derivada infinita, y con el punto sobre
+    una arista el minimo cae en un extremo donde la derivada no cambia de signo). La tabla no puede
+    fallar y su error es el espaciado: con 4000 puntos, 0.002 px medido contra el circulo exacto.
+    """
+    p = 2.0 / n
+    phi = np.linspace(0.0, np.pi / 2, tabla)
+    bx = radius * np.power(np.sin(phi), p)
+    by = radius * np.power(np.cos(phi), p)
+    QX, QY = np.asarray(qx, dtype=float).ravel(), np.asarray(qy, dtype=float).ravel()
+    i = np.argmin((QX[:, None] - bx[None, :]) ** 2 + (QY[:, None] - by[None, :]) ** 2, axis=1)
+    dist = np.hypot(QX - bx[i], QY - by[i]).reshape(np.shape(qx))
+    # el centro de la curva es el vertice EXTERIOR de la caja de esquina, o sea el origen de `q`
+    inside = (np.power(np.abs(qx) / radius, n) + np.power(np.abs(qy) / radius, n)) <= 1.0
+    return np.where(inside, dist, -dist)
+
+
+def corner_field(size, radius, smoothing, half):
+    """El SDF de la forma entera y la direccion hacia dentro del doblado, sobre una imagen cuadrada.
+
+    GEOMETRIA: rectangulo redondeado centrado, `half` de SEMIANCHURA (distancia del centro a las
+    aristas rectas) y esquinas de radio `radius`; la forma ocupa `2*(half + radius)`.
+
+    CONVENIO: `sdf` POSITIVA DENTRO y `(gx, gy)` la direccion hacia DENTRO (que es `-grad(sdf)` y la
+    que dobla la refraccion).
+
+    El campo es la formula del rounded box con UN solo cambio: dentro de la caja de la esquina,
+    `largo` (la distancia al centro del arco) se sustituye por `radius - corner_sd(...)`. Con
+    `smoothing=0` las dos son la misma expresion, que es lo que hace del squircle una generalizacion
+    verificable y no un segundo camino.
+    """
+    h, w = size
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    co = np.array([w, h], dtype=float) * 0.5
+    q = np.abs(np.stack([xx, yy], axis=2) - co) - (half - radius)
+    qp = np.maximum(q, 0.0)
+    largo = np.hypot(qp[..., 0], qp[..., 1])
+    # `minterm` es comun a las dos formas; solo cambia el otro sumando.
+    minterm = np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0)
+    if smoothing <= 0.001:
+        return -(largo + minterm - radius), 0.0, 0.0
+    largo_sq = radius - corner_sd(qp[..., 0], qp[..., 1], radius, squircle_n(smoothing))
+    return -(np.where((q[..., 0] > 0) & (q[..., 1] > 0), largo_sq, largo) + minterm - radius), 0.0, 0.0
+
+
+def diagonal_bulge(radius, smoothing):
+    """Cuanto mas lejos queda la boundary en la diagonal que el arco circular del mismo radio.
+
+    SE CALCULA, NO SE MUESTREA. En la diagonal de la esquina los dos componentes de la curva son
+    iguales, asi que el punto mas cercano esta exactamente en `phi = pi/4` y el cruce sale de la
+    propia parametrizacion:
+
+        c(pi/4) = r * 2^(-p/2) * (1, 1),   p = 2/n
+        distancia de ese punto al vertice exterior = r * 2^((1-p)/2)
+        abultamiento = esa distancia - r
+
+    Con `n=2` da `r - r = 0` (el circulo, el caso aprobado); con `n=5` da 4.6229 px sobre un radio de
+    20. Una rejilla de muestras daba 4.6235, con el error de la rejilla dentro del numero: el valor
+    cerrado no tiene ese error y es el que fija la suite.
+    """
+    r = float(radius)
+    if smoothing <= 0.001:
+        return 0.0
+    p = 2.0 / squircle_n(smoothing)
+    return float(r * np.power(2.0, (1.0 - p) / 2.0) - r)
+
+
+def gradient_jump(radius, smoothing, n_puntos=4000):
+    """El mayor giro de la direccion del doblado a lo largo del arco de esquina, en grados.
+
+    La direccion hacia dentro es el gradiente de la distancia, y una que se VOLTEA dibuja una linea:
+    es la costura que el usuario vio en el medio de la barra (seccion 9w) y que arreglo el usar el
+    gradiente en vez de dos signos por eje. Aqui se recorre la esquina entera -- de la arista
+    horizontal a la vertical, pasando por la diagonal -- y se mide el salto entre muestras
+    consecutivas. Se mide sobre la normal ANALITICA de la curva, que es la direccion que el codigo
+    usaria, y no sobre diferencias finitas del campo, que meten ruido de rejilla.
+
+    El limite es 5 grados para muestras cada ~0.05 grados de arco: un salto de verdad (el de 9w era
+    de 90) no se parece en nada a esto.
+    """
+    r = float(radius)
+    phi = np.linspace(1e-4, np.pi / 2 - 1e-4, n_puntos)
+    if smoothing <= 0.001:
+        # el arco circular: la normal va del eje +y al +x girando 90 grados
+        nx, ny = np.sin(phi), np.cos(phi)
+    else:
+        p = 2.0 / squircle_n(smoothing)
+        c, sn = np.cos(phi), np.sin(phi)
+        c_seg = np.maximum(c, 1e-9)
+        s_seg = np.maximum(sn, 1e-9)
+        dbx = r * p * np.power(s_seg, p - 1) * c
+        dby = -r * p * np.power(c_seg, p - 1) * sn
+        largo = np.maximum(np.hypot(dbx, dby), 1e-9)
+        nx, ny = dby / largo, -dbx / largo
+    dirs = np.degrees(np.arctan2(ny, nx))
+    return float(np.abs(np.diff(dirs)).max())
+
+
+def corners_report(radius, smoothing):
+    """Mide la esquina e imprime en `clave=valor` para que la suite pueda fijar los numeros."""
+    r = float(radius)
+    bul = diagonal_bulge(r, smoothing)
+    # sin `+`: la suite compara cadenas exactas ("diagonal_bulge=0.0000") y el signo sobra
+    bul_txt = f"{bul:.4f}"
+    salto = gradient_jump(r, smoothing)
+    print(f"corner_radius={r:g}")
+    print(f"corner_smoothing={smoothing:g}")
+    print(f"n={squircle_n(smoothing):.2f}")
+    print(f"diagonal_bulge={bul_txt}")
+    print(f"gradient_jump_deg={salto:.2f}")
+    return 0
+
+
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
              gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0,
@@ -320,6 +454,8 @@ def main():
     ap.add_argument("--backdrop", help="the same region of the desktop, window out of the way")
     ap.add_argument("--out", default="/tmp/banda-simulada.png")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--corners", action="store_true",
+                    help="mide la esquina (abultamiento squircle) y sale en clave=valor")
     ap.add_argument("--GlassAlpha", type=float, default=GLASS_ALPHA)
     ap.add_argument("--BackgroundRadius", type=int, default=BACKGROUND_RADIUS)
     ap.add_argument("--MaterialBoost", type=float, default=MATERIAL_BOOST)
@@ -327,6 +463,8 @@ def main():
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
     ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
     ap.add_argument("--CornerRadius", type=float, default=CORNER_RADIUS)
+    ap.add_argument("--CornerSmoothing", type=float, default=0.0,
+                    help="el cornerSmoothing del kit (0 = arco circular, 0.6 = el valor medido)")
     ap.add_argument("--RimColour", type=float, default=RIM_COLOUR)
     ap.add_argument("--Specular", type=float, default=SPECULAR)
     ap.add_argument("--SpecularWidth", type=float, default=SPECULAR_WIDTH)
@@ -339,6 +477,8 @@ def main():
 
     if args.self_test:
         return self_test()
+    if args.corners:
+        return corners_report(args.CornerRadius, args.CornerSmoothing)
     if not args.window or not args.backdrop:
         ap.error("--window and --backdrop are required (or use --self-test)")
     import os

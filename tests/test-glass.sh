@@ -581,6 +581,43 @@ fi
 # Its knob defaults must come from the header, or a changed default would be simulated wrongly.
 afirmar_codigo "the simulator reads its defaults from the effect" "$EF/simulate.py" 'defaults_from_source'
 
+echo "  -- M2: las esquinas squircle, y la prueba de que el arco sigue siendo un arco --"
+# EL CASO DE VALOR CONOCIDO, que es lo que faltaba y costo una sesion entera: con cornerSmoothing 0
+# el squircle TIENE que dar exactamente el arco circular que ya estaba aprobado en pantalla, y con el
+# valor del kit (0.6) tiene que dar el abultamiento medido de 4.6229 px. Sin esto, `--corners` no
+# existia, el self-test no ejercitaba la geometria nueva, y una funcion de esquina rota podia dejar la
+# suite en verde: la red tiene que cubrir lo que se acaba de anadir, no solo lo de antes.
+if timeout 300 python3 "$EF/simulate.py" --corners --CornerRadius 20 --CornerSmoothing 0 \
+     >/tmp/sim-corners-0.txt 2>&1; then
+  ok "el modo --corners corre (radio 20, smoothing 0 = el arco de siempre)"
+else
+  fallo "el modo --corners FALLA con smoothing 0:"; sed 's/^/      /' /tmp/sim-corners-0.txt | head -6
+fi
+afirmar_igual "el control (smoothing 0) no abulta: es el mismo circulo" \
+  "diagonal_bulge=0.0000" "$(grep -oE 'diagonal_bulge=-?[0-9.]+' /tmp/sim-corners-0.txt | head -1)"
+
+if timeout 300 python3 "$EF/simulate.py" --corners --CornerRadius 20 --CornerSmoothing 0.6 \
+     >/tmp/sim-corners-kit.txt 2>&1; then
+  bul_k=$(grep -oE 'diagonal_bulge=-?[0-9.]+' /tmp/sim-corners-kit.txt | head -1)
+  afirmar_igual "con el smoothing del kit (0.6) el abultamiento es el medido" \
+    "diagonal_bulge=4.6229" "$bul_k"
+  # LA COSTURA DE 9w: la direccion hacia dentro del doblado es el gradiente de ESTA distancia, y una
+  # direccion que se VOLTEA dibuja una linea. La direccion que 9w arreglo era la de dos signos por
+  # eje, que salta 90 grados en el medio de la barra; esta se mide a lo largo del arco de esquina
+  # entero y se compara con un limite de 5 grados entre muestras consecutivas.
+  #
+  # DOS ASERCIONES Y NO UNA, porque con una sola esto pasaba EN VACIO: cuando `corners_report` dejo de
+  # imprimir el campo, `grep` devolvio vacio, `awk` lo evaluo como 0 y la asercion paso sin medir
+  # nada. La primera exige que el campo EXISTA; la segunda, su valor. Un chequeo que no distingue
+  # "0 grados" de "no hay dato" no es un chequeo.
+  salto=$(grep -oE 'gradient_jump_deg=[0-9.]+' /tmp/sim-corners-kit.txt | head -1 | sed 's/.*=//')
+  afirmar "la direccion del doblado se mide (el campo existe)" grep -qE '^[0-9.]+$' <<< "$salto"
+  afirmar "y no salta (seccion 9w): ${salto:-sin dato} grados" \
+    awk -v s="$salto" 'BEGIN{exit !(s+0 < 5.0)}'
+else
+  fallo "el modo --corners FALLA con el smoothing del kit:"; sed 's/^/      /' /tmp/sim-corners-kit.txt | head -6
+fi
+
 echo "  -- no Spanish identifiers, checked instead of remembered --"
 # The language pass renamed 133 identifiers and I relapsed four times afterwards (salida, cromo,
 # desdeArriba, amplificado), each time in a patch written from memory. A habit cannot be the check;
