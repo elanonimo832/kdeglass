@@ -142,7 +142,7 @@ afirmar_codigo "radius 0 keeps the single-sample path" "$SOURCE" 'desktop = text
 # The pair is the kit's `frost 6/16/16`, the outer sampled twice because that is how the
 # kit writes it.
 afirmar_codigo "the frost samples an inner scale derived from the kit" "$SOURCE" 'kInnerScale'
-afirmar_codigo "the frost is a pyramid of four levels" "$SOURCE" 'kLevelScale[3] = float[3]'
+afirmar_codigo "the frost is a pyramid of four levels" "$SOURCE" 'kLevelScale\[3\] = float\[3\]'
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
