@@ -53,6 +53,35 @@ afirmar_codigo() { # afirmar_codigo <description> <file> <pattern>
   else fallo "$1: '$3' not found in the CODE of $(basename "$2") (only in comments?)"; fi
 }
 
+# WHITESPACE-INSENSITIVE containment, for the shader's GLSL EXPRESSIONS (audit finding 6; see
+# HANDOFF section 9v). The assertions on glass.cpp used to pin the SPELLING -- exact spaces, exact
+# order -- so reformatting a CORRECT expression broke them while a real change that happened to keep
+# the same words could pass.
+#
+# It strips comments exactly as codigo_contiene does, removes ALL whitespace from the code and from
+# the pattern, and asks whether the pattern is a CONTIGUOUS SUBSTRING. That last part is the point:
+# the pattern stays ONE EXPRESSION, so reordering it or changing an operator still fails. A
+# comparator that only asked "do these tokens appear somewhere" would be WEAKER than the matcher it
+# replaces, which is why the test in test-harness.sh pins both halves: reformatting passes, and a
+# changed operator or a reordering does not.
+#
+# The pattern is LITERAL here, not an ERE: write the expression the shader contains, not its
+# regexp-escaped form.
+codigo_glsl_contiene() { # codigo_glsl_contiene <file> <literal-expression>
+  local sin_comentarios patron
+  sin_comentarios=$(grep -vE '^[[:space:]]*(//|\*|/\*)' "$1" 2>/dev/null) || true
+  # No `grep -q` in a pipe: the producer would die of SIGPIPE (see the note above). `tr` reads to the
+  # end and the match is a bash string test, so there is no pipe that can be cut short.
+  sin_comentarios=$(printf '%s' "$sin_comentarios" | tr -d '[:space:]')
+  patron=$(printf '%s' "$2" | tr -d '[:space:]')
+  [[ "$sin_comentarios" == *"$patron"* ]]
+}
+
+afirmar_glsl() { # afirmar_glsl <description> <file> <literal-expression>
+  if codigo_glsl_contiene "$2" "$3"; then ok "$1"
+  else fallo "$1: '$3' not found (whitespace-insensitive) in the CODE of $(basename "$2") (only in comments?)"; fi
+}
+
 # Like afirmar_contiene but with LITERAL search (grep -F). Needed when the pattern
 # contains regex characters: 'effects->paintWindow' has '->' and the '-' was being
 # interpreted as an operator, producing a false failure.
