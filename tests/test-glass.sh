@@ -21,7 +21,7 @@ afirmar_codigo "the glass alpha is a named constant" "$HEADER" 'kGlassAlpha'
 
 echo "  -- the content is left alone --"
 afirmar_codigo "outside the band the window texel is returned unmodified" "$SOURCE" 'vec4 window = texture[(]sampler, vTexCoord[)]'
-afirmar_codigo "and that is exactly what the content path returns" "$SOURCE" 'fragColor = window;'
+afirmar_codigo "and that is exactly what the content path returns" "$SOURCE" 'fragColor = window [*] cornerCoverage'
 
 echo "  -- the scene is told the window is translucent --"
 # Setting an alpha in the shader is not enough: the scene blends the redirected
@@ -105,7 +105,7 @@ afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" 
 afirmar_codigo "the chrome weight is an estimated coverage" "$SOURCE" 'clamp[(][(]toneLuma - luma[)] / toneLuma'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
-afirmar_codigo "the band's colour is premultiplied by its alpha" "$SOURCE" 'result [*] window[.]a'
+afirmar_codigo "the band's colour is premultiplied by its alpha" "$SOURCE" 'result [*] alfa'
 # And the corners: this theme's SVG has a 12 px arc but aurorae clips it into a 1 px
 # cell, so the frame is a rectangle and there is no shape to follow. The effect draws
 # the rounded rectangle itself and discards what falls outside it (0 disables it).
@@ -415,7 +415,7 @@ afirmar_codigo "it evicts the least recently used entry" "$SOURCE" 'm_lastUse\[l
 # cache the unwritten strip would hold a PREVIOUS window's capture.
 afirmar_codigo "the capture is cleared before the blit" "$SOURCE" 'glClear[(]GL_COLOR_BUFFER_BIT[)]'
 # Both paths write premultiplied: the scene blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA.
-afirmar_codigo "the no-capture fallback is premultiplied too" "$SOURCE" 'fallback [*] uGlassAlpha'
+afirmar_codigo "the no-capture fallback is premultiplied too" "$SOURCE" 'fallback [*] alfaFallback'
 # Rounding a window whose frame reaches the screen edge would carve an arc out of the screen.
 afirmar_codigo "windows that reach the screen edge are not rounded" "$SOURCE" '&& !m_touchesEdge'
 afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touchesEdge = frameRect.left'
@@ -705,7 +705,7 @@ echo "  -- the discard can only ever test the FRAME's boundary --"
 # of every window and left only the title bars -- "solo se ve la barra superior, no puedo ver nada".
 # These two assertions are the shape of the fix, and they are the strongest a shell test can make
 # here because the content path never reaches the shader maths this suite can exercise.
-afirmar_codigo "the discard tests the frame's rounded distance alone" "$SOURCE" 'if [(]edgeDistance < 0[.]0[)]'
+afirmar_codigo "the discard tests the frame's rounded distance alone" "$SOURCE" 'if [(]edgeDistance < -0[.]5[)]'
 afirmar_codigo "and it does NOT include the bar's bottom" "$SOURCE" 'float toEdge = min[(]edgeDistance, uTitleBarHeight - topDistance[)]'
 # and the retired form must be gone, by name, so it cannot come back
 afirmar_igual "the broken expression is gone" "0" "$(grep -c 'roundedDistance' effect-kwin/src/glass.cpp)"
@@ -731,3 +731,12 @@ assert abs(borde - 6.0) < 0.01, f"6 px inside a straight edge must measure 6, go
 PY
 then ok "negative at the corner, exact inside ($(cat /tmp/sdf.txt))"
 else fallo "the rounded distance is wrong:"; sed 's/^/      /' /tmp/sdf.txt | head -5; fi
+
+echo "  -- the corners are antialiased, which the user asked for by looking at them --"
+# "se ve un poco pixeleado en la esquina derecha e izquierda". A binary `discard` is a one-bit edge, so
+# the arc came out with stair steps. The signed distance was already there, so the boundary is a ONE
+# PIXEL RAMP OF ALPHA now, and it rides on all three output paths or the band's corners stay stepped.
+afirmar_codigo "the corner boundary is an alpha ramp, not a cut" "$SOURCE" 'cornerCoverage = clamp[(]edgeDistance [+] 0[.]5'
+afirmar_codigo "and outside the ramp it still discards" "$SOURCE" 'if [(]edgeDistance < -0[.]5[)]'
+afirmar_igual "the coverage reaches every output path" "4" \
+  "$(grep -c 'cornerCoverage' effect-kwin/src/glass.cpp)"

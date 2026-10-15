@@ -189,16 +189,22 @@ void main()
     // The user lost their desktop to that line. The bar's bottom belongs to the BAND's geometry, which
     // is applied below, not to the shape of the window.
     float topDistance = (1.0 - vTexCoord.y) * uTextureSize.y;
-    if (edgeDistance < 0.0) {
+    // ANTIALIASED CORNERS. `discard` is a binary test, so the arc came out with stair steps -- the
+    // user's "se ve un poco pixeleado en la esquina derecha e izquierda". The signed distance is
+    // already computed, so the boundary becomes a ONE PIXEL RAMP OF ALPHA instead of a cut: the
+    // fragment stays premultiplied and the compositor blends it. Outside the ramp, discard as before.
+    float cornerCoverage = clamp(edgeDistance + 0.5, 0.0, 1.0);
+    if (edgeDistance < -0.5) {
         discard;
     }
 
     float yPixelsFromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
     vec4 window = texture(sampler, vTexCoord);
     if (yPixelsFromTop > uTitleBarHeight) {
-        // The content is returned untouched, alpha included: this effect has no
-        // business changing anything outside the chrome.
-        fragColor = window;
+        // The content is returned untouched except for the corner's coverage -- it is premultiplied,
+        // so scaling all four channels is what fading its alpha means. Away from the corners the
+        // coverage is exactly 1 and this is the identity.
+        fragColor = window * cornerCoverage;
         return;
     }
 
@@ -595,7 +601,10 @@ void main()
         // allowed past 1 and the result saturates where the light is strongest. tune.sh caps the knob
         // at 2 for the same reason it caps an alpha at 2.
         result = mix(result, vec3(1.0), clamp(specular, 0.0, 2.0));
-        fragColor = vec4(result * window.a, window.a);
+        // The corner's coverage rides on the alpha of every output path, which is what makes
+        // the arc smooth instead of stepped.
+        float alfa = window.a * cornerCoverage;
+        fragColor = vec4(result * alfa, alfa);
         return;
     }
 
@@ -616,7 +625,8 @@ void main()
     // darker rather than brighter -- and it only runs when the capture is unavailable.
     vec3 fallbackChrome = chromeWithVibrancy(window.rgb, baseline, chrome, byColour);
     vec3 fallback = mix(baseline, fallbackChrome, chrome);
-    fragColor = vec4(fallback * uGlassAlpha, uGlassAlpha);
+    float alfaFallback = uGlassAlpha * cornerCoverage;
+    fragColor = vec4(fallback * alfaFallback, alfaFallback);
 }
 )";
 
@@ -735,7 +745,10 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "specular=" << m_specular
             << "specularWidth=" << m_specularWidth;
 
-    m_shader.reset();
+    // NO RESET ON RECONFIGURE. The GLSL is a fixed literal with no config baked in, and
+    // ShaderManager::generateCustomShader does not cache, so resetting here made every
+    // `tune.sh` call pay a compile and a link on the compositor thread. loadShader()
+    // already returns early when the shader exists; the uniforms are re-read per paint.
     loadShader();
     if (m_active) {
         const auto windows = effects->stackingOrder();
@@ -1034,8 +1047,15 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // the frost kernel would blend in at the edge. Clearing makes it transparent black,
     // which the block also is: that strip is the part of the frame that is off screen.
     GLFramebuffer::pushFramebuffer(m_currentCapture->fbo.get());
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    // ONLY WHEN THE DESTINATION IS SMALLER THAN THE TEXTURE. `reducedSize` is
+    // floor(size/factor) and `destination` comes from the CLAMPED source, so a window that
+    // extends off screen leaves a strip that must be cleared -- but for a window fully on
+    // screen they are equal and this is 8 MiB of pure waste per repaint (finding 2, about
+    // 20% of the capture traffic).
+    if (destination.size() != reducedSize) {
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
     GLFramebuffer::popFramebuffer();
 
     GLFramebuffer::pushFramebuffer(sourceFbo);
