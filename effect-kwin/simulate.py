@@ -57,6 +57,7 @@ GLASS_ALPHA = DEFAULTS.get("GlassAlpha", 0.25)
 BACKGROUND_RADIUS = int(DEFAULTS.get("BackgroundRadius", 16))
 MATERIAL_BOOST = DEFAULTS.get("MaterialBoost", 1.20)
 MATERIAL_GAIN = DEFAULTS.get("MaterialGain", 1.60)
+REFRACTION = DEFAULTS.get("Refraction", 3.0)
 RIM = DEFAULTS.get("Rim", 0.20)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
 INNER_SCALE = 0.375          # the kit's frost 6/16/16, as in the shader
@@ -135,7 +136,7 @@ def smoothstep(edge0, edge1, x):
 
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
-             gain=MATERIAL_GAIN):
+             gain=MATERIAL_GAIN, refraction=REFRACTION):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     desktop = frost(backdrop, radius, factor)
 
@@ -170,6 +171,18 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         rim_colour = np.clip(el + (desktop - el) * max(boost, 1.2), 0, 1)
         result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
         result = result * (1 - r * 0.15) + 1.0 * (r * 0.15)
+        # the bend: the backdrop, displaced toward the interior
+        if refraction > 0.01:
+            inward_y = -np.sign((h - 1 - yy) - yy)
+            inward_x = np.sign((w - 1 - xx) - xx)
+            by = yy + inward_y * refraction * r[..., 0]
+            bx = xx + inward_x * refraction * r[..., 0]
+            result = result * (1 - r) + bilinear(backdrop, by, bx) * r
+        # the hairline of contrast: away from the backdrop, so the boundary reads on any of them
+        hair = (1.0 - smoothstep(0.0, 1.5, to_edge))[..., None]
+        back = luma(desktop)[..., None]
+        line = np.clip(np.clip(back + (desktop - back) * 0.5, 0, 1) * np.where(back > 0.5, 0.55, 1.6), 0, 1)
+        result = result * (1 - hair * rim_strength * 0.6) + line * (hair * rim_strength * 0.6)
     return np.clip(result, 0, 1)
 
 
@@ -228,6 +241,7 @@ def main():
     ap.add_argument("--BackgroundRadius", type=int, default=BACKGROUND_RADIUS)
     ap.add_argument("--MaterialBoost", type=float, default=MATERIAL_BOOST)
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
+    ap.add_argument("--Refraction", type=float, default=REFRACTION)
     ap.add_argument("--Rim", type=float, default=RIM)
     ap.add_argument("--ChromeLow", type=float, default=CHROME_LOW)
     ap.add_argument("--FrostDownsample", type=int, default=0)
@@ -256,7 +270,8 @@ def main():
         print(f"the two crops must be the same size: window {w.shape}, backdrop {b.shape}")
         return 2
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
-                   args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain)
+                   args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
+                   args.Refraction)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0

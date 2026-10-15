@@ -538,3 +538,13 @@ echo "  -- no Spanish identifiers, checked instead of remembered --"
 sp_words='amplificado|desdeArriba|desdeAbajo|desdeIzquierda|desdeDerecha|alBorde|salida|cromo|fondo|esquina|saturacion|porColor|porDesviacion|tonoRadio|loguear|reducido|encontrado|clave|marco|pantalla|sombra|barra|ventana|ancho|alto|fila|columna|captura|fichero'
 malas=$(grep -oE "\b($sp_words)\b" "$SOURCE" "$HEADER" 2>/dev/null | grep -v ':' | sort -u | tr '\n' ' ')
 afirmar_igual "the effect's identifiers are English" "" "${malas% }"
+
+echo "  -- the edge bends the backdrop and draws a line of contrast --"
+# The user's samples show the edge carrying the backdrop's chroma in a gradient ACROSS the
+# boundary (62, 45, 19 over four rows in one; 9 to 31 in another): a displaced copy of what is
+# outside, which is refraction. And the bend alone cannot fix their concrete complaint -- a white
+# window behind makes the band white, so the boundary vanishes -- which needs a hairline AWAY from
+# the backdrop.
+afirmar_codigo "the edge samples the capture, bent toward the interior" "$SOURCE" 'bendUv = uvBackground [+] inward'
+afirmar_codigo "the bend is a knob, from the kit's refraction" "$SOURCE" 'uRefraction'
+afirmar_codigo "a hairline goes away from the backdrop, not toward white" "$SOURCE" '0[.]55 : 1[.]6'

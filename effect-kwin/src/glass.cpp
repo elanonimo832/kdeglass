@@ -70,6 +70,7 @@ uniform float uVibrancy;
 uniform float uRim;
 uniform float uMaterialBoost;
 uniform float uMaterialGain;
+uniform float uRefraction;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -429,6 +430,29 @@ void main()
         float fromRight = uTextureSize.x - fromLeft;
         float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
         float rim = (1.0 - smoothstep(0.0, 5.0, toEdge)) * uRim;
+
+        // THE BEND, and this is what the user's new samples show. In one of them the edge carries
+        // the backdrop's chroma as a GRADIENT across the boundary -- 62, 45, 19 over four rows --
+        // and in another the other way round (9 to 31). That is not a brightened edge: it is a
+        // DISPLACED copy of what is outside, which is what refraction is, and the user described
+        // it before they knew the word ("es como si la orilla tomara colores y los doblara por
+        // toda su orilla"). One extra fetch of the capture, moved toward the interior, is that
+        // bend -- and the kit's own figure for it is `refraction = 70`.
+        if (uRefraction > 0.01) {
+            vec2 inward = normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)) + vec2(0.001));
+            vec2 bendUv = uvBackground + inward * uRefraction * uBackgroundTexel * rim;
+            result = mix(result, texture(background, bendUv).rgb, rim);
+        }
+
+        // AND A HAIRLINE OF CONTRAST, because the bend alone cannot save the case the user found:
+        // a white window behind makes the band white too, and the boundary disappears where it
+        // matters most. Apple's edge reads against ANY backdrop because it also carries a one
+        // pixel line AWAY from the backdrop -- darker on a light one, lighter on a dark one.
+        float hair = 1.0 - smoothstep(0.0, 1.5, toEdge);
+        float backLuma = dot(desktop, kLuma);
+        vec3 lineColour = clamp(vec3(backLuma) + (desktop - backLuma) * 0.5, 0.0, 1.0)
+                        * (backLuma > 0.5 ? 0.55 : 1.6);
+        result = mix(result, clamp(lineColour, 0.0, 1.0), hair * uRim * 0.6);
         // THE EDGE IS THE BACKDROP'S OWN COLOUR, NOT WHITE. The first version was a two-texel
         // white line and the user's verdict was exact: "el de apple es mas grueso y se adapta al
         // color del background, el nuestro es una simple linea fina delgada blanca". Apple's
@@ -557,6 +581,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     m_rim = float(cfg.readEntry("Rim", double(kRim)));
     m_materialBoost = float(cfg.readEntry("MaterialBoost", double(kMaterialBoost)));
     m_materialGain = float(cfg.readEntry("MaterialGain", double(kMaterialGain)));
+    m_refraction = float(cfg.readEntry("Refraction", double(kRefraction)));
 
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
@@ -569,7 +594,8 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "vibrancy=" << m_vibrancy
             << "rim=" << m_rim
             << "materialBoost=" << m_materialBoost
-            << "materialGain=" << m_materialGain;
+            << "materialGain=" << m_materialGain
+            << "refraction=" << m_refraction;
 
     m_shader.reset();
     loadShader();
@@ -1054,6 +1080,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uRim", m_rim);
     m_shader->setUniform("uMaterialBoost", m_materialBoost);
     m_shader->setUniform("uMaterialGain", m_materialGain);
+    m_shader->setUniform("uRefraction", m_refraction);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

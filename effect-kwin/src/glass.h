@@ -162,6 +162,12 @@ private:
     static constexpr float kMaterialGain = 1.60f;
     float m_materialGain = kMaterialGain;
 
+    // How far the edge's copy of the backdrop is bent toward the interior, in screen pixels. The
+    // kit calls it `refraction = 70`; the samples show the band carrying the backdrop's chroma
+    // across the boundary, which is a displacement and not a brightening. 0 disables the bend.
+    static constexpr float kRefraction = 3.0f;
+    float m_refraction = kRefraction;
+
     static constexpr float kMaterialBoost = 1.20f;
     float m_materialBoost = kMaterialBoost;
 
