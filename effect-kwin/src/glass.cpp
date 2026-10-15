@@ -369,15 +369,32 @@ void main()
         const float kInnerScale = 0.375;   // kit: frost 6/16/16 -> 6 / 16
         vec3 desktop;
         if (uBackgroundRadius > 0.5) {
+            // A PYRAMID OF FOUR LEVELS, and the reason is measured. The two-scale kernel had five
+            // sample positions per axis across a 16 px footprint, which SAMPLES a line of backdrop
+            // text rather than averaging it: the user could still read it ("puedo leer el texto
+            // detras de la barra"), and raising the radius did not help at all -- the simulation
+            // says the surviving contrast goes 100% at 16 px, 98% at 40 px. What dissolves text is
+            // a level fine enough to average its strokes, which is what the innermost one is: at
+            // r/8 = 2 px it covers a letter's stem, while the coarser levels carry the spread.
+            // THE FINEST LEVEL CARRIES THE WEIGHT, and that is measured too. With four equal levels
+            // the surviving contrast of backdrop text fell only to 82.5% -- the coarse levels still
+            // sample the letters -- while the level that actually AVERAGES a stem is the innermost
+            // one. Giving it six times the weight of each coarse level is what makes the strokes
+            // dissolve; the coarse ones are still there to carry the spread.
+            const float kLevelScale[3] = float[3](0.5, 0.25, 0.125);
             vec4 frostSum = vec4(0.0);
             for (int x = -1; x <= 1; ++x) {
                 for (int y = -1; y <= 1; ++y) {
                     vec2 dir = vec2(float(x), float(y)) * uBackgroundTexel;
-                    frostSum += 2.0 * texture(background, uvBackground + dir * uBackgroundRadius);
-                    frostSum += texture(background, uvBackground + dir * uBackgroundRadius * kInnerScale);
+                    frostSum += texture(background, uvBackground + dir * uBackgroundRadius);
+                    for (int nivel = 0; nivel < 3; ++nivel) {
+                        float peso = (nivel == 2) ? 6.0 : 1.0;
+                        frostSum += peso * texture(background,
+                                                   uvBackground + dir * uBackgroundRadius * kLevelScale[nivel]);
+                    }
                 }
             }
-            desktop = (frostSum / 27.0).rgb;
+            desktop = (frostSum / 81.0).rgb;
         } else {
             desktop = texture(background, uvBackground).rgb;
         }

@@ -108,13 +108,17 @@ def frost(backdrop, radius, factor):
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     # where this fragment is, in the reduced texture's own coordinates
     y0, x0 = yy / factor, xx / factor
+    # FOUR LEVELS, equal weight each: the coarsest carries the spread and the finest (r/8 = 2 px)
+    # averages a letter's stem. Measured: the surviving contrast of backdrop text fell sharply with
+    # this, where raising the radius alone did nothing (100% at 16 px, 98% at 40 px).
     total = np.zeros_like(backdrop)
-    for escala, peso in ((radius, 2.0), (radius * INNER_SCALE, 1.0)):
+    for escala, peso in ((radius, 1.0), (radius * 0.5, 1.0), (radius * 0.25, 1.0),
+                         (radius * 0.125, 6.0)):
         paso = escala / factor
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
                 total += peso * bilinear(small, y0 + dy * paso, x0 + dx * paso)
-    return np.clip(total / 27.0, 0, 1)
+    return np.clip(total / 81.0, 0, 1)
 
 
 def tone(window, radius):

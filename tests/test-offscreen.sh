@@ -36,10 +36,10 @@ echo "  -- the shader actually blurs --"
 # CHANGED when the tone became a median and the frost moved to the captured backdrop. The
 # accumulation that these two lines asserted belongs to the FROST now, and asserting it
 # against the bar's kernel was pinning a mechanism the design no longer has.
-afirmar_codigo "the backdrop frost accumulates texture samples" "$SOURCE" 'frostSum [+]= 2[.]0 [*] texture[(]background'
+afirmar_codigo "the backdrop frost accumulates texture samples" "$SOURCE" 'frostSum [+]= texture[(]background'
 # ERE: '(' is literal and '\(' opens a group, so the parenthesis needs a class.
 afirmar_codigo "the sampling runs over a neighbourhood" "$SOURCE" 'for [(]int x = -1; x <= 1' 
-afirmar_codigo "and averages them" "$SOURCE" 'frostSum / 27[.]0'
+afirmar_codigo "and averages them" "$SOURCE" 'frostSum / 81[.]0'
 
 echo "  -- the paint chain is still continued --"
 # The old failure mode: an effect that overrides drawWindow/paintWindow and does
