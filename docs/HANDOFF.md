@@ -1477,6 +1477,67 @@ not have predicted -- one vacuous check came back to life as a false positive, a
 of Spanish words got translated into `output`. Both are fixed and both now test the property
 they name.
 
+## 10c. M2: the squircle was the WRONG CURVE FAMILY, and the user saw it before I measured it
+
+The three M2 commits (`cf9e1f8`, `0e21232`, `a23fb04`) are real and stay: they are the door, its test
+and its measurement. What is behind the door is wrong, and this section exists so the next session
+does not rebuild it.
+
+**What the user saw.** After `./install.sh` and `./tune.sh CornerSmoothing=0.6`: *"se arruinaron las
+esquinas... tiene un borde blanco la ventana muy grande y feo"*. Two separate things, and they have to
+stay separate:
+- the **white border** is the decoration theme (aurorae/KdeMacOS), not this geometry, and the user
+  said so themselves ("no me he quejado de ello porque no estoy seguro si mas adelante veremos eso").
+  It is queued, not part of M2.
+- the **corners** are mine, and they were broken.
+
+**The measurement that explains it.** The boundary's x at each height y, in the corner's own frame,
+radius 20:
+
+| y | circle | my superellipse (n=5) | Apple's construction |
+|---|---|---|---|
+| 1 | 13.76 | **20.00** | 16.12 |
+| 5 | 6.77 | **20.00** | 12.55 |
+| 10 | 2.68 | **19.87** | 13.25 |
+
+A circle starts curving at y=6.2. **Mine stays at x=20 until y≈15 and then turns abruptly**: that is
+a nearly square corner with a spike, not a subtle squircle. The white border was visible at the same
+time and made it worse.
+
+**The mistake, named.** I built the corner as a superellipse centred on the corner box's outer vertex,
+`c(phi) = r*(sin^p, cos^p)`, with `p = 2/n` and a CALIBRATION I invented, `n = 2 + 5*smoothing`,
+anchored on `0 -> n=2` and `0.6 -> n=5`. That family is not Apple's corner. Apple's construction
+shrinks the arc to `r*(1-s)` and fills the gap with two tangent Bezier transitions that reach the
+straight edge at `r*s` from the vertex; with `r=20` and `s=0.6` its bulge is **+0.23 px**, where mine
+was 4.62 px. The number 4.6229 was measured honestly and pinned in the suite -- what was wrong was the
+SHAPE that number described, which is the failure mode this repository already has a name for: a
+metric that flatters itself.
+
+**Why the suite did not catch it.** The test pinned the bulge and the gradient, and both were exactly
+as designed. There is no known-value test for the shape as a whole, only for its two anchors, and both
+anchors (circle at 0, "n=5" at 0.6) were true by construction. A calibration is not a measurement.
+
+**Where it stands now.** `CornerSmoothing` defaults to `0` and `kwinrc` is at `0`: the screen is back
+to the circular arc, confirmed in the effect's own log (`cornerRadius= 20 cornerSmoothing= 0`).
+Nothing on screen is broken. The knob, its range, its README row, its uniform and its gate all work;
+only the curve behind them is wrong.
+
+**What M2 needs next, in one line:** replace the superellipse with Apple's construction -- smaller arc
+plus two tangent Bezier transitions -- in `simulate.py` AND in the shader, together. That breaks the
+"one parametric curve" assumption the current nearest-point search (table, and coarse+refine in GLSL)
+rests on, so the distance to a piecewise curve needs its own decision. A whole session, and it wants
+the instrument FIRST. Such an instrument was attempted in this session, **failed three times** (frame
+of reference; a malformed known-value case; and then a naive row scan, which cannot even describe a
+flat corner because it looks for the first window pixel in each row), and was DELETED rather than
+committed, so no file of that name exists in the tree. Build it with a synthetic corner whose answer
+is known before pointing it at a screenshot.
+
+AND THE METHOD LESSON, because it is the same one the file already carries twice: I measured the bulge
+(4.6229 px) and the gradient (0.04 deg) and reported both as if they settled the shape. They did not.
+The user's eye, on a real screenshot, was the instrument that found it -- and it found it in one look,
+after I had spent a session on the arithmetic. When the thing being judged is a SHAPE, the test that
+matters compares the shape, not two numbers extracted from it.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).

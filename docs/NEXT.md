@@ -31,9 +31,16 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
 
 ## What to do next, in order
 
-1. **M2 — squircle corners.** Apple's corners are continuous curvature, not circle arcs; ours are arcs
-   of radius 20. This is the biggest VISIBLE change per unit of effort and it lands exactly on the
-   feature the user has been staring at. `ROADMAP.md` has the milestone.
+1. **M2 — squircle corners, and it is HALF DONE the wrong way.** Read `HANDOFF.md` §10c before
+   touching it. The door exists and works: `CornerSmoothing` (default 0, range 0..1, in `tune.sh`,
+   the README table, the suite and the shader), a known-value test, and a simulator that draws it with
+   bit-for-bit parity against the arc at 0. **What is behind the door is the wrong curve:** I built a
+   superellipse with an invented calibration, and the user's screenshot showed a nearly square corner
+   (at y=5 the circle's boundary is at x=6.8, mine at 20.0). Apple's construction -- an arc shrunk to
+   `r*(1-s)` plus two tangent Bezier transitions -- bulges 0.23 px where mine bulged 4.62. Replace the
+   curve in `simulate.py` AND the shader together, and build the SHAPE instrument before using it on
+   a screenshot: an attempt at one failed three times in a single session and was thrown away
+   (see §10c for the three ways).
 2. **Audit finding 1 — capture the band, not the window.** `glass.cpp` blits `expandedGeometry` (up to
    3840x2160) per window per repaint when the band needs 3800x38 plus the kernels' reach: about 30x
    less traffic, and the audit calls it the only high-impact item. HIGH EFFORT: it changes the capture
