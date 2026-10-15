@@ -8,6 +8,9 @@
 #include <opengl/glframebuffer.h>
 #include <opengl/gltexture.h>
 
+#include <QHash>
+#include <QString>
+
 #include <map>
 #include <memory>
 #include <utility>
@@ -88,6 +91,14 @@ private:
     bool loadShader();
 
     std::unique_ptr<GLShader> m_shader;
+
+    // AUDIT 8: THE UNIFORM LOCATIONS, RESOLVED ONCE. `setUniform(name, ...)` asks the program for
+    // the location -- glGetUniformLocation -- on every call: 24 of them, per window, per repaint.
+    // The location cannot change while the shader lives, and the shader is created once and never
+    // reset (reconfigure stopped resetting it), so the lookup is pure overhead. loadShader()
+    // clears this if a new shader is ever built.
+    QHash<QString, int> m_uniformLocations;
+    int uniformLocation(const char *name);
 
     // ---------------------------------------------------------------------
     // M1.3a -- the captured desktop.

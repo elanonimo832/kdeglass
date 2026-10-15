@@ -470,7 +470,7 @@ echo "  -- the sampling sub-rectangle, ON, and now load-bearing --"
 afirmar_codigo "the sub-rectangle switch exists" "$HEADER" 'm_captureSubRect'
 afirmar_codigo "and it is ON, so the band is the default capture" "$HEADER" 'kCaptureSubRect = true'
 afirmar_codigo "the frame's place inside the capture is ALWAYS applied" "$SOURCE" \
-  'm_shader->setUniform[(]"uBackgroundOffset", m_sampleOffset'
+  'setUniform[(]uniformLocation[(]"uBackgroundOffset"[)], m_sampleOffset'
 negar "the identity mapping path is gone" \
   grep -qE 'm_captureSubRect [?] m_sampleOffset' "$SOURCE"
 afirmar_codigo "and the switch selects the band instead" "$SOURCE" 'Rect region = expanded'
@@ -904,3 +904,13 @@ afirmar_codigo "the corner boundary is an alpha ramp, not a cut" "$SOURCE" 'corn
 afirmar_codigo "and outside the ramp it still discards" "$SOURCE" 'if [(]edgeDistance < -0[.]5[)]'
 afirmar_igual "the coverage reaches every output path" "4" \
   "$(grep -c 'cornerCoverage' effect-kwin/src/glass.cpp)"
+
+echo "  -- #8: the uniform locations are resolved once, not per paint --"
+# `setUniform(name, ...)` is glGetUniformLocation per call -- 24 of them per window per repaint --
+# and the location cannot change while the shader lives. The shader is created once and never reset
+# (reconfigure stopped resetting it), so a cache is the whole fix and a lookup is pure overhead.
+afirmar_codigo "the uniform locations are cached" "$HEADER" 'm_uniformLocations'
+afirmar_codigo "and resolved by a helper" "$SOURCE" 'int MacosGlassEffect::uniformLocation'
+afirmar_codigo "with the per-paint uniforms going through it" "$SOURCE" 'setUniform[(]uniformLocation[(]'
+nombres=$(grep -c 'm_shader->setUniform("' "$SOURCE")
+afirmar_igual "no name-keyed setUniform is left in the paint path" "0" "$nombres"

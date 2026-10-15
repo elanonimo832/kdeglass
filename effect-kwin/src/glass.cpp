@@ -923,7 +923,25 @@ bool MacosGlassEffect::loadShader()
         qCritical() << "[macos-glass] the diffusion shader failed to load";
         return false;
     }
+    // A new shader means new locations: the cache is per-program, and this is the only place that
+    // builds one.
+    m_uniformLocations.clear();
     return true;
+}
+
+int MacosGlassEffect::uniformLocation(const char *name)
+{
+    // AUDIT 8. The lookup is cached because it is a GL call (glGetUniformLocation) and the answer
+    // cannot change while the shader lives. A miss is cached too: a name the GLSL does not declare
+    // stays missing, and asking the driver again on every paint would not find it either.
+    const QString key = QString::fromLatin1(name);
+    const auto it = m_uniformLocations.constFind(key);
+    if (it != m_uniformLocations.constEnd()) {
+        return it.value();
+    }
+    const int location = m_shader ? m_shader->uniformLocation(name) : -1;
+    m_uniformLocations.insert(key, location);
+    return location;
 }
 
 void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
@@ -1386,14 +1404,14 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     }
 
     ShaderManager::instance()->pushShader(m_shader.get());
-    m_shader->setUniform("uRadius", float(m_frostRadius));
-    m_shader->setUniform("uTexelSize",
+    m_shader->setUniform(uniformLocation("uRadius"), float(m_frostRadius));
+    m_shader->setUniform(uniformLocation("uTexelSize"),
                          QVector2D(1.0f / size.width(), 1.0f / size.height()));
-    m_shader->setUniform("uTextureSize",
+    m_shader->setUniform(uniformLocation("uTextureSize"),
                          QVector2D(float(size.width()), float(size.height())));
-    m_shader->setUniform("uTitleBarHeight", float(barHeight));
-    m_shader->setUniform("uGlassAlpha", m_glassAlpha);
-    m_shader->setUniform("uChromeLow", m_chromeLow);
+    m_shader->setUniform(uniformLocation("uTitleBarHeight"), float(barHeight));
+    m_shader->setUniform(uniformLocation("uGlassAlpha"), m_glassAlpha);
+    m_shader->setUniform(uniformLocation("uChromeLow"), m_chromeLow);
     // WHICH WINDOWS GET ROUNDED CORNERS, and it is not all of them. A fullscreen window
     // IS the screen: rounding its corners would carve arcs out of the screen itself and
     // show the desktop behind them. A window with client-side decoration is the one case
@@ -1402,22 +1420,22 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     // windows the material covers: normal, decorated, not fullscreen.
     const bool shouldRound = m_cornerRadius > 0
         && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen() && !m_touchesEdge;
-    m_shader->setUniform("uCornerRadius", shouldRound ? float(m_cornerRadius) : 0.0f);
+    m_shader->setUniform(uniformLocation("uCornerRadius"), shouldRound ? float(m_cornerRadius) : 0.0f);
     // smoothing 0 when the corners are not rounded, or the shader would compute a superellipse for a
     // shape nobody draws: `shouldRound` is the same gate as the radius.
-    m_shader->setUniform("uCornerSmoothing",
+    m_shader->setUniform(uniformLocation("uCornerSmoothing"),
                          shouldRound ? m_cornerSmoothing : 0.0f);
-    m_shader->setUniform("uVibrancy", m_vibrancy);
-    m_shader->setUniform("uRim", m_rim);
-    m_shader->setUniform("uMaterialBoost", m_materialBoost);
-    m_shader->setUniform("uMaterialGain", m_materialGain);
-    m_shader->setUniform("uRefraction", m_refraction);
-    m_shader->setUniform("uRimWidth", m_rimWidth);
-    m_shader->setUniform("uRimColour", m_rimColour);
-    m_shader->setUniform("uSpecular", m_specular);
-    m_shader->setUniform("uSpecularWidth", m_specularWidth);
-    m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
-    m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
+    m_shader->setUniform(uniformLocation("uVibrancy"), m_vibrancy);
+    m_shader->setUniform(uniformLocation("uRim"), m_rim);
+    m_shader->setUniform(uniformLocation("uMaterialBoost"), m_materialBoost);
+    m_shader->setUniform(uniformLocation("uMaterialGain"), m_materialGain);
+    m_shader->setUniform(uniformLocation("uRefraction"), m_refraction);
+    m_shader->setUniform(uniformLocation("uRimWidth"), m_rimWidth);
+    m_shader->setUniform(uniformLocation("uRimColour"), m_rimColour);
+    m_shader->setUniform(uniformLocation("uSpecular"), m_specular);
+    m_shader->setUniform(uniformLocation("uSpecularWidth"), m_specularWidth);
+    m_shader->setUniform(uniformLocation("uBackgroundFlipV"), m_backgroundFlipV ? 1.0f : 0.0f);
+    m_shader->setUniform(uniformLocation("uBackgroundRadius"), float(m_backgroundRadius));
 
     // The captured desktop goes on texture unit 1: unit 0 is the window's own
     // texture, bound by KWin. The texture is NOT unbound afterwards on purpose --
@@ -1428,7 +1446,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     if (hasCapture) {
         glActiveTexture(GL_TEXTURE0 + 1);
         m_currentCapture->texture->bind();
-        m_shader->setUniform("background", 1);
+        m_shader->setUniform(uniformLocation("background"), 1);
         glActiveTexture(GL_TEXTURE0);
         // The kernel's spacing is expressed in SCREEN pixels, so this is the texel of
         // the full-size region -- not of the reduced texture, which is factor times
@@ -1438,15 +1456,15 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         // THE SUB-RECTANGLE MAPPING IS MANDATORY, in BOTH capture modes: the capture is the band or
         // the whole expanded geometry, and the frame is a sub-rectangle of it either way. This used
         // to be gated on `CaptureSubRect`, whose OFF sent the identity -- the KNOWN 14 px offset.
-        m_shader->setUniform("uBackgroundOffset", m_sampleOffset);
-        m_shader->setUniform("uBackgroundScale", m_sampleScale);
+        m_shader->setUniform(uniformLocation("uBackgroundOffset"), m_sampleOffset);
+        m_shader->setUniform(uniformLocation("uBackgroundScale"), m_sampleScale);
         if (m_captureRegion.width() > 0 && m_captureRegion.height() > 0) {
-            m_shader->setUniform("uBackgroundTexel",
+            m_shader->setUniform(uniformLocation("uBackgroundTexel"),
                                  QVector2D(1.0f / m_captureRegion.width(),
                                            1.0f / m_captureRegion.height()));
         }
     }
-    m_shader->setUniform("uHasBackground", hasCapture ? 1.0f : 0.0f);
+    m_shader->setUniform(uniformLocation("uHasBackground"), hasCapture ? 1.0f : 0.0f);
     ShaderManager::instance()->popShader();
 }
 
