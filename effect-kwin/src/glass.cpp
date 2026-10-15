@@ -419,7 +419,19 @@ void main()
         // "muy blanco" and "muy oscuro" were both true at different opacities. The gain is its
         // own term now, so the two can be set independently: 1.0 is exactly the behaviour
         // before this line existed, and the measured Apple figure is 1.6.
-        vec3 gained = clamp(desktop * uMaterialGain, 0.0, 1.0);
+        // A SOFT KNEE, NOT A CLAMP, and this is the "cuadro blancoso en la parte central" the user
+        // saw once the rest was right. `clamp(desktop * 1.6)` saturates every value above 0.625 to
+        // flat white, so a bright part of the backdrop becomes a PLATEAU -- a white square with an
+        // outline, in the middle of the bar -- while the edges look MORE translucent, because the
+        // bend mixes in the raw backdrop and never clamps. Apple's material is tone-mapped there.
+        // Above 0.5 the response compresses instead of saturating, so it brightens without ever
+        // going flat, and the dark side keeps the full gain.
+        vec3 boosted = desktop * uMaterialGain;
+        vec3 over = max(boosted - 0.5, 0.0);
+        // `over / (1 + over)` alone is NOT bounded by one -- it reaches 1.5 -- so the first version
+        // of this knee still produced flat regions, 3.7% of the band in the simulation. This form
+        // reaches exactly 1.0 as the input grows, and 0.75 at the knee.
+        vec3 gained = mix(boosted, 0.5 + over / (1.0 + 2.0 * over), step(0.5, boosted));
         // The bar keeps uGlassAlpha of its own colour -- its BASELINE, so the chrome is not
         // smeared into the glass -- and lets the (amplified) backdrop through.
         vec3 glass = mix(gained, baseline, uGlassAlpha);

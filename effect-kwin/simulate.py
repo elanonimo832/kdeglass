@@ -151,7 +151,11 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         desktop = np.clip(l + (desktop - l) * boost, 0, 1)
 
     base = tone(window, radius)
-    desktop = np.clip(desktop * gain, 0, 1)          # the material's gain, as in the shader
+    # the material's gain with a SOFT KNEE above 0.5, as in the shader: a hard clip turns a bright
+    # backdrop into a flat white plateau, which is the "cuadro blancoso" the user reported
+    boosted = desktop * gain
+    over = np.maximum(boosted - 0.5, 0.0)
+    desktop = np.where(boosted > 0.5, 0.5 + over / (1.0 + 2.0 * over), boosted)
     glass = (1.0 - glass_alpha) * desktop + glass_alpha * base
 
     # the chrome: deviation from the bar's tone, as a COVERAGE, plus chroma for the discs

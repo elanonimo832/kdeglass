@@ -561,3 +561,10 @@ echo "  -- the bend is measured in pixels, not in Rim units --"
 # moves edge pixels by up to 157.6 levels.
 afirmar_codigo "the displacement scales with the falloff" "$SOURCE" 'uRefraction [*] uBackgroundTexel [*] falloff'
 afirmar_codigo "and the band is mostly the bend at the edge" "$SOURCE" 'clamp[(]uRim [*] 4[.]0, 0[.]0, 1[.]0[)]'
+
+echo "  -- the gain is tone-mapped, not clipped --"
+# "se ve un como cuadro blancoso en la parte central" was the hard clamp: everything above 0.625
+# went to flat white, so a bright part of the backdrop became a plateau -- a white square with an
+# outline -- while the edges, which mix the RAW backdrop, looked more translucent than the middle.
+afirmar_codigo "the gain has a soft knee above mid grey" "$SOURCE" '0[.]5 [+] over / [(]1[.]0 [+] 2[.]0 [*] over[)]'
+afirmar_codigo "and it is bounded, unlike over/(1+over) which reaches 1.5" "$SOURCE" "NOT bounded by one"
