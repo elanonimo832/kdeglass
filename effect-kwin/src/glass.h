@@ -402,15 +402,6 @@ private:
     // control rather than the experiment.
     static constexpr float kCornerSmoothing = 0.0f;
     float m_cornerSmoothing = kCornerSmoothing;
-
-
-    // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
-    // it belongs with the veil work in M1.5.
-    static constexpr float kFrostOpacity = 0.25f;   // kit: opacity 25
-
-    // Whether the material is applied at all. Turning it off leaves the windows
-    // untouched, which is what makes the measurement possible.
-    bool m_active = true;
 };
 
 } // namespace KWin
