@@ -1073,9 +1073,19 @@ vertical, and a 2% scale** (1415/1387) that drifts to roughly 28 px at the far e
 through a 16 px frost over a smooth backdrop -- and visible in one second over structure with the
 frost off:
 
-    ./tune.sh BackgroundRadius=0 CaptureSubRect=false   # the backdrop will be SHIFTED
+    ./tune.sh BackgroundRadius=0 CaptureSubRect=false   # TEMPORARY, see the warning below
     ./tune.sh CaptureSubRect=true                       # aligned
     ./tune.sh --reset                                   # back to the approved look
+
+WARNING, from the user's second run: `BackgroundRadius=0` means ZERO frost, so "se ve todo el texto de
+atras completamente" -- every letter of whatever is behind the window becomes readable. That is the
+sharp end of the knob working as designed, and it is NOT a state to stay in. The user stopped before
+the `--reset` and asked for their settings back, correctly.
+
+THE NON-DESTRUCTIVE WAY is `measure-alignment.py`, which was written for this question and reports
+(0, 0) for whichever sampling is true without changing how anything looks. It needs the capture pair
+from `capture-pair.sh`. For a question already answered by the arithmetic and confirmed by the eye,
+that is the better instrument, and it should have been the first suggestion rather than the last.
 
 `GlassAlpha=0` was in the first version of that recipe and it was a bad ingredient: it means ZERO
 material, so the bar becomes a transparent pane with no effect at all -- "todo se vio completamente
