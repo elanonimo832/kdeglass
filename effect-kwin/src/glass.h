@@ -179,7 +179,17 @@ private:
     static constexpr float kMaterialBoost = 1.20f;
     float m_materialBoost = kMaterialBoost;
 
-    static constexpr bool kCaptureSubRect = false;
+    // TRUE, and the reason is arithmetic rather than taste. The capture covers KWin's offscreen
+    // texture, which is expandedGeometry() (frame plus shadow margins: the user's own journal says
+    // QPointF(14, 2)), while every size in the shader comes from the FRAME -- which the rounded
+    // corners prove, since arcs built from the frame's box land on the window's corners. So the
+    // backdrop must be sampled at the frame's sub-rectangle. With this false the identity maps the
+    // capture onto the frame's coordinates, which is a 14 px horizontal offset, 2 px vertical, and a
+    // 2% scale (1415/1387) that drifts to about 28 px at the far edge. The user saw no difference
+    // between the two settings, and that is correct: a 16 px frost over a smooth backdrop absorbs
+    // both. It is still wrong, and it is visible the moment the backdrop has structure and the
+    // frost is off.
+    static constexpr bool kCaptureSubRect = true;
     bool m_captureSubRect = kCaptureSubRect;
     QVector2D m_sampleOffset{0.0f, 0.0f};   // the frame inside the capture, normalized
     QVector2D m_sampleScale{1.0f, 1.0f};

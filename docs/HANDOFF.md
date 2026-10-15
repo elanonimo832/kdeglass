@@ -1058,6 +1058,29 @@ is a test: a grey backdrop must stay grey with dispersion off, and the kit's val
 If a future session wants the fringing for its own sake, the model is in `simulate.py` and the cost
 is now a known number rather than a surprise.
 
+## 9m. The frame-vs-expanded question, answered from the arithmetic (and why the eye could not)
+
+The user ran `./tune.sh CaptureSubRect=true` and `=false` and reported "no veo o no percibo
+diferencia". That is the correct observation, and it does not mean the setting is a no-op:
+
+- the capture covers KWin's offscreen texture = `expandedGeometry()` = frame PLUS shadow margins. The
+  user's own journal prints them: `shadowMargin= QPointF(14, 2)`;
+- every size the shader uses comes from the FRAME, which the rounded corners prove: arcs built from
+  the frame's box land exactly on the window's corners, at radius 20, on a 4K panel.
+
+So `false` (the identity) maps the capture onto frame coordinates: **14 px of horizontal offset, 2 px
+vertical, and a 2% scale** (1415/1387) that drifts to roughly 28 px at the far edge. Invisible
+through a 16 px frost over a smooth backdrop -- and visible in one second over structure with the
+frost off:
+
+    ./tune.sh BackgroundRadius=0 GlassAlpha=0 CaptureSubRect=false   # the backdrop will be SHIFTED
+    ./tune.sh CaptureSubRect=true                                    # aligned
+    ./tune.sh --reset                                                # back to the approved look
+
+The default is `true` now, decided on that arithmetic rather than on a preference. The switch stays
+because a future session may want to re-check it on hardware this one never saw, and because
+`measure-alignment.py` reports (0, 0) for whichever is the truth.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
