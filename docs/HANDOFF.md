@@ -1494,22 +1494,24 @@ they name.
   `qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass2`
 - Installation target: `/usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so`
   (note `plugins/` at the end; installing one level up makes KWin never see it).
-  **The installed plugin is the 14:31 build, which is one step behind the tree**: it was
-  measured byte-for-byte against `effect-kwin/build/`, whose file is the 14:36 build with
-  the chroma term that stops the traffic lights coming out as bright rings with glass in
-  the middle. Whoever next sees the screen should `./install.sh`, relogin, and expect
-  SOLID buttons. The live test scripts refuse to measure a stale install for exactly this
-  reason; source and build diverge on purpose in the meantime (see the note below).
+  **Whether an install is pending is a MEASUREMENT, not a fact to write down**: a hash in a
+  document expires the moment anything is rebuilt, so what goes here is how to read it.
+  `md5sum effect-kwin/build/plugins/kwin/effects/macosglass2.so` against
+  `md5sum /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so`; if they differ, an install is
+  pending (`cd effect-kwin && ./install.sh`, then a relogin, or the hot path in §9u). The live test
+  scripts refuse to measure a stale install for exactly this reason.
+  **As of 2026-10-15 the two agreed** and no install was pending -- re-verify, do not quote this.
+  What the tree carries is in the list at the end of this section.
 - **The settings the user actually runs with** (read from `~/.config/kwinrc`, not assumed):
   `BackgroundRadius=24`, `CornerRadius=20`, `GlassAlpha=0.4`, and nothing else. That is a
   clear taste: a wider frost, rounder corners and LESS of the bar's own tone than the
   defaults (16 / 16 / 0.55). They were tuned against the build whose frost SAMPLED the
   backdrop; the reduced capture averages it, so the same numbers may read differently --
   re-tune by eye before baking any of them as the default.
-- **The built `.so` is current as of this commit** (the tree and `build/` agree, 2026-10-14
-  15:10, 123872 bytes), and it folds in everything this session produced while the user was
-  away. `./install.sh` + a relogin is what makes it real, and the freshness guard will refuse
-  to measure until that is done. What it contains, in the order it was written:
+- **The built `.so` was current as of 2026-10-15**, and it folds in everything the sessions that
+  built it produced. Whether it still is is a measurement, not a sentence: the two `md5sum` lines
+  above, and `./install.sh` + a relogin is what makes it real. The freshness guard refuses to
+  measure until that is done. What it contains, in the order it was written:
   1. **Vibrancy**, off by default (`Vibrancy = 0`), a GLSL function called by BOTH the capture
      path and the no-capture fallback.
   2. **The capture cache**: one texture+framebuffer per distinct reduced size, LRU-evicted.

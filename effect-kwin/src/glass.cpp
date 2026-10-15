@@ -356,16 +356,15 @@ void main()
     // HANDOFF section 5: the band is drawn where the window is drawn, so there is no
     // second quad that could end up under the window.
     if (uHasBackground > 0.5) {
-        // WHERE IN THE CAPTURE THIS FRAGMENT SAMPLES, and it is a uniform because the
-        // answer is not settled: the capture covers KWin's offscreen texture, which is the
-        // window's EXPANDED geometry (frame plus shadow margins), while every size the
-        // shader uses comes from the FRAME. If vTexCoord runs across the frame -- which the
-        // rounded corners argue for, since arcs built from the frame's box landed on the
-        // window's corners -- then the backdrop must be sampled at the frame's
-        // sub-rectangle. With `CaptureSubRect` off this is the identity and the sampling is
-        // exactly what was verified before; with it on, the sub-rectangle. Measure both with
-        // measure-alignment.py: whichever reports (0, 0) is the truth, and the switch exists
-        // so that answer costs no extra build.
+        // WHERE IN THE CAPTURE THIS FRAGMENT SAMPLES, and the answer is settled: it is the
+        // frame's place inside the capture. The capture covers KWin's offscreen texture,
+        // which is the window's EXPANDED geometry (frame plus shadow margins), while every
+        // size the shader uses comes from the FRAME -- and the rounded corners, whose arcs
+        // built from the frame's box land exactly on the window's corners, prove that
+        // vTexCoord runs across the FRAME. Sampling the whole texture is therefore a KNOWN
+        // 14 px offset, not a harmless variant, and `CaptureSubRect` is ON for that reason.
+        // measure-alignment.py reports (0, 0) with it on; the switch is kept because
+        // confirming which reading is true costs no extra build.
         vec2 base = uBackgroundOffset + vTexCoord * uBackgroundScale;
         // uBackgroundFlipV is 1.0 when the capture's v axis disagrees with the window
         // texture's. The default (0) is settled from KWin's own blit code -- both textures
@@ -707,8 +706,10 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // sample. Bigger = smoother and blurrier, and it costs nothing to try.
     m_backgroundDownsample = cfg.readEntry("FrostDownsample", 0);
 
-    // Sample the capture at the FRAME's sub-rectangle. Off until the alignment instrument
-    // says which of the two readings is true; see the uniform's comment in the shader.
+    // Sample the capture at the FRAME's sub-rectangle. ON, because the corners prove
+    // vTexCoord runs across the FRAME while the capture covers the expanded geometry --
+    // sampling the whole texture is a KNOWN 14 px offset, and measure-alignment.py
+    // reports (0, 0) with this reading. See the uniform's comment in the shader.
     m_captureSubRect = cfg.readEntry("CaptureSubRect", kCaptureSubRect);
 
     // How much of the bar's own colour stays. Not a readability knob any more -- the

@@ -487,16 +487,68 @@ afirmar_codigo "reaching two radii out" "$SOURCE" '2[.]0 [*] toneRadius [*] uTex
 echo "  -- the documented defaults are the ones in the code --"
 # The table listed keys and defaults, and the keys were checked; the DEFAULTS were not. They
 # changed the day Apple's kit was read (GlassAlpha 0.55 -> 0.25, Vibrancy off -> 0.35), which is
-# exactly the drift this catches. Keys with no `k<Key>` constant in the header (0 means "derive
-# it", false means "off") are skipped on purpose rather than asserted from a third copy.
-faltan_defaults=""
+# exactly the drift this catches.
+#
+# THE FIRST VERSION OF THIS CHECK WAS VACUOUS, AND IT WAS THE BUG IT WAS WRITTEN TO CATCH. It
+# matched the header with `k$k = [0-9.]+`, so every BOOLEAN key was invisible to it -- and it
+# answered a key it could not read with a silent `continue` while the assertion was called "every
+# documented default matches the code". Three keys were skipped that way and one of them
+# (CaptureSubRect) was documented `false` while the header says `true`. That is the rule from
+# METHODOLOGY.md ("an assertion on a name is not an assertion on the wiring") with the test on the
+# wrong side of it: a `continue` that hides a key is a check that decorates.
+#
+# What it does now, in three parts, none of which can fail silently:
+#   1. It compares the FIRST TOKEN of the documented value against the literal in the header, so
+#      the type no longer decides whether the key is checked at all: `true`, `false` and `0` are
+#      compared like `16` is.
+#   2. The default is read from where the code actually decides it, in this order: the `k<Key>`
+#      constant the header defines for the key, then the fallback argument of the `readEntry("Key",
+#      ...)` call that reads it. Three keys are documented without a `k` constant (FrostDownsample,
+#      CaptureSubRect, BackgroundFlipV) because their default lives in the member's own
+#      initialiser, next to a comment -- and the readEntry fallback is THAT value, so those three
+#      are compared against the code like the rest instead of being skipped by a comment that
+#      admits they are not. (Guessing the member's name from the key does not work: the key is
+#      `FrostDownsample` and the member is `m_backgroundDownsample`.)
+#   3. A documented key with NO default anywhere is a FAILURE, not a skip, and a key the effect
+#      reads but the table does not document is named too. Defaults are one of the two things that
+#      silently drift (the other is the shader against simulate.py), and this is the only check
+#      that sees it.
+# ONE NORMALISATION FOR BOTH SIDES, and the first version of it was too strict, which is this
+# check's whole disease: it compared `0` against `0.0` and `false` against `1`, so FrostDownsample
+# and BackgroundFlipV "mismatched" while saying exactly the same thing. A comparison that is too
+# strict does not fail safe -- it names keys that agree, which is how a check gets ignored.
+# So: strip the comment, the cast (float(...)) and the explicit float suffix (0.30f, 20.0f), then
+# lower-case; digits and booleans are the same literal whether they are written 16, 16.0 or 0.0f.
+valor_normalizado() {
+  echo "$1" | sed -E 's/[[:space:]]*\/\/.*$//' | xargs \
+    | sed -E 's/^float[(](.*)[)]$/\1/; s/(f|F|u|U|l|L)+$//' | tr 'A-F' 'a-f' | xargs
+}
+fallos_defaults=""
 for k in $(grep -oE '^\| `[A-Za-z]+` \|' "$EF/README.md" | sed 's/^| `//; s/` |$//'); do
-  valor=$(grep -oE "k$k = [0-9.]+" "$EF/src/glass.h" | head -1 | sed "s/k$k = //" | sed 's/\.$//')
-  [ -n "$valor" ] || continue
   fila=$(grep -E "^\| \`$k\` \|" "$EF/README.md")
-  case "$fila" in *"$valor"*) ;; *) faltan_defaults="$faltan_defaults $k(=$valor)";; esac
+  # The value cell is everything between the first and the second `|`; its FIRST TOKEN is the
+  # default, so a trailing gloss ("0.0 (off)") cannot hide the value.
+  doc=$(echo "$fila" | cut -d'|' -f3 | xargs | cut -d' ' -f1)
+  literal=$(grep -oE "k$k[[:space:]]+=[[:space:]]+[^;]+" "$HEADER" | head -1 | sed 's/^[^=]*=//')
+  if [ -z "$literal" ]; then
+    # No constant: take the fallback the readEntry call passes, which is the member's initialiser.
+    literal=$(grep -oE "readEntry[(]\"$k\",[^)]*" "$SOURCE" | head -1 | sed 's/^[^,]*,[[:space:]]*//')
+  fi
+  if [ -z "$literal" ]; then
+    fallos_defaults="$fallos_defaults $k(no default in the header or the readEntry)"
+    continue
+  fi
+  n_doc=$(valor_normalizado "$doc")
+  n_code=$(valor_normalizado "$literal")
+  [ "$n_doc" = "$n_code" ] || fallos_defaults="$fallos_defaults $k(doc=$doc code=$literal)"
 done
-afirmar_igual "every documented default matches the code" "" "${faltan_defaults# }"
+# The other direction, because a key the code reads and the table omits is the same drift seen
+# from behind -- and the table is the document a cold reader trusts instead of the header.
+for k in $(grep -oE 'readEntry\("[A-Za-z]+"' "$SOURCE" | sed 's/readEntry("//;s/"//' | sort -u); do
+  grep -qE "^\| \`$k\` \|" "$EF/README.md" || fallos_defaults="$fallos_defaults $k(undocumented)"
+done
+afirmar_igual "every documented default matches the code, and every key is documented" "" \
+  "${fallos_defaults# }"
 
 echo "  -- the material's edge and its amplification --"
 # From the user's own reading of a macOS Dock: "el dock tiene como un borde, no es directa la
