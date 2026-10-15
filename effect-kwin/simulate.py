@@ -157,137 +157,121 @@ def smoothstep(edge0, edge1, x):
     return t * t * (3 - 2 * t)
 
 
-def squircle_n(corner_smoothing):
-    """El exponente de la superelipse, DERIVADO del token `cornerSmoothing` del kit.
+def figma_params(radius, smoothing):
+    """The Figma squircle, which is what the kit's cornerSmoothing = 0.6 actually names.
 
-    Calibracion y sus dos anclas: `s=0 -> n=2`, que es exactamente el arco circular que el efecto
-    dibujaba antes -- asi el ajuste no cambia nada en el caso ya aprobado en pantalla -- y
-    `s=0.6 -> n=5`, la superelipse de esquina que se cita para Apple. NO es la formula de Figma, que
-    no esta publicada: por eso el valor se MIDE (`--corners` imprime el abultamiento) en vez de
-    creerse, y el control en 0 se comprueba en la suite contra el valor conocido.
+    HANDOFF 10c described this as "an arc shrunk to r*(1-s) plus two tangent Beziers that reach
+    the straight edge at r*s"; measured against the canonical algorithm, none of those three
+    numbers is right. The real construction (Figma's "Desperately seeking squircles", as in
+    MartinRGB's Figma_Squircles and the figma_squircle crate):
+
+        p          = (1 + s) * R    the straight edges end p from the vertex
+        arc        = radius R, its MEASURE shrunk to 90*(1-s) degrees, centred at (R, R)
+        transition = two cubic Beziers, tangent to the edge at p and to the arc
+
+    At s = 0 it collapses exactly to the circular corner, which is what keeps the shape already
+    approved on screen from moving.
     """
-    return 2.0 + 5.0 * max(0.0, corner_smoothing)
+    R, s = float(radius), float(smoothing)
+    p = (1.0 + s) * R
+    arc_measure = 90.0 * (1.0 - s)
+    chord = np.sin(np.radians(arc_measure / 2.0)) * R * np.sqrt(2.0)
+    alpha = (90.0 - arc_measure) / 2.0
+    p3p4 = R * np.tan(np.radians(alpha / 2.0))
+    beta = 45.0 * s
+    c = p3p4 * np.cos(np.radians(beta))
+    d = c * np.tan(np.radians(beta))
+    b = (p - chord - c - d) / 3.0
+    return dict(p=p, chord=chord, a=2.0 * b, b=b, c=c, d=d)
 
 
-def corner_sd(qx, qy, radius, n, tabla=4000):
-    """Distancia con signo al arco de esquina que sustituye al arco circular del rounded box.
+def _bezier(p0, c1, c2, p3, t):
+    u = 1.0 - t
+    return u ** 3 * p0 + 3 * u * u * t * c1 + 3 * u * t * t * c2 + t ** 3 * p3
 
-    El arco va del vertice `(0, r)` -- tangente a la arista horizontal -- al `(r, 0)` -- tangente a la
-    vertical:
-        c(phi) = r * ( sin^p(phi), cos^p(phi) ),   p = 2/n
-    y con `n=2` es exactamente el cuarto de circulo, de modo que el squircle es una GENERALIZACION del
-    arco y no un camino distinto que pueda derivar de el.
 
-    EL PUNTO MAS CERCANO SE BUSCA EN UNA TABLA de puntos de la curva, no con Newton ni biseccion: las
-    dos fallaron por lo mismo (en los vertices `sin^p` tiene derivada infinita, y con el punto sobre
-    una arista el minimo cae en un extremo donde la derivada no cambia de signo). La tabla no puede
-    fallar y su error es el espaciado: con 4000 puntos, 0.002 px medido contra el circulo exacto.
+def figma_corner_q(radius, smoothing, samples=96):
+    """The corner boundary as a polyline in q-space, ending on the two straight edges.
+
+    q is measured from the arc centre (R, R) with the axes pointing back toward the vertex -- the
+    same q the circle's `length(max(q, 0))` uses -- so the curve runs from (R, -s*R), on the top
+    edge's line, to (-s*R, R) on the left edge's line. It has to extend past q = 0: that is the
+    whole point of the smoothing, and it is why the circle's "corner is q.x>0 and q.y>0" split is
+    wrong here.
     """
-    p = 2.0 / n
-    phi = np.linspace(0.0, np.pi / 2, tabla)
-    bx = radius * np.power(np.sin(phi), p)
-    by = radius * np.power(np.cos(phi), p)
-    QX, QY = np.asarray(qx, dtype=float).ravel(), np.asarray(qy, dtype=float).ravel()
-    i = np.argmin((QX[:, None] - bx[None, :]) ** 2 + (QY[:, None] - by[None, :]) ** 2, axis=1)
-    dist = np.hypot(QX - bx[i], QY - by[i]).reshape(np.shape(qx))
-    # el centro de la curva es el vertice EXTERIOR de la caja de esquina, o sea el origen de `q`
-    inside = (np.power(np.abs(qx) / radius, n) + np.power(np.abs(qy) / radius, n)) <= 1.0
-    return np.where(inside, dist, -dist)
+    R, s = float(radius), float(smoothing)
+    pr = figma_params(R, s)
+    p, chord, a, b, c, d = pr["p"], pr["chord"], pr["a"], pr["b"], pr["c"], pr["d"]
+    sR = s * R
+    start = np.array([R, -sR])
+    k1, k2 = np.array([R, a - sR]), np.array([R, a + b - sR])
+    e1 = np.array([R - d, a + b + c - sR])
+    e2 = e1 + np.array([-chord, chord])
+    k3, k4 = e2 + np.array([-c, d]), e2 + np.array([-(b + c), d])
+    end = np.array([-sR, R])
+    a1, a2 = np.arctan2(e1[1], e1[0]), np.arctan2(e2[1], e2[0])
+    while a2 - a1 > np.pi:
+        a2 -= 2.0 * np.pi
+    while a1 - a2 > np.pi:
+        a2 += 2.0 * np.pi
+    pts = []
+    for i in range(samples + 1):
+        t = i / samples
+        if t < 1.0 / 3.0:
+            pts.append(_bezier(start, k1, k2, e1, t * 3.0))
+        elif t < 2.0 / 3.0:
+            ang = a1 + (a2 - a1) * ((t - 1.0 / 3.0) * 3.0)
+            pts.append(np.array([R * np.cos(ang), R * np.sin(ang)]))
+        else:
+            pts.append(_bezier(e2, k3, k4, end, (t - 2.0 / 3.0) * 3.0))
+    return np.array(pts)
 
 
-def corner_field(size, radius, smoothing, half):
-    """El SDF de la forma entera y la direccion hacia dentro del doblado, sobre una imagen cuadrada.
+def figma_corner_sdf(qx, qy, radius, smoothing, curve):
+    """Signed distance to the Figma corner, POSITIVE OUTSIDE, like `length(max(q,0)) + min - R`.
 
-    GEOMETRIA: rectangulo redondeado centrado, `half` de SEMIANCHURA (distancia del centro a las
-    aristas rectas) y esquinas de radio `radius`; la forma ocupa `2*(half + radius)`.
-
-    CONVENIO: `sdf` POSITIVA DENTRO y `(gx, gy)` la direccion hacia DENTRO (que es `-grad(sdf)` y la
-    que dobla la refraccion).
-
-    El campo es la formula del rounded box con UN solo cambio: dentro de la caja de la esquina,
-    `largo` (la distancia al centro del arco) se sustituye por `radius - corner_sd(...)`. Con
-    `smoothing=0` las dos son la misma expresion, que es lo que hace del squircle una generalizacion
-    verificable y no un segundo camino.
+    THE DECISION 10c SAID HAD TO BE MADE. A piecewise boundary is not one parametric curve, so the
+    nearest point is a SEGMENT search, and the two straight edges stay as rays: `q.y = R` for
+    `q.x <= -s*R` and `q.x = R` for `q.y <= -s*R`. The sign follows the curve's own inside test,
+    which is monotone in q.y, so the reader does not need a normal and cannot get its sign wrong.
     """
-    h, w = size
-    yy, xx = np.mgrid[0:h, 0:w].astype(float)
-    co = np.array([w, h], dtype=float) * 0.5
-    q = np.abs(np.stack([xx, yy], axis=2) - co) - (half - radius)
-    qp = np.maximum(q, 0.0)
-    largo = np.hypot(qp[..., 0], qp[..., 1])
-    # `minterm` es comun a las dos formas; solo cambia el otro sumando.
-    minterm = np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0)
-    if smoothing <= 0.001:
-        return -(largo + minterm - radius), 0.0, 0.0
-    largo_sq = radius - corner_sd(qp[..., 0], qp[..., 1], radius, squircle_n(smoothing))
-    return -(np.where((q[..., 0] > 0) & (q[..., 1] > 0), largo_sq, largo) + minterm - radius), 0.0, 0.0
-
-
-def diagonal_bulge(radius, smoothing):
-    """Cuanto mas lejos queda la boundary en la diagonal que el arco circular del mismo radio.
-
-    SE CALCULA, NO SE MUESTREA. En la diagonal de la esquina los dos componentes de la curva son
-    iguales, asi que el punto mas cercano esta exactamente en `phi = pi/4` y el cruce sale de la
-    propia parametrizacion:
-
-        c(pi/4) = r * 2^(-p/2) * (1, 1),   p = 2/n
-        distancia de ese punto al vertice exterior = r * 2^((1-p)/2)
-        abultamiento = esa distancia - r
-
-    Con `n=2` da `r - r = 0` (el circulo, el caso aprobado); con `n=5` da 4.6229 px sobre un radio de
-    20. Una rejilla de muestras daba 4.6235, con el error de la rejilla dentro del numero: el valor
-    cerrado no tiene ese error y es el que fija la suite.
-    """
-    r = float(radius)
-    if smoothing <= 0.001:
-        return 0.0
-    p = 2.0 / squircle_n(smoothing)
-    return float(r * np.power(2.0, (1.0 - p) / 2.0) - r)
-
-
-def gradient_jump(radius, smoothing, n_puntos=4000):
-    """El mayor giro de la direccion del doblado a lo largo del arco de esquina, en grados.
-
-    La direccion hacia dentro es el gradiente de la distancia, y una que se VOLTEA dibuja una linea:
-    es la costura que el usuario vio en el medio de la barra (seccion 9w) y que arreglo el usar el
-    gradiente en vez de dos signos por eje. Aqui se recorre la esquina entera -- de la arista
-    horizontal a la vertical, pasando por la diagonal -- y se mide el salto entre muestras
-    consecutivas. Se mide sobre la normal ANALITICA de la curva, que es la direccion que el codigo
-    usaria, y no sobre diferencias finitas del campo, que meten ruido de rejilla.
-
-    El limite es 5 grados para muestras cada ~0.05 grados de arco: un salto de verdad (el de 9w era
-    de 90) no se parece en nada a esto.
-    """
-    r = float(radius)
-    phi = np.linspace(1e-4, np.pi / 2 - 1e-4, n_puntos)
-    if smoothing <= 0.001:
-        # el arco circular: la normal va del eje +y al +x girando 90 grados
-        nx, ny = np.sin(phi), np.cos(phi)
-    else:
-        p = 2.0 / squircle_n(smoothing)
-        c, sn = np.cos(phi), np.sin(phi)
-        c_seg = np.maximum(c, 1e-9)
-        s_seg = np.maximum(sn, 1e-9)
-        dbx = r * p * np.power(s_seg, p - 1) * c
-        dby = -r * p * np.power(c_seg, p - 1) * sn
-        largo = np.maximum(np.hypot(dbx, dby), 1e-9)
-        nx, ny = dby / largo, -dbx / largo
-    dirs = np.degrees(np.arctan2(ny, nx))
-    return float(np.abs(np.diff(dirs)).max())
+    sR = smoothing * radius
+    best = np.full(qx.shape, np.inf)
+    for i in range(len(curve) - 1):
+        ax, ay = curve[i]
+        bx, by = curve[i + 1]
+        ex, ey = bx - ax, by - ay
+        length2 = max(ex * ex + ey * ey, 1e-12)
+        t = np.clip(((qx - ax) * ex + (qy - ay) * ey) / length2, 0.0, 1.0)
+        px, py = ax + t * ex, ay + t * ey
+        best = np.minimum(best, np.hypot(qx - px, qy - py))
+    top = np.where(qx <= -sR, np.abs(radius - qy), np.hypot(qx + sR, qy - radius))
+    left = np.where(qy <= -sR, np.abs(radius - qx), np.hypot(qx - radius, qy + sR))
+    distance = np.minimum(np.minimum(best, top), left)
+    order = np.argsort(curve[:, 1])
+    curve_x = np.interp(qy, curve[order, 1], curve[order, 0])
+    inside = np.where(qx <= -sR, qy <= radius,
+                      np.where(qy <= -sR, qx <= radius, qx <= curve_x))
+    return np.where(inside, -distance, distance)
 
 
 def corners_report(radius, smoothing):
-    """Mide la esquina e imprime en `clave=valor` para que la suite pueda fijar los numeros."""
+    """Measures the corner and prints key=value, so the suite can pin the numbers."""
     r = float(radius)
-    bul = diagonal_bulge(r, smoothing)
-    # sin `+`: la suite compara cadenas exactas ("diagonal_bulge=0.0000") y el signo sobra
-    bul_txt = f"{bul:.4f}"
-    salto = gradient_jump(r, smoothing)
+    pr = figma_params(r, smoothing)
+    curve_q = figma_corner_q(r, smoothing, samples=4000)
+    # back to the corner's own frame: x = R - qx, y = R - qy
+    cf_x, cf_y = r - curve_q[:, 0], r - curve_q[:, 1]
+    order = np.argsort(cf_y)
+    ys, xs = cf_y[order], cf_x[order]
     print(f"corner_radius={r:g}")
     print(f"corner_smoothing={smoothing:g}")
-    print(f"n={squircle_n(smoothing):.2f}")
-    print(f"diagonal_bulge={bul_txt}")
-    print(f"gradient_jump_deg={salto:.2f}")
+    print(f"edge_offset_p={pr['p']:.4f}")
+    for y in (1.0, 5.0, 10.0):
+        print(f"x_at_y_{int(y)}={float(np.interp(y, ys, xs)):.4f}")
+    # x DECREASES as y grows: it starts at p on the top edge and ends at 0 on the left one. The
+    # first version of this check asked for the opposite and called both curves non-monotone.
+    print(f"monotone={'yes' if np.all(np.diff(xs) <= 1e-9) else 'no'}")
     return 0
 
 
@@ -308,35 +292,18 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
     ppos = np.stack([xx0, yy0], axis=2)
     q = np.abs(ppos - co) - (co - corner_radius)
     if corner_smoothing > 0.001:
-        # EL SQUIRCLE EN EL RENDER, con la misma geometria que `corner_sd`: en la caja de la esquina
-        # `largo` (la distancia al centro del arco) se sustituye por la distancia recta al arco de
-        # superelipse, y la direccion del doblado por la del punto mas cercano de la curva. Con
-        # `smoothing=0` NO se entra aqui, para que el caso ya aprobado en pantalla quede literal.
-        qp = np.maximum(q, 0.0)
-        largo_circ = np.hypot(qp[..., 0], qp[..., 1])
-        r_sq = float(corner_radius)
-        n_sq = squircle_n(corner_smoothing)
-        p_sq = 2.0 / n_sq
-        phi = np.linspace(0.0, np.pi / 2, 4000)
-        bx_t = r_sq * np.power(np.sin(phi), p_sq)
-        by_t = r_sq * np.power(np.cos(phi), p_sq)
-        QX, QY = qp[..., 0].ravel(), qp[..., 1].ravel()
-        idx = np.argmin((QX[:, None] - bx_t[None, :]) ** 2 + (QY[:, None] - by_t[None, :]) ** 2,
-                        axis=1)
-        cxq, cyq = bx_t[idx], by_t[idx]
-        largo_sq = r_sq - np.hypot(QX - cxq, QY - cyq).reshape(largo_circ.shape)
-        dentro_caja = (q[..., 0] > 0) & (q[..., 1] > 0)
-        largo = np.where(dentro_caja, largo_sq, largo_circ)
-        # la direccion hacia dentro: hacia el punto mas cercano de la curva (cero en la boundary), y
-        # fuera de la caja de la esquina la de siempre, para no cambiar el resto de la forma
-        gx_sq = (cxq - QX).reshape(largo_circ.shape)
-        gy_sq = (cyq - QY).reshape(largo_circ.shape)
-        gl = np.maximum(np.hypot(gx_sq, gy_sq), 1e-6)
-        gx_rect = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
-        gy_rect = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
-        grad_x = np.where(dentro_caja, gx_sq / gl, gx_rect)
-        grad_y = np.where(dentro_caja, gy_sq / gl, gy_rect)
-        sdf = largo + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius
+        # THE FIGMA SQUIRCLE, as a signed distance and not as a superellipse. The old branch reused
+        # the old `largo = R - distance` trick, which only works when the boundary is a circle
+        # centred where the clamp lands; for a curve that reaches the edges at p = (1+s)*R it does
+        # not, so this computes the distance directly. `smoothing = 0` does NOT come through here,
+        # which keeps the approved screen's arithmetic literal.
+        curve = figma_corner_q(corner_radius, corner_smoothing)
+        sdf = figma_corner_sdf(q[..., 0], q[..., 1], corner_radius, corner_smoothing, curve)
+        # The OUTWARD normal is the gradient of the inside distance: `to_edge` grows inward, so its
+        # gradient points inward and the outward direction is its negative. That avoids needing the
+        # curve's own tangent, and it cannot disagree with the distance the way a second formula can.
+        gy_num, gx_num = np.gradient(-sdf)
+        grad_x, grad_y = -gx_num, -gy_num
     else:
         sdf = (np.sqrt((np.maximum(q, 0.0) ** 2).sum(axis=2))
                + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)

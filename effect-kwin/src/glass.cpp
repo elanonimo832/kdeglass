@@ -134,6 +134,79 @@ vec3 chromeWithVibrancy(vec3 chromeColour, vec3 backdrop, float isChrome, float 
     return mix(chromeColour, vec3(backdropLuma > 0.5 ? kLabelDark : kLabelLight), falta);
 }
 
+// ---------------------------------------------------------------------------
+// THE FIGMA SQUIRCLE, as a signed distance.
+//
+// HANDOFF 10c described this as "an arc shrunk to r*(1-s) plus two tangent Beziers that reach the
+// straight edge at r*s"; measured against the canonical algorithm, none of those three numbers is
+// right. What the kit's cornerSmoothing = 0.6 actually names (Figma's "Desperately seeking
+// squircles", MartinRGB's Figma_Squircles, the figma_squircle crate):
+//
+//     p          = (1 + s) * R    the straight edges end p from the vertex
+//     arc        = radius R, its MEASURE shrunk to 90*(1-s) degrees, centred at (R, R)
+//     transition = two cubic Beziers, tangent to the edge at p and to the arc
+//
+// At s = 0 it collapses to the circle, which is why the branch in main() keeps the approved shape
+// literal. The boundary is PIECEWISE, so the nearest point is a SEGMENT search and the two edges
+// stay as rays -- the decision 10c said had to be made and measured. Its middle IS the circle:
+// measured x at y=5 and y=10 is 6.77 and 2.68, the same as the arc.
+//
+// q is measured from the arc centre with the axes pointing back toward the vertex, so the curve
+// runs from (R, -s*R) on the top edge's line to (-s*R, R) on the left edge's line. It extends past
+// q = 0, which is the whole point of the smoothing and the reason the circle's "the corner is
+// q.x>0 and q.y>0" split cannot be reused.
+struct FigmaCorner {
+    vec2 start; vec2 k1; vec2 k2; vec2 e1;
+    vec2 e2; vec2 k3; vec2 k4; vec2 end;
+    float a1; float a2; float sR; float radius;
+};
+
+FigmaCorner figmaCorner(float R, float s) {
+    FigmaCorner f;
+    float p = (1.0 + s) * R;
+    float measure = 90.0 * (1.0 - s);
+    float chord = sin(radians(measure * 0.5)) * R * 1.41421356;
+    float alpha = (90.0 - measure) * 0.5;
+    float p3p4 = R * tan(radians(alpha * 0.5));
+    float beta = 45.0 * s;
+    float c = p3p4 * cos(radians(beta));
+    float d = c * tan(radians(beta));
+    float b = (p - chord - c - d) / 3.0;
+    float a = 2.0 * b;
+    f.sR = s * R;
+    f.radius = R;
+    f.start = vec2(R, -f.sR);
+    f.k1 = vec2(R, a - f.sR);
+    f.k2 = vec2(R, a + b - f.sR);
+    f.e1 = vec2(R - d, a + b + c - f.sR);
+    f.e2 = f.e1 + vec2(-chord, chord);
+    f.k3 = f.e2 + vec2(-c, d);
+    f.k4 = f.e2 + vec2(-(b + c), d);
+    f.end = vec2(-f.sR, R);
+    f.a1 = atan(f.e1.y, f.e1.x);
+    f.a2 = atan(f.e2.y, f.e2.x);
+    if (f.a2 - f.a1 > 3.14159265) f.a2 -= 6.28318531;
+    if (f.a1 - f.a2 > 3.14159265) f.a2 += 6.28318531;
+    return f;
+}
+
+vec2 figmaBezier(vec2 p0, vec2 c1, vec2 c2, vec2 p3, float t) {
+    float u = 1.0 - t;
+    return u * u * u * p0 + 3.0 * u * u * t * c1 + 3.0 * u * t * t * c2 + t * t * t * p3;
+}
+
+vec2 figmaPoint(FigmaCorner f, float t) {
+    if (t < 0.3333333) {
+        return figmaBezier(f.start, f.k1, f.k2, f.e1, t * 3.0);
+    } else if (t < 0.6666667) {
+        float ang = f.a1 + (f.a2 - f.a1) * ((t - 0.3333333) * 3.0);
+        // THE ARC KEEPS RADIUS R; only its measure shrank. Reading it off `end` gave s*R and a
+        // 12 px arc for a 20 px corner -- caught by grepping the file, not by the patch's "ok".
+        return f.radius * vec2(cos(ang), sin(ang));
+    }
+    return figmaBezier(f.e2, f.k3, f.k4, f.end, (t - 0.6666667) * 3.0);
+}
+
 void main()
 {
     // THE MATERIAL COVERS THE CHROME, NOT THE CONTENT.
@@ -176,70 +249,69 @@ void main()
     vec2 cornerPos = vTexCoord * uTextureSize;
     vec2 cornerHalf = 0.5 * uTextureSize;
     vec2 q = abs(cornerPos - cornerHalf) - (cornerHalf - vec2(uCornerRadius));
-    // THE CORNER'S DISTANCE TO THE ARC, which is `length(max(q,0))` for the circle and the distance to
-    // the squircle's superellipse when `uCornerSmoothing` is on. It is a function because the squircle
-    // needs the nearest point of a curve and the circle does not.
-    //
-    // THE SQUIRCLE, AND WHAT IT COSTS. Apple's corners are continuous curvature, not circular arcs,
-    // and the kit carries the number (`cornerSmoothing = 0.6`, measured over 2244 nodes). The curve is
-    //     c(phi) = r * ( sin^p(phi), cos^p(phi) ),   p = 2/n,   n = 2 + 5*smoothing
-    // which at `n=2` IS the circular arc -- so this is the same shape generalised, not a second
-    // geometry that could drift from it -- and it is tangent to both straight edges at phi=0 and
-    // phi=pi/2, which is what stops it drawing a seam where the curve meets the edge.
-    //
-    // The nearest point is found by a COARSE SCAN plus a ternary refinement, and that is a measured
-    // choice: the simulator searches a table of 4000 points, which would be 8000 `pow()` per fragment
-    // here. Coarse 16 + 20 refinements is 112, and it is paid only inside the corner box -- 4.4% of a
-    // 3800x38 band -- against the 42 texture taps every fragment already does. Newton and bisection
-    // were both tried in the simulator and both fail near the vertices, where `sin^p` has infinite
-    // derivative and the minimum sits at an endpoint where the derivative does not change sign.
-    float cornerDistance;
-    {
-        bool inCornerBox = q.x > 0.0 && q.y > 0.0;
-        if (!inCornerBox || uCornerSmoothing <= 0.001) {
-            cornerDistance = length(max(q, vec2(0.0)));
-        } else {
-            float p = 2.0 / (2.0 + 5.0 * uCornerSmoothing);
-            // gruesa: 16 muestras, guardando las DOS mejores distancias
-            float best1 = 1e9, best2 = 1e9;
-            int ib = 0;
-            for (int i = 0; i <= 16; ++i) {
-                float phi = (float(i) / 16.0) * 1.5707963;
-                vec2 c = uCornerRadius * vec2(pow(sin(phi), p), pow(cos(phi), p));
-                float d2 = dot(c - q, c - q);
-                if (d2 < best1) { best2 = best1; best1 = d2; ib = i; }
-                else if (d2 < best2) { best2 = d2; }
-            }
-            // El intervalo son las DOS muestras vecinas a la mejor, o el minimo se queda fuera del
-            // bracket cuando cae entre las muestras 0/1 o las dos ultimas.
-            float lo = (float(max(0, ib - 1)) / 16.0) * 1.5707963;
-            float hi = (float(min(16, ib + 1)) / 16.0) * 1.5707963;
-            // refinado por tercios: solo hay que comparar, sin derivadas
-            for (int i = 0; i < 20; ++i) {
-                float m1 = lo + (hi - lo) / 3.0;
-                float m2 = hi - (hi - lo) / 3.0;
-                vec2 c1 = uCornerRadius * vec2(pow(sin(m1), p), pow(cos(m1), p));
-                vec2 c2 = uCornerRadius * vec2(pow(sin(m2), p), pow(cos(m2), p));
-                if (dot(c1 - q, c1 - q) < dot(c2 - q, c2 - q)) hi = m2; else lo = m1;
-            }
-            float phi = 0.5 * (lo + hi);
-            vec2 c = uCornerRadius * vec2(pow(sin(phi), p), pow(cos(phi), p));
-            cornerDistance = length(q - c);
+    // THE DISTANCE TO THE CORNER BOUNDARY. Two shapes live behind this test and they are NOT the
+    // same family, which is the whole lesson of HANDOFF 10c:
+    //   * `uCornerSmoothing` 0 -- the circular arc, `length(max(q, 0))`, the shape approved on
+    //     screen. This branch is unchanged and is the default.
+    //   * `uCornerSmoothing` > 0 -- the Figma squircle the kit's `cornerSmoothing = 0.6` names,
+    //     built in `figmaCorner()` above. The boundary is piecewise, so its nearest point is a
+    //     segment search and its edges are rays; the old superellipse with the invented calibration
+    //     `n = 2 + 5*smoothing` is gone, because it made a nearly square corner (at y=5 the circle's
+    //     boundary is at x=6.8 and that curve's was at 20.0).
+    // THE SIGNED DISTANCE TO THE ROUNDED BOUNDARY. POSITIVE INSIDE, NEGATIVE OUTSIDE, which is the
+    // convention `discard` and the antialiased ramp below use: the old expression was the same sign
+    // as `-(distance)`. `qNormal` carries the OUTWARD direction for the refraction's gradient.
+    float edgeDistance;
+    vec2 qNormal;
+    if (uCornerSmoothing <= 0.001) {
+        // THE APPROVED CIRCULAR ARC, unchanged to the operation: this branch is the shape the user
+        // looked at and approved, and it is the default.
+        float cornerDistance = length(max(q, vec2(0.0)));
+        edgeDistance = -(cornerDistance + min(max(q.x, q.y), 0.0) - uCornerRadius);
+        qNormal = max(q, vec2(0.0));
+    } else {
+        FigmaCorner f = figmaCorner(uCornerRadius, uCornerSmoothing);
+        // A SEGMENT SEARCH, because a piecewise boundary is not one parametric curve. 24 segments
+        // put the polyline within ~0.02 px of the true curve on a 20 px radius, which is finer than
+        // the antialiased ramp can see; the search is paid only in the corner region, ~2.5x the
+        // circle's box, and only when the smoothing is on.
+        const int kSegments = 24;
+        float best = 1e9;
+        int ib = 0;
+        vec2 cp = vec2(0.0);
+        for (int i = 0; i < kSegments; ++i) {
+            vec2 a = figmaPoint(f, float(i) / float(kSegments));
+            vec2 b = figmaPoint(f, float(i + 1) / float(kSegments));
+            vec2 seg = b - a;
+            float t = clamp(dot(q - a, seg) / max(dot(seg, seg), 1e-9), 0.0, 1.0);
+            vec2 pnt = a + t * seg;
+            float d2 = dot(q - pnt, q - pnt);
+            if (d2 < best) { best = d2; ib = i; cp = pnt; }
         }
+        float du = sqrt(best);
+        // THE TWO EDGE RAYS: q.y = R for q.x <= -sR and q.x = R for q.y <= -sR. They start where the
+        // curve ends, which is why the test is -sR and NOT 0.
+        if (q.x <= -f.sR) du = min(du, abs(uCornerRadius - q.y));
+        if (q.y <= -f.sR) du = min(du, abs(uCornerRadius - q.x));
+        // The outward normal of the winning segment, oriented away from the arc centre. The curve is
+        // convex and contains the origin, so this orientation is well defined.
+        vec2 tang = figmaPoint(f, float(ib + 1) / float(kSegments))
+                  - figmaPoint(f, float(ib) / float(kSegments));
+        vec2 nrm = normalize(vec2(tang.y, -tang.x) + vec2(1e-9));
+        if (dot(nrm, cp) < 0.0) nrm = -nrm;
+        bool inside;
+        if (q.x <= -f.sR) {
+            inside = (q.y <= uCornerRadius);
+            qNormal = max(q + vec2(f.sR), vec2(0.0));
+        } else if (q.y <= -f.sR) {
+            inside = (q.x <= uCornerRadius);
+            qNormal = max(q + vec2(f.sR), vec2(0.0));
+        } else {
+            inside = dot(q - cp, nrm) <= 0.0;
+            qNormal = nrm;
+        }
+        edgeDistance = inside ? du : -du;
     }
-    // SIGNED, NEGATIVE OUTSIDE. The first version read `uCornerRadius - (sdf - uCornerRadius)`, which is
-    // the sdf mirrored about r: positive EVERYWHERE inside the box's corners, so the discard never fired
-    // and the corners came out square -- the user's screenshot after the crash fix showed exactly that,
-    // with a +20 px bias on every edge term as a bonus. The simulator had it right; the shader did not,
-    // which is the drift this project keeps paying for. Verified numerically before the build: the exact
-    // corner gives -8.28 here and +11.72 with the old expression, and 6 px inside a straight edge gives
-    // +6.00 against +26.00.
-    //
-    // `min(max(q.x,q.y), 0.0)` is the flat part of the boundary and is common to both shapes; only the
-    // arc's term changes. With the circular arc this line is IN THE SAME ORDER OF OPERATIONS as it was,
-    // so the shape the user approved cannot move: the simulator's render is bit-identical between the
-    // two (`max |diff| = 0.000e+00`).
-    float edgeDistance = -(cornerDistance + min(max(q.x, q.y), 0.0) - uCornerRadius);
     // THE DISCARD TESTS THE FRAME'S BOUNDARY AND NOTHING ELSE. It used to test
     // `min(edgeDistance, uTitleBarHeight - topDistance)`, which is negative for EVERY PIXEL BELOW THE
     // BAR -- so the effect discarded the entire content of every window and left only the title bars.
@@ -471,7 +543,7 @@ void main()
         // horizontal justo en medio, se puede arreglar?". The gradient of the rounded-box distance is
         // the true normal: on a straight edge it points along that axis, inside the arc it is radial,
         // and the two agree exactly at the transition, so there is no seam to see.
-        vec2 gradiente = max(q, vec2(0.0)) * sign(cornerPos - cornerHalf);
+        vec2 gradiente = qNormal * sign(cornerPos - cornerHalf);
         vec2 inward = -normalize(gradiente + vec2(0.0001));
         vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
 

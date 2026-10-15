@@ -586,66 +586,76 @@ fi
 # Its knob defaults must come from the header, or a changed default would be simulated wrongly.
 afirmar_codigo "the simulator reads its defaults from the effect" "$EF/simulate.py" 'defaults_from_source'
 
-echo "  -- M2: las esquinas squircle, y la prueba de que el arco sigue siendo un arco --"
-# EL CASO DE VALOR CONOCIDO, que es lo que faltaba y costo una sesion entera: con cornerSmoothing 0
-# el squircle TIENE que dar exactamente el arco circular que ya estaba aprobado en pantalla, y con el
-# valor del kit (0.6) tiene que dar el abultamiento medido de 4.6229 px. Sin esto, `--corners` no
-# existia, el self-test no ejercitaba la geometria nueva, y una funcion de esquina rota podia dejar la
-# suite en verde: la red tiene que cubrir lo que se acaba de anadir, no solo lo de antes.
+echo "  -- M2: the squircle the kit names, and the proof the arc is still an arc --"
+# THE KNOWN-VALUE CASE, and the numbers are the construction's own. cornerSmoothing 0 must give
+# EXACTLY the circular arc approved on screen; the kit's 0.6 must give the Figma squircle -- edges
+# reached at p=(1+s)*R=32, and the MIDDLE of the corner still the circle. This replaces a table
+# (a 4.6229 px bulge and a 0.04 deg gradient) that was true about a curve of the wrong FAMILY.
 if timeout 300 python3 "$EF/simulate.py" --corners --CornerRadius 20 --CornerSmoothing 0 \
      >/tmp/sim-corners-0.txt 2>&1; then
   ok "el modo --corners corre (radio 20, smoothing 0 = el arco de siempre)"
 else
   fallo "el modo --corners FALLA con smoothing 0:"; sed 's/^/      /' /tmp/sim-corners-0.txt | head -6
 fi
-afirmar_igual "el control (smoothing 0) no abulta: es el mismo circulo" \
-  "diagonal_bulge=0.0000" "$(grep -oE 'diagonal_bulge=-?[0-9.]+' /tmp/sim-corners-0.txt | head -1)"
+afirmar_igual "el control (smoothing 0) es el circulo: borde en R" \
+  "edge_offset_p=20.0000" "$(grep -oE 'edge_offset_p=[0-9.]+' /tmp/sim-corners-0.txt | head -1)"
+afirmar_igual "y su frontera en y=5 es la del arco aprobado" \
+  "x_at_y_5=6.7712" "$(grep -oE 'x_at_y_5=[0-9.]+' /tmp/sim-corners-0.txt | head -1)"
+afirmar_igual "y la curva es monotona (la columna de 10c no lo era)" \
+  "monotone=yes" "$(grep -oE 'monotone=(yes|no)' /tmp/sim-corners-0.txt | head -1)"
 
 if timeout 300 python3 "$EF/simulate.py" --corners --CornerRadius 20 --CornerSmoothing 0.6 \
      >/tmp/sim-corners-kit.txt 2>&1; then
-  bul_k=$(grep -oE 'diagonal_bulge=-?[0-9.]+' /tmp/sim-corners-kit.txt | head -1)
-  afirmar_igual "con el smoothing del kit (0.6) el abultamiento es el medido" \
-    "diagonal_bulge=4.6229" "$bul_k"
-  # LA COSTURA DE 9w: la direccion hacia dentro del doblado es el gradiente de ESTA distancia, y una
-  # direccion que se VOLTEA dibuja una linea. La direccion que 9w arreglo era la de dos signos por
-  # eje, que salta 90 grados en el medio de la barra; esta se mide a lo largo del arco de esquina
-  # entero y se compara con un limite de 5 grados entre muestras consecutivas.
-  #
-  # DOS ASERCIONES Y NO UNA, porque con una sola esto pasaba EN VACIO: cuando `corners_report` dejo de
-  # imprimir el campo, `grep` devolvio vacio, `awk` lo evaluo como 0 y la asercion paso sin medir
-  # nada. La primera exige que el campo EXISTA; la segunda, su valor. Un chequeo que no distingue
-  # "0 grados" de "no hay dato" no es un chequeo.
-  salto=$(grep -oE 'gradient_jump_deg=[0-9.]+' /tmp/sim-corners-kit.txt | head -1 | sed 's/.*=//')
-  afirmar "la direccion del doblado se mide (el campo existe)" grep -qE '^[0-9.]+$' <<< "$salto"
-  afirmar "y no salta (seccion 9w): ${salto:-sin dato} grados" \
-    awk -v s="$salto" 'BEGIN{exit !(s+0 < 5.0)}'
+  afirmar_igual "con el smoothing del kit (0.6) las aristas acaban en p=(1+s)*R = 32" \
+    "edge_offset_p=32.0000" "$(grep -oE 'edge_offset_p=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+  # THE MIDDLE OF THE CORNER IS THE CIRCLE: the smoothing changes the transitions, not the arc.
+  afirmar_igual "y el medio del arco SIGUE siendo el circulo en y=5" \
+    "x_at_y_5=6.7712" "$(grep -oE 'x_at_y_5=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+  afirmar_igual "y en y=10" \
+    "x_at_y_10=2.6795" "$(grep -oE 'x_at_y_10=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+  # FULLER ONLY AT THE TRANSITION: 14.1 at y=1 against the circle's 13.76. Two assertions, because a
+  # missing field greps empty and awk reads it as 0.
+  fuller=$(grep -oE 'x_at_y_1=[0-9.]+' /tmp/sim-corners-kit.txt | head -1 | sed 's/.*=//')
+  afirmar "la transicion se mide (el campo existe)" grep -qE '^[0-9.]+$' <<< "$fuller"
+  afirmar "y es mas llena que el circulo en y=1: ${fuller:-sin dato} (el arco da 13.76)" \
+    awk -v v="$fuller" 'BEGIN{exit !(v+0 > 13.9 && v+0 < 14.4)}'
+  afirmar_igual "y la construccion es monotona" \
+    "monotone=yes" "$(grep -oE 'monotone=(yes|no)' /tmp/sim-corners-kit.txt | head -1)"
 else
   fallo "el modo --corners FALLA con el smoothing del kit:"; sed 's/^/      /' /tmp/sim-corners-kit.txt | head -6
 fi
 
-echo "  -- M2 en el SHADER: la misma geometria, o las dos versiones divergen --"
-# El shader y simulate.py son DOS implementaciones de una formula y esta casa ya las ha visto
-# separarse cuatro veces. Estas aserciones son el cable que impide que eso pase otra vez: fijan que
-# el shader recibe la MISMA `n`, que la lee de la config, y que el default sigue siendo el arco.
+echo "  -- M2 in the SHADER: the same geometry, or the two implementations drift --"
+# The shader and simulate.py are TWO implementations of one formula and this house has seen them
+# drift four times. The cable: the SAME construction in both, the smoothing read from the config,
+# and the default still the approved arc. There is no `n` any more to compare -- 10c's family is gone.
 afirmar_codigo "el header define el knob del squircle" "$HEADER" 'kCornerSmoothing = 0[.]0f'
 afirmar_codigo "y su miembro, con el default puesto" "$HEADER" 'm_cornerSmoothing = kCornerSmoothing'
 afirmar_codigo "el shader declara el uniforme" "$SOURCE" 'uniform float uCornerSmoothing'
-# LA MISMA `n = 2 + 5*smoothing` EN LOS DOS SITIOS: es la calibracion, y si una cambia sin la otra
-# el squircle que se mide no es el que se dibuja.
-afirmar_codigo "el shader calcula la misma n que el simulador" "$SOURCE" \
-  '2[.]0 / [(]2[.]0 [+] 5[.]0 [*] uCornerSmoothing[)]'
-afirmar_codigo "y la curva es la misma superelipse tangente a los dos bordes" "$SOURCE" \
-  'pow[(]sin[(]phi[)], p[)], pow[(]cos[(]phi[)], p[)]'
+afirmar_codigo "el shader calcula p=(1+s)*R, como el simulador" "$SOURCE" '[(]1[.]0 [+] s[)] [*] R'
+afirmar_codigo "y la misma medida de arco 90*(1-s)" "$SOURCE" '90[.]0 [*] [(]1[.]0 - s[)]'
+afirmar_codigo "el simulador calcula el mismo p" "$EF/simulate.py" '[(]1[.]0 [+] s[)] [*] R'
+afirmar_codigo "y la misma medida de arco" "$EF/simulate.py" '90[.]0 [*] [(]1[.]0 - s[)]'
+# A piecewise boundary has no single parametric nearest point: BOTH search segments.
+afirmar_codigo "el shader busca el punto mas cercano en SEGMENTOS" "$SOURCE" \
+  'float t = clamp[(]dot[(]q - a, seg[)]'
+afirmar_codigo "y el simulador tambien" "$EF/simulate.py" \
+  'np[.]clip[(][(][(]qx - ax[)] [*] ex'
 afirmar_codigo "la config se lee, como el resto de mandos" "$SOURCE" \
   'readEntry[(]"CornerSmoothing", double[(]kCornerSmoothing[)][)]'
 afirmar_codigo "y el uniforme se pasa con el mismo gate que el radio" "$SOURCE" \
   'shouldRound [?] m_cornerSmoothing : 0[.]0f'
-# El control tiene que seguir siendo el arco: la rama circular es la de siempre y el squircle es
-# opt-in, o el aspecto ya aprobado se moveria sin que nadie lo pidiera.
+# The control has to stay the arc: the circular branch is the approved one and the squircle is opt-in.
 afirmar_codigo "con smoothing 0 la rama es la del circulo" "$SOURCE" \
   'uCornerSmoothing <= 0[.]001'
 afirmar_codigo "y el default del header es 0 (el arco aprobado)" "$HEADER" \
   'static constexpr float kCornerSmoothing = 0[.]0f'
+# AND THE OLD SUPER-ELLIPSE IS GONE BY NAME, in both files: a rewrite that brought it back would draw
+# the near-square corner of 10c again. This is the assertion the old section could not make, because
+# it pinned the wrong curve as the right one.
+negar "la superelipse vieja (n = 2+5*s) ya no esta en el shader" \
+  grep -qE '2[.]0 [+] 5[.]0 [*] uCornerSmoothing|pow[(]sin[(]phi[)]' "$SOURCE"
+negar "ni en el simulador" grep -qE 'squircle_n|2[.]0 [+] 5[.]0 [*] smoothing' "$EF/simulate.py"
 
 echo "  -- no Spanish identifiers, checked instead of remembered --"
 # The language pass renamed 133 identifiers and I relapsed four times afterwards (salida, cromo,

@@ -31,18 +31,18 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
 
 ## What to do next, in order
 
-1. **M2 — squircle corners, and it is HALF DONE the wrong way.** Read `HANDOFF.md` §10c before
-   touching it. The door exists and works: `CornerSmoothing` (default 0, range 0..1, in `tune.sh`,
-   the README table, the suite and the shader), a known-value test, and a simulator that draws it with
-   bit-for-bit parity against the arc at 0. **What is behind the door is the wrong curve:** I built a
-   superellipse with an invented calibration, and the user's screenshot showed a nearly square corner
-   (at y=5 the circle's boundary is at x=6.8, mine at 20.0). Apple's construction -- an arc shrunk to
-   `r*(1-s)` plus two tangent Bezier transitions -- bulges 0.23 px where mine bulged 4.62. Replace the
-   curve in `simulate.py` AND the shader together. The SHAPE instrument the last attempt lacked now
-   EXISTS: `effect-kwin/measure-corner.py`, whose `--self-test` runs in the suite against synthetic
-   corners whose answer is known. An earlier attempt failed three times in one session and was thrown
-   away, so the gate is the synthetic case first and an effect-off crop second, never a screenshot
-   straight away.
+1. **M2 — squircle corners: the curve is REPLACED, and it wants a screen.** Read `HANDOFF.md` §10c
+   first. The door exists and works: `CornerSmoothing` (default 0, range 0..1, in `tune.sh`, the
+   README table, the suite and the shader). What used to be behind it was the wrong curve -- a
+   superellipse with an invented calibration that made a nearly square corner (at y=5 the circle's
+   boundary is at x=6.8 and that curve's was at 20.0). It is now the FIGMA construction the kit's
+   `0.6` names: the edges end at `p=(1+s)*R`, the arc keeps radius `R` with its measure shrunk to
+   `90*(1-s)` degrees, and two tangent Beziers join them -- in `simulate.py` AND the shader together,
+   with the piecewise boundary searched in segments. The SHAPE instrument exists
+   (`effect-kwin/measure-corner.py`, run by the suite against synthetic known-value corners) and it
+   measured the construction back from pixels. NEXT: install the new `.so`, set
+   `CornerSmoothing=0.6` and LOOK, then point `measure-corner.py --image` at an effect-off crop --
+   its screenshot path is validated only on a synthetic PNG so far.
 2. **Audit finding 1 — capture the band, not the window.** `glass.cpp` blits `expandedGeometry` (up to
    3840x2160) per window per repaint when the band needs 3800x38 plus the kernels' reach: about 30x
    less traffic, and the audit calls it the only high-impact item. HIGH EFFORT: it changes the capture

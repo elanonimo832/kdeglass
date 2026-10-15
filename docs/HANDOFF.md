@@ -1576,6 +1576,43 @@ and a distance threshold saturated the alpha ramp and read 6.00 at y=5 where the
 It is NOT yet validated on a real capture; that is the next session's job, and it is why the case
 is named for what it is.
 
+### 10c-ter. The curve is replaced, in both implementations (2026-10-15)
+
+The superellipse is GONE from `simulate.py` and `src/glass.cpp`. What is there now is the Figma
+construction the kit's `cornerSmoothing = 0.6` actually names -- and the measurement of it is in
+`10c-bis`, above.
+
+    p          = (1 + s) * R    the straight edges end p from the vertex
+    arc        = radius R, its MEASURE shrunk to 90*(1-s) degrees, centred at (R, R)
+    transition = two cubic Beziers, tangent to the edge at p and to the arc
+
+At `s = 0` it collapses EXACTLY to the circular arc, and the circular branch in both files is the
+old expression, operation for operation: the shape approved on screen cannot move. At the kit's
+`0.6` the middle of the corner is still that circle -- measured `x` at `y=5` and `y=10` is 6.77 and
+2.68, the arc's own values -- and only the transition is fuller (14.12 against 13.76 at `y=1`).
+
+THE DECISION 10c ASKED FOR, MADE: a piecewise boundary has no single parametric nearest point, so
+both implementations SEARCH SEGMENTS and keep the two straight edges as rays, with the split moved
+from `q=0` to `q=-s*R`. The simulator searches 96+ segments by `np.clip`; the shader searches 24
+(within ~0.02 px of the true curve) with `clamp`. The sign comes from the curve's own monotone
+inside test in the simulator and from the winning segment's normal in the shader.
+
+PARITY, MEASURED RATHER THAN ASSUMED: a transcription of the shader's block (24 segments, normal
+sign) against `simulate.figma_corner_sdf` (400 segments, monotone sign) over a 41x41 grid covering
+the corner and both transitions gives **0 sign mismatches** and a maximum difference of **0.029 px**,
+all of it the segment count. The old `n = 2 + 5*smoothing` appears in neither file, and the suite
+now asserts that with `negar`, by name -- the assertion the old section could not make, because it
+pinned the wrong curve as the right one.
+
+DEFAULT-OFF, ON PURPOSE: `kCornerSmoothing` is 0 and `kwinrc` is 0, so an install changes nothing
+on screen until the value is asked for. That is what makes shipping the port safe before anyone has
+looked at it: if the smoothed branch is wrong, the control is still the approved arc and the recovery
+is `tune.sh CornerSmoothing=0` or the §9u runbook.
+
+**Install pending as this was written**: the built `.so` carries the port and the installed one does
+not. `cd effect-kwin && ./install.sh`, then a relogin or the §9u hot path, then
+`./tune.sh CornerSmoothing=0.6` and LOOK.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).

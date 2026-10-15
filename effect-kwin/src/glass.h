@@ -383,12 +383,17 @@ private:
 
     // CORNER SMOOTHING: 0 is the circular arc of `kCornerRadius`; the squircle grows from there.
     // THE KIT HAS THE NUMBER and this is it: `cornerSmoothing = 0.6`, measured over 2244 nodes of
-    // Apple's own file (`tokens/tokens-shape-effects.toml`). It becomes the exponent of a superellipse
-    // through `n = 2 + 5*smoothing`, a calibration with two anchors: `0 -> n=2`, which is EXACTLY the
-    // circular arc already approved on screen, and `0.6 -> n=5`, the squircle quoted for Apple. It is
-    // not Figma's formula, which is not published, and that is why the number is measured instead of
-    // believed: `simulate.py --corners` prints the bulge, and the suite pins the two known values
-    // (0.0000 with smoothing 0; 4.6229 px on a 20 px radius with the kit's 0.6).
+    // Apple's own file (`tokens/tokens-shape-effects.toml`), and it is the FIGMA construction that
+    // value names: the straight edges end at `p = (1+s)*R`, the arc keeps radius `R` with its measure
+    // shrunk to `90*(1-s)` degrees, and two tangent Bezier transitions join them. At `0` it collapses
+    // to the circular arc already approved on screen, and the MIDDLE of the smoothed corner is still
+    // that circle: `x` reads 6.77 at `y=5`, the arc's own value, and only the transition differs.
+    //
+    // A SUPER-ELLIPSE WITH AN INVENTED CALIBRATION USED TO LIVE HERE (`n = 2 + 5*smoothing`) and it
+    // was the wrong family: it stayed at `x=20` until `y~15` and made a nearly square corner, which
+    // the user saw on screen. HANDOFF 10c has the whole story; the number it pinned (4.6229 px) was
+    // measured honestly about the wrong shape. `simulate.py --corners` prints the table the suite
+    // pins, and `measure-corner.py --self-test` measures it back from pixels.
     //
     // 0 is the DEFAULT on purpose: it is the shape the user has already looked at, so a relogin
     // changes nothing until the value is asked for, and the first screen after this lands is the
