@@ -507,6 +507,48 @@ def _case_image_png():
     return problems, fields
 
 
+def _case_realistic():
+    """The REAL capture's shape: a light title band over a dark client, on a GRADIENT background, in
+    a wide crop.
+
+    This is the case that first refused and then measured the corner 4 px out, and it locks in both
+    fixes it forced: the window's colour must be sampled JUST INSIDE the edge (the bottom row is the
+    dark content, and the coarse bounding box can start on a bright patch of wallpaper), and the
+    measurement must be done on a LOCAL crop (a wallpaper gradient across a wide capture otherwise
+    reads as a window at the far end -- x=828 of 1043 on the real one).
+    """
+    R, s = 20.0, SUPERELLIPSE_SMOOTHING
+    h, w = 180, 360
+    vertex_x, vertex_y, band = 60, 60, 44
+    xs = np.linspace(0.0, 1.0, w)
+    gradient = np.stack([0.30 + 0.14 * xs, 0.58 + 0.10 * xs, 0.85 + 0.03 * xs], axis=1)
+    image = np.repeat(gradient[None, :, :], h, axis=0)
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    local_y = yy - vertex_y
+    inset = inset_figma(np.clip(local_y, 0.0, None), R, s)
+    window = (yy >= vertex_y) & (xx >= vertex_x) & (xx >= vertex_x + inset)
+    is_band = (local_y >= 0.0) & (local_y < band)
+    colour = np.where(is_band[..., None], np.array([0.61, 0.81, 0.90]),
+                      np.array([0.10, 0.11, 0.12]))
+    image = np.where(window[..., None], colour, image)
+    handle = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    path = handle.name
+    handle.close()
+    try:
+        Image.fromarray((np.clip(image, 0.0, 1.0) * 255).astype("uint8")).save(path)
+        measured = measure_corner(coverage_from_image(path, "tl", radius=R), int(R))
+    finally:
+        os.unlink(path)
+    expected = {k: float(inset_figma(k, R, s)) for k in (1, 5, 10)}
+    errors = [abs(measured["x_at_y"][k] - expected[k]) for k in expected]
+    problems = []
+    if max(errors) > 0.4:
+        problems.append(f"a gradient capture measured the corner {max(errors):.3f} px out")
+    fields = (f"sweep_err_max={_fmt(max(errors), 3)} x_at_y_5={_fmt(measured['x_at_y'][5])}"
+              f" expected={_fmt(expected[5])} vertex={measured['vertex'][0]},{measured['vertex'][1]}")
+    return problems, fields
+
+
 def self_test():
     cases = (
         ("circle", _case_circle),
@@ -515,6 +557,7 @@ def self_test():
         ("apple", _case_apple),
         ("frame", _case_frame),
         ("image_png", _case_image_png),
+        ("realistic", _case_realistic),
         ("refuse_empty", _case_refuse_empty),
     )
     failed = 0
@@ -547,27 +590,73 @@ def _corner_edges(rgb, corner):
     return outer, inner
 
 
-def coverage_from_image(path, corner="tl", background=None, tolerance=0.15):
-    image = Image.open(path).convert("RGB")
-    rgb = np.asarray(image, dtype=float) / 255.0
-    outer, inner = _corner_edges(rgb, corner)
+def _walk_diagonal(rgb, background, corner):
+    """First strong background-to-window rise along the INWARD DIAGONAL from the outer vertex.
+
+    Returns (index, window colour just past the rise), or (None, None). This is the sample that had
+    to replace three wrong ones: the bottom row is dark CONTENT rather than the title band, a coarse
+    bounding box can start on a bright patch of wallpaper, and a fixed offset is still outside a
+    rounded corner. The first rise is the background-to-window step whatever the window's colour.
+    """
+    h, w = rgb.shape[:2]
+    y_start = 0 if corner in ("tl", "tr") else h - 1
+    x_start = 0 if corner in ("tl", "bl") else w - 1
+    y_step = 1 if corner in ("tl", "tr") else -1
+    x_step = 1 if corner in ("tl", "bl") else -1
+    n = min(h, w)
+    diagonal = np.array([np.linalg.norm(rgb[min(max(y_start + y_step * i, 0), h - 1),
+                                            min(max(x_start + x_step * i, 0), w - 1)] - background)
+                         for i in range(n)])
+    steps = np.diff(diagonal)
+    if steps.size == 0 or float(steps.max()) < 0.02:
+        return None, None
+    i_edge = int(np.argmax(steps > 0.25 * float(steps.max())))
+    i_sample = min(i_edge + 3, n - 1)
+    y = min(max(y_start + y_step * i_sample, 0), h - 1)
+    x = min(max(x_start + x_step * i_sample, 0), w - 1)
+    patch = rgb[max(y - 2, 0):y + 3, max(x - 2, 0):x + 3].reshape(-1, 3)
+    if patch.size == 0:
+        return None, None
+    return i_edge, np.median(patch, axis=0)
+
+
+def coverage_from_image(path, corner="tl", background=None, tolerance=0.15, radius=20.0):
+    """Coverage of the window against its background, for a corner crop.
+
+    MEASURED ON A LOCAL CROP, not on the whole image. A wallpaper has a gradient across a wide
+    capture, and on the first real one (1043 px) that gradient alone exceeded the glass-to-wallpaper
+    step at the far end: the frame check found a "window" at x=828. The shape is local, so the
+    background, the edge and the window's colour are all taken within a few radii of the corner.
+    """
+    rgb = np.asarray(Image.open(path).convert("RGB"), dtype=float) / 255.0
+    outer, _inner = _corner_edges(rgb, corner)
     if background is None:
-        # THE BACKGROUND LIVES OUTSIDE THE CORNER: the two edges that meet at the outer vertex,
-        # not the median of all four. On a corner crop the window touches the two INNER edges, so
-        # a median of the whole border can land ON the window. Measured on a synthetic
-        # white-on-black corner, that inverted the mask and the tool refused its own render.
+        # THE BACKGROUND LIVES OUTSIDE THE CORNER: the two edges that meet at the outer vertex, not
+        # the median of all four. On a corner crop the window touches the two INNER edges.
         background = np.median(np.concatenate(outer), axis=0)
-    foreground = np.median(np.concatenate(inner), axis=0)
-    axis = foreground - background
-    denom = float(np.dot(axis, axis))
-    if denom > 1e-6:
-        # ALPHA ALONG THE BACKGROUND-TO-WINDOW COLOUR AXIS, not a distance threshold: a threshold
-        # saturates as soon as a pixel is 15% of the way and moves the 0.5 crossing. Measured on
-        # the synthetic white-on-black corner, the threshold read x=6.00 at y=5 where the arc is
-        # at 6.77; the projection reads it back.
-        return np.clip(np.tensordot(rgb - background, axis, axes=([2], [0])) / denom, 0.0, 1.0)
-    distance = np.linalg.norm(rgb - background, axis=2)
-    return np.clip(distance / max(tolerance, 1e-6), 0.0, 1.0)
+    i_edge, _ = _walk_diagonal(rgb, background, corner)
+    if i_edge is None:
+        return np.zeros(rgb.shape[:2])
+    y_step = 1 if corner in ("tl", "tr") else -1
+    x_step = 1 if corner in ("tl", "bl") else -1
+    yc = (0 if corner in ("tl", "tr") else rgb.shape[0] - 1) + y_step * i_edge
+    xc = (0 if corner in ("tl", "bl") else rgb.shape[1] - 1) + x_step * i_edge
+    pad_in, pad_out = int(1.5 * radius) + 4, int(2.5 * radius) + 8
+    h, w = rgb.shape[:2]
+    y0 = max(yc - (pad_in if y_step > 0 else pad_out), 0)
+    y1 = min(yc + (pad_out if y_step > 0 else pad_in), h)
+    x0 = max(xc - (pad_in if x_step > 0 else pad_out), 0)
+    x1 = min(xc + (pad_out if x_step > 0 else pad_in), w)
+    sub = rgb[y0:y1, x0:x1]
+    outer_sub, _inner_sub = _corner_edges(sub, corner)
+    sub_background = np.median(np.concatenate(outer_sub), axis=0)
+    _ie, foreground = _walk_diagonal(sub, sub_background, corner)
+    distance = np.linalg.norm(sub - sub_background, axis=2)
+    span = float(np.linalg.norm(foreground - sub_background)) if foreground is not None else 0.0
+    if span < 0.05:
+        # the window and its background are the same colour: fall back to the caller's threshold
+        return np.clip(distance / max(tolerance, 1e-6), 0.0, 1.0)
+    return np.clip(distance / span, 0.0, 1.0)
 
 
 def main(argv=None):
@@ -575,7 +664,8 @@ def main(argv=None):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--self-test", action="store_true",
                         help="run the synthetic known-value cases and exit non-zero on failure")
-    parser.add_argument("--image", help="a screenshot crop of the corner (unvalidated path)")
+    parser.add_argument("--image", help="a screenshot crop of the corner (validated on synthetic "
+                                        "captures; ~0.3 px accuracy on a real one)")
     parser.add_argument("--corner", default="tl", choices=("tl", "tr", "bl", "br"))
     parser.add_argument("--radius", type=float, default=RADIUS)
     parser.add_argument("--background", help="auto by default; else 'R,G,B' in 0..255")
@@ -590,7 +680,7 @@ def main(argv=None):
     background = None
     if args.background and args.background != "auto":
         background = np.array([float(v) / 255.0 for v in args.background.split(",")])
-    coverage = coverage_from_image(args.image, args.corner, background, args.tolerance)
+    coverage = coverage_from_image(args.image, args.corner, background, args.tolerance, args.radius)
     try:
         measured = measure_corner(coverage, int(round(args.radius)), corner=args.corner)
     except FrameError as exc:

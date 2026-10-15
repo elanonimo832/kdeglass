@@ -1569,12 +1569,27 @@ TWO THINGS THE INSTRUMENT FOUND ON ITS FIRST RUN, both about frames rather than 
    anywhere; the instrument settles Apple's construction from pixels, in one frame, when that curve
    is built.
 
-The screenshot path (`--image`) is validated by the `image_png` case on a synthetic PNG round-trip:
-it was wrong twice on its first run, and both bugs were invisible to the in-memory reader (the
-automatic background took a median of all four borders, which on a corner crop lands on the window;
-and a distance threshold saturated the alpha ramp and read 6.00 at y=5 where the arc is at 6.77).
-It is NOT yet validated on a real capture; that is the next session's job, and it is why the case
-is named for what it is.
+The screenshot path (`--image`) is validated by two synthetic cases -- `image_png`, a round-trip, and
+`realistic`, a gradient wallpaper with a light title band over dark content. The first REAL capture
+(the user's, 1043x125, Konsole on a blue wallpaper) forced two more fixes, both measured rather than
+guessed:
+
+- the window's colour was sampled from the two INNER edges. A title band is a LIGHT glass and the
+  content below it is dark, so the "foreground" came out as the content and the whole band sat below
+  the 0.5 crossing: the tool refused with "no window pixel along this line". It is now sampled just
+  inside the edge, found by walking the inward diagonal to the first strong rise -- the one sample
+  that is right whatever the window's colour, after three wrong ones (bottom row, coarse bounding
+  box, fixed offset).
+- the background was GLOBAL. A wallpaper has a gradient across a wide crop, and at the far end it
+  exceeded the glass-to-wallpaper step: the frame check found a "window" at x=828 of 1043. The
+  measurement is now made on a LOCAL crop a few radii around the corner.
+
+**ACCURACY, and its honest limit.** The synthetic realistic case reads the corner to 0.36 px. That is
+the same size as the Figma-to-arc difference at a 20 px radius (0.36 px at y=1), so a screenshot
+CANNOT settle which of the two curves is on screen. The `apple` case -- no background, an exact
+render -- is what distinguishes them; a capture proves only that the corner is a rounded arc of about
+the right radius and NOT the near-square corner of 10c. Making the difference visible would need a
+much larger `CornerRadius`, because corner smoothing redistributes curvature rather than changing it.
 
 ### 10c-ter. The curve is replaced, in both implementations (2026-10-15)
 
