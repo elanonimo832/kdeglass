@@ -588,15 +588,23 @@ gris = (0.5 + 0.45*(np.sin(xx/26.0) > 0)).astype(float)
 fondo = np.dstack([gris, gris, gris])
 tema = np.full((h, w, 3), 0.93); tema[24:42, 210:320] = 0.15
 sep = {}
-for d in (0.0, 0.29):
-    # SPECULAR OFF: it saturates the edge toward white, and where one channel clips before another
-    # the clipping itself creates red-blue separation. That is a real effect and a different one, so
-    # the dispersion control isolates it rather than measuring both at once.
-    out = S.simulate(tema, fondo, dispersion=d, specular=0.0)
-    sep[d] = np.abs(out[1:9, 40:480, 0] - out[1:9, 40:480, 2]).max() * 255
-print(f"sin dispersion {sep[0.0]:.1f}  con dispersion {sep[0.29]:.1f}")
-assert sep[0.0] == 0, f"a grey backdrop must stay grey without dispersion, got {sep[0.0]}"
-assert sep[0.29] < 12, f"the kit's dispersion should be subtle, got {sep[0.29]}"
+# SPECULAR OFF: it saturates the edge toward white, and where one channel clips before another the
+# clipping itself creates red-blue separation -- a real effect and a different one.
+def sep_at(refraction):
+    out = S.simulate(tema, fondo, dispersion=0.29, specular=0.0, refraction=refraction)
+    return np.abs(out[1:9, 40:480, 0] - out[1:9, 40:480, 2]).max() * 255
+sin = S.simulate(tema, fondo, dispersion=0.0, specular=0.0)
+print(f"sin dispersion {np.abs(sin[1:9,40:480,0]-sin[1:9,40:480,2]).max()*255:.1f}  "
+      f"con refraction 6: {sep_at(6.0):.1f}  con refraction 20: {sep_at(20.0):.1f}")
+assert np.abs(sin[1:9, 40:480, 0] - sin[1:9, 40:480, 2]).max() == 0, "grey must stay grey"
+# THE SCALE IS THE POINT, and getting this wrong once cost a decision: the dispersion is a FRACTION
+# of the bend, so its visibility moves with `Refraction`. Measured at the old default of 6 px it was
+# 9 levels -- below the perceptible level, and recorded as not worth building -- while at the current
+# 20 px it is ~32, which is colour you can see. The invariant is the ratio, not the absolute value.
+bajo, alto = sep_at(6.0), sep_at(20.0)
+assert bajo < 12, f"at a 6 px bend the fringe should be subtle, got {bajo:.1f}"
+assert alto > 20, f"at the current 20 px bend it should be visible, got {alto:.1f}"
+assert abs(alto / max(bajo, 0.01) - 20.0 / 6.0) < 1.0, "the separation must scale with the bend"
 PY
 then
   ok "the dispersion control is exact and its effect subtle ($(cat /tmp/dispersion.txt))"

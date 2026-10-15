@@ -1157,6 +1157,28 @@ is not the top's. Recorded rather than papered over.
 The two new tests keep it honest: the acceptance bands are asserted (45..66 and 18..34, with the fade
 under 8), and so is the anchoring, by comparing the default read from two different directories.
 
+## 9p. A wrong decision corrects itself, and the bug that hid it was the same one
+
+Section 9l concluded that the kit's dispersion was "below the perceptible level" and deliberately not
+worth building. That conclusion was measured, tested and wrong. The dispersion is a FRACTION of the
+bend -- `shift * (1 ± dispersion)` -- so its visibility moves with `Refraction`, and 9l measured at the
+default of the time, 6 px, where the red-blue separation is 9 levels. At the current 20 px it is
+**31.9**, which is colour you can see.
+
+Two things hid it, and one is the bug from 9o: the simulator's `HEADER = "src/glass.h"` resolved only
+from `effect-kwin/`, so when the default changed and a measurement was taken from the repository root,
+the tool quietly used the old hardcoded 6 while the effect used 20. The same silent fallback that cost
+three contradictory measurements in 9o also protected a wrong decision from being re-examined.
+
+The test that replaces the old one asserts the INVARIANT rather than a value: the separation must
+scale with the bend (subtle at 6 px, visible at 20 px, in the ratio 20/6). An absolute threshold would
+have kept passing, or kept failing, for reasons unrelated to the model.
+
+So the dispersion moves from "not worth building" to "worth building, and there is a cheap shape for
+it": since the bend lives in the frost's uv now, the fringe can come from three fetches of the
+already-reduced capture -- one per channel -- instead of three full frosts. That is M1.4's next move,
+and it exists because a wrong answer was found to be wrong.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
