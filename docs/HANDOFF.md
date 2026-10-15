@@ -1264,6 +1264,34 @@ part: the header without the shader, the body without the signature, and now the
 log. Every one was caught by a grep rather than by the patch reporting success, which is why the
 verification step exists.
 
+## 9t. The bright fillet IS there, and my first measurement could not have seen it
+
+9q turned the specular off on the user's first reading -- the edge carries the ENVIRONMENT's colour --
+and 9s made a knob that cannot blow out. Then the user looked again and asked the question that put it
+back: "observa la de apple, pareciera que tuviera tambien un filo blanco en medio de esa linea
+exterior no crees".
+
+They are right, and the structure is BOTH things at once. Measured row by row on their own sample,
+the dock's top edge from outside in:
+
+| rows | reading | logical width |
+|---|---|---|
+| 279-285 | the environment's colour (129, 150, 186: chroma **57**) | ~3.5 px |
+| 288-291 | a sharp bright neutral rise (196 -> 213 -> **219**) | ~2 px |
+| 292-309 | the body, bright and neutral (222, chroma ~2) | ~9 px |
+
+So: a coloured band AND a narrow bright fillet on top of it. The first `Specular` was the right idea
+with the wrong geometry -- 6 to 12 px wide and REPLACING the colour instead of sitting on the band.
+It is 0.7 at a width of 2 px now, and the simulated structure reproduces the sample's: row 0 rises
+from 146 to 177 while its chroma FALLS from 39 to 28, and the coloured rows behind it do not move.
+
+WHY I COULD NOT HAVE SEEN IT. The first pass over this same image sampled every third row and averaged
+600 columns, which is a filter that deletes a two pixel line and reports the average of its
+neighbours. I said at the time that the sample "shows clear blue, not white" -- true, and incomplete,
+because the question I asked of the data was about a BAND and the answer was about a LINE. It is the
+same failure as the one in 9r and 9s, in a third costume: measuring the wrong quantity, and this time
+the quantity was wrong because the RESOLUTION was.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

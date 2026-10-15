@@ -650,7 +650,12 @@ def bandas(nivel, spec):
     return (out[0:2].mean() - c) * 255, (out[h-2:h].mean() - c) * 255
 # IT IS OFF BY DEFAULT now -- the user's correction: Apple's edge carries the ENVIRONMENT's colour
 # (blue, in their sample), not a fixed white -- so the curve is measured with the knob explicit.
-assert S.SPECULAR == 0.0, f"the specular must be off by default, got {S.SPECULAR}"
+# IT IS BACK ON, AND NARROW, because the user's second look at Apple's edge found the thing the
+# first one had ruled out: the dock has a coloured band (chroma 57, ~3.5 px) AND, inside it, a sharp
+# bright neutral rise (196 -> 213 -> 219, chroma 2) about two pixels wide. So the fillet is not a
+# broad white band and not absent: it is a 2 px bright line ON TOP of the environment's colour.
+assert S.SPECULAR > 0, f"the bright fillet is part of Apple's edge, got {S.SPECULAR}"
+assert S.SPECULAR_WIDTH <= 3, f"and it is narrow, got {S.SPECULAR_WIDTH}"
 arriba, abajo = bandas(0.35, 1.3)
 claro, _ = bandas(0.85, 1.3)
 print(f"oscuro arriba {arriba:.1f} abajo {abajo:.1f} | claro arriba {claro:.1f}")

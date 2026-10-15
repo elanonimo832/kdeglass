@@ -195,9 +195,16 @@ private:
     static constexpr float kRimColour = 1.8f;
     float m_rimColour = kRimColour;
 
-    static constexpr float kSpecular = 0.0f;
+    // THE BRIGHT FILLET, back ON and NARROW. The user looked at Apple's edge and asked the question
+    // that fixed it: "pareciera que tuviera tambien un filo blanco en medio de esa linea exterior".
+    // Measured on their own sample, the dock's top edge has BOTH: a band carrying the environment's
+    // colour (129,150,186, a chroma of 57, about 3.5 logical pixels wide) AND, inside it, a sharp
+    // bright neutral rise (196 -> 213 -> 219, a chroma of 2) about two pixels wide. My first version
+    // was the right idea with the wrong geometry: 6 to 12 pixels wide and REPLACING the colour
+    // instead of sitting on top of it.
+    static constexpr float kSpecular = 0.7f;
     float m_specular = kSpecular;
-    static constexpr float kSpecularWidth = 6.0f;
+    static constexpr float kSpecularWidth = 2.0f;
     float m_specularWidth = kSpecularWidth;
 
     static constexpr float kRimWidth = 12.0f;
