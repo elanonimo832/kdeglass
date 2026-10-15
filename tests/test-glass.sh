@@ -632,39 +632,33 @@ afirmar_igual "the shadow margin is named in the header" "1" \
 afirmar_igual "and so is the scale drift" "1" \
   "$(grep -c '1415/1387' "$HEADER")"
 
-echo "  -- M1.5: the specular highlight reproduces Apple's own numbers --"
-# The kit had its two numbers unread -- `light_angle = 0` (the reflection at the TOP) and
-# `splay_regular = 20` (about 6 px at the refraction's scale) -- and the strength comes from the
-# user's Dock sample: 236 over a middle of 180 at the top, 206 below. On a dark backdrop the model
-# must lift the upper band by about 56 and the lower one by about 26, and on a light one it must
-# nearly vanish: a reflection ADDS light, and adding it to something bright is invisible.
-if timeout 300 python3 - <<'PY' >/tmp/especular.txt 2>&1
+echo "  -- M1.5: the bright fillet is NARROW and sits ON TOP of the environment's colour --"
+# The design changed twice, both times because the user looked at Apple's edge: first it was a broad
+# white band that destroyed the environment's colour (6-12 px), and now it is what their sample
+# measures -- a band carrying that colour (chroma 57, ~3.5 logical px) AND, inside it, a sharp bright
+# neutral rise (196 -> 213 -> 219, chroma 2) about two pixels wide. So this asserts the STRUCTURE,
+# not a lift: it must brighten the outermost rows, LOWER their chroma, and be gone a few rows in.
+if timeout 300 python3 - <<'PY' >/tmp/fillet.txt 2>&1
 import sys; sys.path.insert(0, "effect-kwin")
 import numpy as np
 import simulate as S
-h, w = 60, 500
-tema = np.full((h, w, 3), 0.93); tema[20:34, 200:300] = 0.15
-def bandas(nivel, spec):
-    out = S.simulate(tema, np.full((h, w, 3), nivel), specular=spec, rim_colour_boost=1.0)
-    c = out[12:24].mean()
-    return (out[0:2].mean() - c) * 255, (out[h-2:h].mean() - c) * 255
-# IT IS OFF BY DEFAULT now -- the user's correction: Apple's edge carries the ENVIRONMENT's colour
-# (blue, in their sample), not a fixed white -- so the curve is measured with the knob explicit.
-# IT IS BACK ON, AND NARROW, because the user's second look at Apple's edge found the thing the
-# first one had ruled out: the dock has a coloured band (chroma 57, ~3.5 px) AND, inside it, a sharp
-# bright neutral rise (196 -> 213 -> 219, chroma 2) about two pixels wide. So the fillet is not a
-# broad white band and not absent: it is a 2 px bright line ON TOP of the environment's colour.
-assert S.SPECULAR > 0, f"the bright fillet is part of Apple's edge, got {S.SPECULAR}"
-assert S.SPECULAR_WIDTH <= 3, f"and it is narrow, got {S.SPECULAR_WIDTH}"
-arriba, abajo = bandas(0.35, 1.3)
-claro, _ = bandas(0.85, 1.3)
-print(f"oscuro arriba {arriba:.1f} abajo {abajo:.1f} | claro arriba {claro:.1f}")
-assert 45 <= arriba <= 66, f"the top band should match Apple's +56, got {arriba:.1f}"
-assert 18 <= abajo <= 34, f"the bottom band should match Apple's +26, got {abajo:.1f}"
-assert abs(claro) < 8, f"the specular must fade on a bright backdrop, got {claro:.1f}"
+h, w = 60, 520
+tema = np.full((h, w, 3), 0.93); tema[20:34, 240:320] = 0.15
+fondo = np.zeros((h, w, 3)); fondo[:, :, 2] = 0.70; fondo[:, :, 1] = 0.55; fondo[:, :, 0] = 0.40
+cols = slice(40, 220)
+def lum(x, y):   return x[y, cols].mean() * 255
+def croma(x, y): return (x[y, cols].max(axis=1) - x[y, cols].min(axis=1)).mean() * 255
+sin = S.simulate(tema, fondo, specular=0.0)
+con = S.simulate(tema, fondo)
+print(f"fila 0: sin filo {lum(sin,0):.1f}/{croma(sin,0):.1f}  con filo {lum(con,0):.1f}/{croma(con,0):.1f}"
+      f" | fila 4: {lum(sin,4):.1f} vs {lum(con,4):.1f}")
+assert S.SPECULAR > 0 and S.SPECULAR_WIDTH <= 3, "the fillet is narrow and part of Apple's edge"
+assert lum(con, 0) > lum(sin, 0) + 15, "the fillet must brighten the outermost row"
+assert croma(con, 0) < croma(sin, 0) - 5, "and LOWER its chroma: it is bright and neutral"
+assert abs(lum(con, 4) - lum(sin, 4)) < 2, "and be gone a few rows in: a fillet, not a band"
 PY
-then ok "the specular KNOB reproduces Apple's bands and fades on light, and is off by default ($(cat /tmp/especular.txt))"
-else fallo "the specular does not reproduce Apple's numbers:"; sed 's/^/      /' /tmp/especular.txt | head -4; fi
+then ok "the fillet brightens, desaturates and is gone by row 4 ($(cat /tmp/fillet.txt))"
+else fallo "the fillet structure is wrong:"; sed 's/^/      /' /tmp/fillet.txt | head -4; fi
 
 echo "  -- the simulator's defaults do not depend on where you stand --"
 # "src/glass.h" resolved only from effect-kwin/. Run from anywhere else the open failed, the except
