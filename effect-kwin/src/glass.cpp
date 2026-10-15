@@ -177,11 +177,13 @@ void main()
     vec2 q = abs(cornerPos - cornerHalf) - (cornerHalf - vec2(uCornerRadius));
     float edgeDistance = uCornerRadius
                        - (length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - uCornerRadius);
-    // The band's bottom is the TITLE BAR's bottom, not the frame's, so the frame's lower edge is
-    // deliberately not part of this.
+    // THE DISCARD TESTS THE FRAME'S BOUNDARY AND NOTHING ELSE. It used to test
+    // `min(edgeDistance, uTitleBarHeight - topDistance)`, which is negative for EVERY PIXEL BELOW THE
+    // BAR -- so the effect discarded the entire content of every window and left only the title bars.
+    // The user lost their desktop to that line. The bar's bottom belongs to the BAND's geometry, which
+    // is applied below, not to the shape of the window.
     float topDistance = (1.0 - vTexCoord.y) * uTextureSize.y;
-    float roundedDistance = min(edgeDistance, uTitleBarHeight - topDistance);
-    if (roundedDistance < 0.0) {
+    if (edgeDistance < 0.0) {
         discard;
     }
 
@@ -383,7 +385,9 @@ void main()
         // The rounded distance, so the fillet and the band follow the arc around the corners instead
         // of stopping at where the box's edge used to be. `toEdge` is the same quantity the discard
         // tests below zero.
-        float toEdge = roundedDistance;
+        // The band's bottom IS the title bar's bottom, so that is where the min belongs: inside the
+        // band, where the chroma kernel and the tone already keep away from the client.
+        float toEdge = min(edgeDistance, uTitleBarHeight - topDistance);
         // The four straight distances are kept ONLY to say which way is inward (for the refraction)
         // and which edge is the top (for the fillet's bias). Removing them entirely, as the first
         // version of this fix did, leaves those two uses undefined.

@@ -114,7 +114,6 @@ afirmar_codigo "by discarding what falls outside the rounding" "$SOURCE" 'discar
 # The condition itself, not just the two names: the first version of this assertion was
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
-afirmar_codigo "the discard is the SIGN of the rounded distance" "$SOURCE" 'roundedDistance < 0[.]0'
 afirmar_codigo "which is a rounded-box distance at the corners" "$SOURCE" 'length[(]max[(]q, vec2[(]0[.]0[)][)][)] [+] min[(]max[(]q[.]x, q[.]y[)], 0[.]0[)]'
 # ...and only for the windows the material covers. A fullscreen window IS the screen:
 # rounding it would carve arcs out of the screen and show the desktop through them. A
@@ -505,7 +504,6 @@ echo "  -- the material's edge and its amplification --"
 # bands of 215-236 (top) and 206-218 (bottom) around a middle of 168-190, and a colour that
 # tracks the backdrop with a gain of ~1.6 -- which a plain blend cannot produce.
 afirmar_codigo "the band has an edge highlight" "$SOURCE" 'float rim = falloff [*] uRim'
-afirmar_codigo "and every edge term measures from THAT, not from the box" "$SOURCE" 'float toEdge = roundedDistance'
 afirmar_codigo "and the material amplifies the backdrop's chroma" "$SOURCE" 'uMaterialBoost'
 afirmar_igual "1.0 is off, so the knob defaults above it" "1" \
   "$(grep -c 'kMaterialBoost = 1[.]20f' effect-kwin/src/glass.h)"
@@ -700,3 +698,14 @@ assert abs(i_con - i_sin) < 0.5, "and the middle of the bar must not change"
 PY
 then ok "the edge carries the environment's colour and the middle does not change ($(cat /tmp/rimcolour.txt))"
 else fallo "the edge colour term failed:"; sed 's/^/      /' /tmp/rimcolour.txt | head -4; fi
+
+echo "  -- the discard can only ever test the FRAME's boundary --"
+# THE BUG THAT COST THE USER THEIR DESKTOP. `discard` tested `min(edgeDistance, uTitleBarHeight -
+# topDistance)`, which is negative for every pixel below the bar, so the effect threw away the content
+# of every window and left only the title bars -- "solo se ve la barra superior, no puedo ver nada".
+# These two assertions are the shape of the fix, and they are the strongest a shell test can make
+# here because the content path never reaches the shader maths this suite can exercise.
+afirmar_codigo "the discard tests the frame's rounded distance alone" "$SOURCE" 'if [(]edgeDistance < 0[.]0[)]'
+afirmar_codigo "and it does NOT include the bar's bottom" "$SOURCE" 'float toEdge = min[(]edgeDistance, uTitleBarHeight - topDistance[)]'
+# and the retired form must be gone, by name, so it cannot come back
+afirmar_igual "the broken expression is gone" "0" "$(grep -c 'roundedDistance' effect-kwin/src/glass.cpp)"
