@@ -180,8 +180,9 @@ private:
     float m_materialBoost = kMaterialBoost;
 
     // TRUE, and the reason is arithmetic rather than taste. The capture covers KWin's offscreen
-    // texture, which is expandedGeometry() (frame plus shadow margins: the user's own journal says
-    // QPointF(14, 2)), while every size in the shader comes from the FRAME -- which the rounded
+    // texture, which is expandedGeometry() (frame plus shadow margins -- the field the effect
+    // prints as `shadowMargin`, QPointF(14, 2) in the user's own journal), while every size in the
+    // shader comes from the FRAME -- which the rounded
     // corners prove, since arcs built from the frame's box land on the window's corners. So the
     // backdrop must be sampled at the frame's sub-rectangle. With this false the identity maps the
     // capture onto the frame's coordinates, which is a 14 px horizontal offset, 2 px vertical, and a
