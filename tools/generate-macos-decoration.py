@@ -155,7 +155,7 @@ def svg_marco(alto_titulo: float, radio: float) -> str:
     <rect x="0" y="0" width="{w:g}" height="{alto_titulo:g}" fill="url(#barra)"/>
   </g>
   <g id="decoration-center">
-    <rect x="0" y="{alto_titulo:g}" width="{w:g}" height="{h-alto_titulo:g}" fill="#FFFFFF"/>
+    <rect x="0" y="{alto_titulo:g}" width="{w:g}" height="{h-alto_titulo:g}" fill="none"/>
   </g>
   <g id="decoration-topleft">
     <path d="M 0 {radio:g} A {radio:g} {radio:g} 0 0 1 {radio:g} 0 L 0 0 Z" fill="#F6F6F6"/>
@@ -181,14 +181,14 @@ BOTONES = {
 }
 
 RC = f"""[General]
-# macOS pone los semaforos a la IZQUIERDA, en este orden: cerrar, minimizar, zoom.
-# El orden de las letras lo entiende KWin: X=cerrar, I=minimizar, A=maximizar.
+# macOS puts the traffic lights on the LEFT, in this order: close, minimise, zoom.
+# KWin understands the letters: X=close, I=minimise, A=maximise.
 LeftButtons=XIA
 RightButtons=
 TitleAlignment=Center
 TitleVerticalAlignment=Center
-ActiveTextColor=64,64,64
-InactiveTextColor=140,140,140
+ActiveTextColor=26,26,26
+InactiveTextColor=114,114,114
 ActiveFocusedTabColor=246,246,246
 ActiveUnfocusedTabColor=230,230,230
 InactiveFocusedTabColor=230,230,230
@@ -197,20 +197,28 @@ UseTextShadow=false
 Shadow=true
 
 [Layout]
+# VERTICAL CENTRING, measured. With PaddingTop=7 and ButtonMarginTop=8 a 16 px button started
+# 15 px from the edge and overflowed the bottom of a 28 px bar (its centre at 23/28 = 82%).
+# The glass band is 39 px and its centre sat 6.5 px above the buttons' centre and 4.5 above
+# the text's. With 2/2 and a margin of 4, the button's centre lands at 2+4+8 = 14, which is
+# the exact centre of the 28 px bar -- and since the bar is centred in the band, the band's
+# centre too.
 BorderBottom=1
 BorderLeft=1
 BorderRight=1
-ButtonHeight={DIAMETRO:g}
-ButtonWidth={DIAMETRO:g}
-# Separacion generosa: en macOS los semaforos respiran. Este era el problema del
-# tema anterior, que tenia 8.
+# 16, not macOS's 12: at 1:1 on a 4K 27" panel 12 px reads small, and the user asked for
+# buttons they can aim at. aurorae scales the SVG cell to this number.
+ButtonHeight=16
+ButtonWidth=16
+# Generous spacing: macOS's traffic lights breathe. The previous theme had 8 and that was
+# one of its problems.
 ButtonSpacing=8
-ButtonMarginTop=8
+ButtonMarginTop=4
 ExplicitButtonSpacer=10
 PaddingLeft=14
 PaddingRight=14
-PaddingTop=7
-PaddingBottom=7
+PaddingTop=2
+PaddingBottom=2
 TitleHeight={ALTO_TITULO:g}
 TitleEdgeTop=5
 TitleEdgeBottom=5
@@ -223,6 +231,7 @@ TitleEdgeRightMaximized=5
 TitleBorderLeft=1
 TitleBorderRight=1
 """
+
 
 METADATA = """[Desktop Entry]
 Name=KdeMacOS

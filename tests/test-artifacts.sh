@@ -58,3 +58,39 @@ if [ -f "$PROJECT/output/color-schemes/KdeMacosDark.colors" ]; then
   else fallo "regenerating the scheme CHANGES the file (not reproducible)"; fi
 fi
 rm -f "$f1" "$f2"
+
+echo "  -- the decoration regenerates WITHOUT undoing what was fixed on screen --"
+# LA DECORACION NO ESTABA CUBIERTA POR LA COMPROBACION DE ARRIBA, y por eso el generador se quedo
+# atras sin que nadie lo notara: producia los valores de ANTES de los arreglos del apartado 10a
+# (botones de 12 en vez de 16, PaddingTop 7 -- el que empujaba los botones fuera de la barra --,
+# ButtonMarginTop 8, colores de texto viejos y comentarios en español). Ejecutarlo habria revertido
+# el aspecto que el usuario ya habia pedido y aprobado. Estas dos aserciones lo impiden.
+d1=$(mktemp); d2=$(mktemp)
+cp "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" "$d1"
+cp "$PROJECT/output/aurorae/KdeMacOS/decoration.svg" "$d2"
+python3 "$PROJECT/tools/generate-macos-decoration.py" >/dev/null 2>&1 || true
+afirmar_codigo "the generator keeps the 16 px buttons the user asked for" \
+  "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" '^ButtonWidth=16$'
+afirmar_codigo "and the measured vertical centring (PaddingTop 2, margin 4)" \
+  "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" '^ButtonMarginTop=4$'
+# EL FONDO DE LA DECORACION ES TRANSPARENTE. Era `fill="#FFFFFF"`: un rectangulo blanco solido que
+# aurorae estira por toda la ventana por detras del contenido, y como el efecto solo pinta la banda
+# del titulo, asomaba como un marco blanco alrededor de cada ventana. El usuario: "tiene un borde
+# blanco la ventana muy grande y feo".
+# El `<g>` y el `<rect>` estan en lineas distintas y `afirmar_codigo` es un grep linea a linea, asi
+# que van dos comprobaciones de una linea cada una, y la segunda es la que de verdad importa: que no
+# quede NINGUN blanco solido. El `fill="none"` solo es el mecanismo.
+afirmar_literal "la pieza del centro sigue existiendo" \
+  "$PROJECT/output/aurorae/KdeMacOS/decoration.svg" 'id="decoration-center"'
+afirmar_literal "y es TRANSPARENTE (fill=none)" \
+  "$PROJECT/output/aurorae/KdeMacOS/decoration.svg" 'fill="none"'
+negar "y no queda ningun relleno blanco solido" \
+  grep -q 'fill="#FFFFFF"' "$PROJECT/output/aurorae/KdeMacOS/decoration.svg"
+if cmp -s "$d1" "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" \
+   && cmp -s "$d2" "$PROJECT/output/aurorae/KdeMacOS/decoration.svg"; then
+  ok "regenerating the decoration produces identical files"
+else
+  fallo "regenerating the decoration CHANGES the files (the generator has drifted from the tree)"
+  diff "$d1" "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" | head -6 | sed 's/^/      /'
+fi
+rm -f "$d1" "$d2"
