@@ -177,12 +177,16 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
         result = result * (1 - r * 0.15) + 1.0 * (r * 0.15)
         # the bend: the backdrop, displaced toward the interior
+        # the same correction as the shader: the displacement is in PIXELS, and the blend weight is
+        # the falloff, not the falloff times Rim (which made a six pixel bend into 1.2)
+        falloff = (1.0 - smoothstep(0.0, rim_width, to_edge))
         if refraction > 0.01:
             inward_y = -np.sign((h - 1 - yy) - yy)
             inward_x = np.sign((w - 1 - xx) - xx)
-            by = yy + inward_y * refraction * r[..., 0]
-            bx = xx + inward_x * refraction * r[..., 0]
-            result = result * (1 - r) + bilinear(backdrop, by, bx) * r
+            by = yy + inward_y * refraction * falloff
+            bx = xx + inward_x * refraction * falloff
+            w_bend = (falloff * min(1.0, rim_strength * 4.0))[..., None]
+            result = result * (1 - w_bend) + bilinear(backdrop, by, bx) * w_bend
         # the hairline of contrast: away from the backdrop, so the boundary reads on any of them
         hair = (1.0 - smoothstep(0.0, 2.5, to_edge))[..., None]
         back = luma(desktop)[..., None]

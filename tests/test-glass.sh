@@ -552,3 +552,12 @@ afirmar_codigo "a hairline goes away from the backdrop, not toward white" "$SOUR
 # user reported, and macOS's window border is one you can see -- 52.7 levels away from a white app
 # in the simulation of their exact case.
 afirmar_codigo "the hairline strength does not depend on Rim" "$SOURCE" 'hair [*] 0[.]35'
+
+echo "  -- the bend is measured in pixels, not in Rim units --"
+# The first version multiplied the displacement by `rim`, the band's STRENGTH (0.2), so a six pixel
+# bend was 1.2 and the user -- with a striped wallpaper and an eye for exactly this -- reported "no
+# veo ningun desplazamiento del color por las orillas". The falloff, 0..1, is what scales it, and
+# Rim decides how much of the band is the bend at all. Simulated on a striped backdrop, the fix
+# moves edge pixels by up to 157.6 levels.
+afirmar_codigo "the displacement scales with the falloff" "$SOURCE" 'uRefraction [*] uBackgroundTexel [*] falloff'
+afirmar_codigo "and the band is mostly the bend at the edge" "$SOURCE" 'clamp[(]uRim [*] 4[.]0, 0[.]0, 1[.]0[)]'

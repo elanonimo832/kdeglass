@@ -456,10 +456,17 @@ void main()
         // it before they knew the word ("es como si la orilla tomara colores y los doblara por
         // toda su orilla"). One extra fetch of the capture, moved toward the interior, is that
         // bend -- and the kit's own figure for it is `refraction = 70`.
-        if (uRefraction > 0.01) {
+        // THE DISPLACEMENT IS IN PIXELS, NOT IN UNITS OF Rim. The first version multiplied it by
+        // `rim`, which is the band's STRENGTH (0.2 by default), so a six pixel bend was really 1.2
+        // and the user, with a striped wallpaper and an eye for exactly this, reported "no veo
+        // ningun desplazamiento del color por las orillas". The band's blend weight had the same
+        // mistake -- at most 20% of the bend could reach the screen. The falloff is 0..1 and it is
+        // what both should scale by; Rim decides how much of the band is the bend at all.
+        float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);
+        if (uRefraction > 0.01 && falloff > 0.01) {
             vec2 inward = normalize(vec2(sign(fromRight - fromLeft), -sign(fromBottom - fromTop)) + vec2(0.001));
-            vec2 bendUv = uvBackground + inward * uRefraction * uBackgroundTexel * rim;
-            result = mix(result, texture(background, bendUv).rgb, rim);
+            vec2 bendUv = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
+            result = mix(result, texture(background, bendUv).rgb, falloff * clamp(uRim * 4.0, 0.0, 1.0));
         }
 
         // AND A HAIRLINE OF CONTRAST, because the bend alone cannot save the case the user found:
