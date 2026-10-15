@@ -145,7 +145,7 @@ def smoothstep(edge0, edge1, x):
 
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
-             gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH):
+             gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
     # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
@@ -155,7 +155,19 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
     falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
     shift_y = -np.sign((h0 - 1 - yy0) - yy0) * refraction * falloff
     shift_x = np.sign((w0 - 1 - xx0) - xx0) * refraction * falloff
-    desktop = frost(backdrop, radius, factor, shift_y, shift_x)
+    if dispersion > 0.001:
+        # DISPERSION: the bend moves each wavelength a little differently, which is why Apple's
+        # glass shows colour fringing at its edges and the kit carries `refraction = 70` next to
+        # `dispersion = 20`. Modelled here as that ratio: the red channel is bent furthest, blue
+        # least, green at the nominal. Three frosts, which is free in a simulator and NOT free in a
+        # shader -- that cost is the reason this is shown before it is built.
+        canales = []
+        for i, escala in enumerate((1.0 + dispersion, 1.0, 1.0 - dispersion)):
+            f = frost(backdrop, radius, factor, shift_y * escala, shift_x * escala)
+            canales.append(f[..., i])
+        desktop = np.stack(canales, axis=2)
+    else:
+        desktop = frost(backdrop, radius, factor, shift_y, shift_x)
 
     # the amplification: the backdrop's chroma around its own luminance, which a blend cannot do
     if boost > 1.001:
@@ -265,6 +277,8 @@ def main():
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
     ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
+    ap.add_argument("--Dispersion", type=float, default=0.0,
+                    help="fraction of the bend that separates per channel; the kit says 20/70")
     ap.add_argument("--Rim", type=float, default=RIM)
     ap.add_argument("--ChromeLow", type=float, default=CHROME_LOW)
     ap.add_argument("--FrostDownsample", type=int, default=0)
@@ -294,7 +308,7 @@ def main():
         return 2
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
-                   args.Refraction, args.RimWidth)
+                   args.Refraction, args.RimWidth, args.Dispersion)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0

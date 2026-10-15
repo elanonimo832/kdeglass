@@ -573,3 +573,32 @@ afirmar_codigo "the gain has a soft knee above mid grey" "$SOURCE" '0[.]5 [+] ov
 # The BOUND is a mathematical property, not a string, so it is not asserted here: the first knee
 # (over/(1+over)) reached 1.5 and only the measurement caught it. A string test of a formula is a
 # test of its spelling.
+
+echo "  -- dispersion: modelled, measured, and judged not worth its cost --"
+# The kit's last unimplemented figure. On a GREY high-contrast backdrop the material cannot produce
+# colour on its own, so any red-blue separation in the output is the dispersion and nothing else:
+# that makes 0.0 levels the control, and it is exactly what the model gives with dispersion off.
+if timeout 300 python3 - <<'PY' >/tmp/dispersion.txt 2>&1
+import sys; sys.path.insert(0, "effect-kwin")
+import numpy as np
+import simulate as S
+h, w = 70, 520
+xx = np.mgrid[0:h, 0:w][1]
+gris = (0.5 + 0.45*(np.sin(xx/26.0) > 0)).astype(float)
+fondo = np.dstack([gris, gris, gris])
+tema = np.full((h, w, 3), 0.93); tema[24:42, 210:320] = 0.15
+sep = {}
+for d in (0.0, 0.29):
+    out = S.simulate(tema, fondo, dispersion=d)
+    sep[d] = np.abs(out[1:9, 40:480, 0] - out[1:9, 40:480, 2]).max() * 255
+print(f"sin dispersion {sep[0.0]:.1f}  con dispersion {sep[0.29]:.1f}")
+assert sep[0.0] == 0, f"a grey backdrop must stay grey without dispersion, got {sep[0.0]}"
+assert sep[0.29] < 12, f"the kit's dispersion should be subtle, got {sep[0.29]}"
+PY
+then
+  ok "the dispersion control is exact and its effect subtle ($(cat /tmp/dispersion.txt))"
+else
+  fallo "the dispersion model failed:"; sed 's/^/      /' /tmp/dispersion.txt | head -4
+fi
+# And the reason it is not in the shader, in the code that would have to pay for it.
+afirmar_codigo "dispersion costs THREE frosts, which is why it was measured first" "$EF/simulate.py" '1[.]0 [+] dispersion, 1[.]0, 1[.]0 - dispersion'

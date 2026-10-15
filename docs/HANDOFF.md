@@ -1035,6 +1035,27 @@ WHAT IS STILL NOT DONE, said plainly so the next session does not have to redisc
 - `tools/*.py` and `tokens/` still carry Spanish variable names. The effect's identifiers are guarded
   by a test now; those two are not.
 
+## 9l. The kit's last figure, measured before it was built
+
+`dispersion = 20` was the only thing left in the kit unimplemented, and it took an hour to decide
+not to implement it -- because the simulator could answer the question first. Modelled as the ratio
+the kit implies (20/70: red bent furthest, blue least), and measured on a GREY high-contrast
+backdrop, where the material cannot produce colour by itself and any red-blue separation in the
+output is the dispersion and nothing else:
+
+| | red minus blue at the rim |
+|---|---|
+| dispersion off | **0.0 levels** (the control, exact) |
+| dispersion 0.29, the kit's ratio | **0.5 levels mean, 9 maximum** |
+
+At Apple's own value the effect is below the perceptible level, and the reason is the rule the edge
+already taught us: a 6 px separation between channels does not survive a 16 px frost. Making it
+visible would mean a separation comparable to the radius, and in the shader that costs THREE frosts
+per pixel -- the band's 36 taps become 108. So it is not built, it is measured, and the measurement
+is a test: a grey backdrop must stay grey with dispersion off, and the kit's value must stay subtle.
+If a future session wants the fringing for its own sake, the model is in `simulate.py` and the cost
+is now a known number rather than a surprise.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
