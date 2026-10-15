@@ -95,16 +95,28 @@ cmd_aplicar() {
   mkdir -p "$DESTINO" "$ESTADO" || { fallo "could not create the destination"; return 1; }
   : > "$MANIFIESTO"
 
+  # UNA SOLA ENTRADA POR DESTINO, Y ES LA RAIZ DEL FALLO DEL ROLLBACK. Antes se apuntaba `modificado`
+  # con su copia Y ADEMAS `creado` siempre, incluso cuando ya habia una version previa. El rollback
+  # lee el manifiesto en orden: restauraba de la copia y acto seguido borraba el directorio porque la
+  # segunda linea decia `creado`, asi que la segunda anulaba a la primera y el tema desaparecia en vez
+  # de volver. Un rollback que borra lo que debia devolver es peor que no tener rollback.
+  #
+  # La distincion es simple: si YA habia algo, esto es una MODIFICACION y hay copia de la que
+  # volver; si no habia nada, es una CREACION y el rollback debe borrarla. Nunca las dos.
+  local habia=no
   if [ -d "$DESTINO" ] && [ "$(find "$DESTINO" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+    habia=si
     local BK="$ESTADO/backups/decoracion-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$BK" && cp -a "$DESTINO/." "$BK/" 2>/dev/null \
-      && printf '%s\t%s\t%s\n' "$DESTINO" "modificado" "$BK" >> "$MANIFIESTO"
+    mkdir -p "$BK" && cp -a "$DESTINO/." "$BK/" 2>/dev/null
+    printf '%s\t%s\t%s\n' "$DESTINO" "modificado" "$BK" >> "$MANIFIESTO"
     aviso "there was a previous version: backed up in ${BK/#$HOME/~}"
   fi
 
   cp -a "$ORIGEN/." "$DESTINO/" || { fallo "the copy failed"; return 1; }
   ok "$(find "$DESTINO" -type f | wc -l) files in ${DESTINO/#$HOME/~}"
-  printf '%s\t%s\t%s\n' "$DESTINO" "creado" "-" >> "$MANIFIESTO"
+  if [ "$habia" = "no" ]; then
+    printf '%s\t%s\t%s\n' "$DESTINO" "creado" "-" >> "$MANIFIESTO"
+  fi
 
   echo
   if [ "$activar" = "si" ]; then

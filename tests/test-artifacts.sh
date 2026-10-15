@@ -87,3 +87,48 @@ else
   diff "$d1" "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" | head -6 | sed 's/^/      /'
 fi
 rm -f "$d1" "$d2"
+
+echo "  -- rollback: restaurar, no borrar --"
+# EL FALLO REAL, encontrado al usarlo: `rollback` BORRABA el tema en vez de restaurarlo. El
+# manifiesto guardaba DOS lineas para el mismo destino -- `modificado <copia>` y luego `creado -` --
+# porque el `creado` se escribia siempre, tambien cuando ya habia una version previa. El bucle las
+# lee en orden, restaura de la copia y acto seguido borra el directorio: la segunda anula a la
+# primera. Un rollback que borra lo que debia devolver es peor que no tener rollback, asi que esto
+# se prueba en un HOME de mentira, sin tocar nada del usuario, y sin activar nada en KWin.
+ISLA=$(mktemp -d)
+mkdir -p "$ISLA/data/aurorae/themes/KdeMacOS" "$ISLA/state"
+printf 'la decoracion que el usuario ya tenia\n' > "$ISLA/data/aurorae/themes/KdeMacOS/KdeMacOSrc"
+printf 'un fichero que solo existe en la instalacion previa\n' > "$ISLA/data/aurorae/themes/KdeMacOS/solo-previo.txt"
+cp -a "$ISLA/data/aurorae/themes/KdeMacOS" "$ISLA/lo-que-habia"
+XDG_DATA_HOME="$ISLA/data" XDG_STATE_HOME="$ISLA/state" \
+  timeout 60 "$PROJECT/install-decoration.sh" aplicar --si >/dev/null 2>&1
+XDG_DATA_HOME="$ISLA/data" XDG_STATE_HOME="$ISLA/state" \
+  timeout 60 "$PROJECT/install-decoration.sh" rollback >/dev/null 2>&1
+
+afirmar_existe "rollback deja el tema donde estaba (NO lo borra)" \
+  "$ISLA/data/aurorae/themes/KdeMacOS/KdeMacOSrc"
+if [ -f "$ISLA/data/aurorae/themes/KdeMacOS/KdeMacOSrc" ]; then
+  afirmar_igual "y devuelve el contenido que tenia, no el instalado" \
+    "la decoracion que el usuario ya tenia" \
+    "$(cat "$ISLA/data/aurorae/themes/KdeMacOS/KdeMacOSrc")"
+  afirmar_existe "sin perder los ficheros que solo estaban en la version previa" \
+    "$ISLA/data/aurorae/themes/KdeMacOS/solo-previo.txt"
+fi
+# El manifiesto no puede pedir dos cosas contradictorias para el mismo destino: es la raiz del fallo.
+duplicados=$(cut -f1 "$ISLA/state/kde-macos/manifest-decoracion.tsv" 2>/dev/null | sort | uniq -d | wc -l)
+afirmar_igual "el manifiesto tiene UNA entrada por destino, no dos" "0" "$duplicados"
+
+# LA OTRA MITAD DEL CONTRATO, que no debe romperse al arreglar esto: si NO habia nada antes, el
+# rollback SI tiene que borrar lo que creo. Un `creado` que nunca se escribe dejaria basura instalada
+# y nadie se enteraria; por eso las dos ramas se prueban.
+ISLA2=$(mktemp -d)
+mkdir -p "$ISLA2/data" "$ISLA2/state"
+XDG_DATA_HOME="$ISLA2/data" XDG_STATE_HOME="$ISLA2/state" \
+  timeout 60 "$PROJECT/install-decoration.sh" aplicar --si >/dev/null 2>&1
+afirmar_existe "una instalacion desde cero crea el tema" \
+  "$ISLA2/data/aurorae/themes/KdeMacOS/KdeMacOSrc"
+XDG_DATA_HOME="$ISLA2/data" XDG_STATE_HOME="$ISLA2/state" \
+  timeout 60 "$PROJECT/install-decoration.sh" rollback >/dev/null 2>&1
+negar "y su rollback SI lo borra (era una creacion, no una modificacion)" \
+  test -d "$ISLA2/data/aurorae/themes/KdeMacOS"
+rm -rf "$ISLA" "$ISLA2"
