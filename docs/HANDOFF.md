@@ -974,6 +974,38 @@ written from memory. `tests/test-glass.sh` scans the effect's identifiers agains
 word list, the same shape as the file-name scan in `test-claims.sh`. Checked by putting
 `amplificado` back: it named it.
 
+## 9j. "El centro esta blanco y la orilla translucida" is a TRADE, not a bug
+
+Measured on the user's own screenshot with a local-variance map, once the gain's knee and the bend
+were both in the installed build: **20.8% of the band is a flat, light slab** -- rows 29..44 of a
+38-row bar, columns 61..943, level 149, and constant. It is not a defect with a line of code behind
+it. It is the two things they asked for pulling against each other:
+
+- The **centre** is the *frosted* backdrop. At radius 16-32 the frost averages the wallpaper's wide
+  stripes away, and what is left is the material itself: the theme's white bar at `GlassAlpha`
+  (0.25 of a *white* bar is a lot of white) over an amplified backdrop. Uniform, therefore a plate.
+- The **edges** mix in the *unfrosted*, displaced backdrop -- the bend -- so the stripes come back.
+  That is why they read as MORE translucent, in the user's words, than the middle.
+
+So "the edge looks more translucent" was the symptom of the centre being too frosted, and the two
+requests -- "30% more blur" and "the centre is a white square" -- sit at opposite ends of
+`BackgroundRadius`, `GlassAlpha`, `MaterialGain` and `RimWidth`.
+
+HONEST ABOUT THE INSTRUMENT: I tried to predict the right values in `simulate.py` and my synthetic
+wallpaper was useless for it -- stripes ~190 px wide are not smoothed by a 16-32 px frost, so it
+reported the same structure at every radius. The numbers below are what it CAN say, and the choice is
+a screen judgement with `tune.sh`:
+
+| | centre's mean level |
+|---|---|
+| `GlassAlpha` 0.25 (now) | 153.9 |
+| `GlassAlpha` 0.15 | 148.6 |
+| `GlassAlpha` 0.08 | 145.0 |
+
+Lowering `GlassAlpha` is the direct lever on the plate, because it is the theme's white bar that
+fills it. The kit's `opacity = 25` assumes the material has its OWN colour; using the theme's bar as
+that colour is an approximation of mine, so 0.25 is not sacred and this is where to look first.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
