@@ -59,7 +59,7 @@ while the command reports success.
 | `Refraction` | 20.0 | how far the edge's copy of the backdrop is bent toward the interior, in pixels: the kit's `refraction = 70`. 0 disables the bend |
 | `RimColour` | 1.8 | how much the edge band's own chroma is multiplied -- the environment's colour, stronger, which is what Apple's edge does (their sample: a band at chroma 57 against surroundings at 1). 1.0 leaves it as the frost delivered it, and the boost is limited per pixel so it can NEVER turn the edge white: past the display's edge the colour simply stops growing |
 | `Specular` | 0.7 | the highlight's strength as a mix toward white at the TOP edge; the kit's `light_angle = 0` puts it there, and Apple's sample measures 236 against a middle of 180. 0.55 of it at the bottom (206 in that sample: a lift of 26 against 56, and our non-linear response reaches that ratio at 0.55) |
-| `SpecularWidth` | 2.0 | its spread in pixels, from the kit's `splay_regular = 20` |
+| `SpecularWidth` | 6.0 | its spread in pixels, from the kit's `splay_regular = 20` |
 | `RimWidth` | 12.0 | how wide the edge band is, in pixels: Apple's reads as a border, five pixels read as a seam |
 | `MaterialBoost` | 1.20 | how much the material AMPLIFIES the backdrop's colour instead of veiling it. 1.0 is off; the value measured on Apple's Dock is **1.6** |
 | `BackgroundFlipV` | false | only for a rotated output, where KWin's blit takes a different branch |

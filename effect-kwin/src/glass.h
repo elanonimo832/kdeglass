@@ -204,7 +204,12 @@ private:
     // instead of sitting on top of it.
     static constexpr float kSpecular = 0.7f;
     float m_specular = kSpecular;
-    static constexpr float kSpecularWidth = 2.0f;
+    // 6, not 2, after the user compared it with Apple's: "en la imagen de apple la veo muy clara, es
+    // mas gruesa y bien definida, aqui apenas es perceptible". The sample's sharp rise is about two
+    // pixels, but what the eye reads as the fillet is the rise PLUS the bright region behind it,
+    // which is ~9 px -- and in our bar that region is the ordinary material, not a bright body. Six
+    // is what reproduces the perception their comparison describes.
+    static constexpr float kSpecularWidth = 6.0f;
     float m_specularWidth = kSpecularWidth;
 
     static constexpr float kRimWidth = 12.0f;
