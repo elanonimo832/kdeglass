@@ -19,7 +19,9 @@ verified working and unusable, because it blurred the text you were reading.
 | **Chrome readable** | ✅ the title and the traffic lights are drawn crisp over the glass: the bar's blur is the blank that isolates them, and a tight baseline of its own keeps the halo off them |
 | **Vibrancy** (chrome adapts to the glass) | 🟡 in the built plugin, **off by default** (`Vibrancy`, the minimum contrast; 0 disables). For dark backdrops, where the theme's dark title would otherwise disappear |
 | **Rounded corners** | ✅ drawn by the effect (`CornerRadius`, default 20; only for normal, decorated, non-fullscreen windows -- a fullscreen window IS the screen). This theme's SVG has a 12 px arc, but aurorae clips the corner piece into a 1 px cell, so the frame arrives as a rectangle |
-| Refraction (70), dispersion (20), specular highlight | ❌ not started |
+| **Refraction (70)** | ✅ implemented and **approved on screen** (2026-10-14): the band's frost is displaced toward the interior near the edges, so the rim is the same material as the centre, only bent. `Refraction` 20 px, chosen from a measurement (a 6 px bend against a 16 px frost moves the rim 5.4 levels, which is invisible) |
+| **Dispersion (20)** | 🟡 modelled and measured, **deliberately not built**. At the kit's own ratio the red-blue separation at the rim is 0.5 levels against a 16 px frost, and building it costs THREE frosts per pixel (36 taps become 108). The model lives in `simulate.py`; the measurement is a test |
+| **Specular highlight** | ❌ not started. The rim carries a small white lift tied to `Rim` today, which is not the same thing |
 
 ## The knobs, and which of them are live
 
