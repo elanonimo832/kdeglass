@@ -73,6 +73,7 @@ SPECULAR_WIDTH = DEFAULTS.get("SpecularWidth", 2.0)
 RIM = DEFAULTS.get("Rim", 0.20)
 RIM_WIDTH = DEFAULTS.get("RimWidth", 12.0)
 CORNER_RADIUS = DEFAULTS.get("CornerRadius", 20.0)
+FROST_RADIUS = DEFAULTS.get("FrostRadius", 6.0)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
 INNER_SCALE = 0.375          # the kit's frost 6/16/16, as in the shader
 LUMA = np.array([0.2126, 0.7152, 0.0722])
@@ -176,8 +177,13 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
            + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
     to_edge = -sdf
     falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
-    shift_y = -np.sign((h0 - 1 - yy0) - yy0) * refraction * falloff
-    shift_x = np.sign((w0 - 1 - xx0) - xx0) * refraction * falloff
+    # NORMALISED, as the shader does with normalize(): bending per axis independently gave a corner
+    # sqrt(2) times the displacement, which is the fourth drift the audit found.
+    inward_y = -np.sign((h0 - 1 - yy0) - yy0)
+    inward_x = np.sign((w0 - 1 - xx0) - xx0)
+    largo = np.maximum(np.sqrt(inward_x ** 2 + inward_y ** 2), 1e-6)
+    shift_y = (inward_y / largo) * refraction * falloff
+    shift_x = (inward_x / largo) * refraction * falloff
     if dispersion > 0.001:
         # DISPERSION: the bend moves each wavelength a little differently, which is why Apple's
         # glass shows colour fringing at its edges and the kit carries `refraction = 70` next to
@@ -197,7 +203,9 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         l = luma(desktop)[..., None]
         desktop = np.clip(l + (desktop - l) * boost, 0, 1)
 
-    base = tone(window, radius)
+    # The tone's radius is the SHADER's, not the background radius: max(FrostRadius, bar/2).
+    # Keying it to `radius` was the third of the four drifts the audit found.
+    base = tone(window, max(FROST_RADIUS, h0 * 0.5))
     # the material's gain with a SOFT KNEE above 0.5, as in the shader: a hard clip turns a bright
     # backdrop into a flat white plateau, which is the "cuadro blancoso" the user reported
     boosted = desktop * gain
@@ -217,49 +225,36 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
 
     result = glass * (1 - chrome) + window * chrome
 
-    # the rim: the amplified backdrop over a five pixel falloff, plus a small specular lift
-    if rim_strength > 0:
-        h, w = window.shape[:2]
-        yy, xx = np.mgrid[0:h, 0:w].astype(float)
-        to_edge = np.minimum(np.minimum(yy, h - 1 - yy), np.minimum(xx, w - 1 - xx))
-        r = (1.0 - smoothstep(0.0, rim_width, to_edge))[..., None] * rim_strength
-        el = luma(desktop)[..., None]
-        rim_colour = np.clip(el + (desktop - el) * max(boost, 1.2), 0, 1)
-        # the band's own chroma, stronger: the environment's colour as Apple's edge carries it
-        rl = luma(rim_colour)[..., None]
-        chroma = rim_colour - rl
-        highest = chroma.max(axis=2)[..., None]
-        lowest = chroma.min(axis=2)[..., None]
-        limit = np.full_like(highest, rim_colour_boost)
-        limit = np.where(highest > 0.001, np.minimum(limit, (1.0 - rl) / np.maximum(highest, 1e-6)), limit)
-        limit = np.where(lowest < -0.001, np.minimum(limit, rl / np.maximum(-lowest, 1e-6)), limit)
-        rim_colour = np.clip(rl + chroma * np.maximum(limit, 0.0), 0, 1)
-        result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
-        result = result * (1 - r * 0.15) + 1.0 * (r * 0.15)
-        # the bend: the backdrop, displaced toward the interior
-        # the same correction as the shader: the displacement is in PIXELS, and the blend weight is
-        # the falloff, not the falloff times Rim (which made a six pixel bend into 1.2)
-        # the bend is in the frost's own uv above; nothing to blend here
-        # the hairline of contrast: away from the backdrop, so the boundary reads on any of them
-        hair = (1.0 - smoothstep(0.0, 2.5, to_edge))[..., None]
-        back = luma(desktop)[..., None]
-        # the same numbers as the shader, deliberately: this file is a re-implementation, so the
-        # two can drift and the only thing keeping them honest is that they are written the same
-        # M1.5, the specular highlight: white, about six pixels, strongest at the TOP -- the kit's
-        # `light_angle = 0` -- and fading on a bright backdrop, which is physics rather than taste.
-        # `step(fromTop, fromBottom)` in the shader is 1 unless the bottom edge is nearer, so only
-        # the bottom gets the 0.5 that Apple's sample measures (206 against 236 at the top).
-        line_factor = np.where(back > 0.5, 0.35, 1.7)
-        line = np.clip(np.clip(back + (desktop - back) * 0.5, 0, 1) * line_factor, 0, 1)
-        result = result * (1 - hair * 0.35) + line * (hair * 0.35)
-        # THE SPECULAR GOES LAST, because a reflection is the outermost thing that happens to the
-        # surface: the material, then its edge line, and only then the light bouncing off it. With
-        # this in front of the hairline the line clipped 35% of it back out -- measured, not guessed:
-        # a 0.40 specular weight produced a lift of 23.5 levels where the arithmetic said 49.
-        fillet = 1.0 - smoothstep(0.0, specular_width, to_edge)
-        above = np.where((h - 1 - yy) < yy, 0.55, 1.0)
-        spec = (fillet * specular * above * (1.0 - 0.85 * back[..., 0]))[..., None]
-        result = result * (1 - np.clip(spec, 0, 2)) + 1.0 * np.clip(spec, 0, 2)
+    # THE EDGE GEOMETRY IS UNCONDITIONAL, and it uses the ROUNDED distance computed above. The audit
+    # found two drifts here: everything was gated on `rim_strength` (the shader applies the hairline
+    # and the fillet whatever `uRim` is -- "Independent of Rim on purpose" -- and only the BAND's blend
+    # is scaled by it), and the block shadowed `to_edge` with a BOX distance, which is the same defect
+    # that made the corners square in the shader. `falloff`, `to_edge`, `h0` and `yy0` come from up
+    # there, so the two implementations now name the same quantities.
+    el = luma(desktop)[..., None]
+    rim_colour = np.clip(el + (desktop - el) * max(boost, 1.2), 0, 1)
+    rl = luma(rim_colour)[..., None]
+    chroma = rim_colour - rl
+    highest = chroma.max(axis=2)[..., None]
+    lowest = chroma.min(axis=2)[..., None]
+    limit = np.full_like(highest, rim_colour_boost)
+    limit = np.where(highest > 0.001, np.minimum(limit, (1.0 - rl) / np.maximum(highest, 1e-6)), limit)
+    limit = np.where(lowest < -0.001, np.minimum(limit, rl / np.maximum(-lowest, 1e-6)), limit)
+    rim_colour = np.clip(rl + chroma * np.maximum(limit, 0.0), 0, 1)
+    r = (falloff * rim_strength)[..., None]              # only the band is scaled by Rim
+    result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
+    # the hairline of contrast, and the fillet, both independent of Rim, as in the shader
+    back = luma(desktop)[..., None]
+    hair = (1.0 - smoothstep(0.0, 2.5, to_edge))[..., None]
+    line_factor = np.where(back > 0.5, 0.35, 1.7)
+    line = np.clip(np.clip(back + (desktop - back) * 0.5, 0, 1) * line_factor, 0, 1)
+    result = result * (1 - hair * 0.35) + line * (hair * 0.35)
+    # THE FILLET GOES LAST: a reflection is the outermost thing that happens to a surface
+    fillet = 1.0 - smoothstep(0.0, specular_width, to_edge)
+    above = np.where((h0 - 1 - yy0) < yy0, 0.55, 1.0)
+    spec = (fillet * specular * above * (1.0 - 0.85 * back[..., 0]))[..., None]
+    result = result * (1 - np.clip(spec, 0, 2)) + 1.0 * np.clip(spec, 0, 2)
+
     return np.clip(result, 0, 1)
 
 
@@ -285,7 +280,7 @@ def self_test():
     print(f"  GlassAlpha 0 -> the frosted backdrop            (max diff {e1:.4f})")
 
     sin_mezcla = simulate(window, backdrop, glass_alpha=1.0, rim_strength=0.0, boost=1.0, gain=1.0)
-    base = tone(window, BACKGROUND_RADIUS)
+    base = tone(window, max(FROST_RADIUS, window.shape[0] * 0.5))
     fundido = np.zeros_like(base)
     l = luma(window); lt = luma(base)
     d = np.clip((lt - l) / np.maximum(lt, 1e-3), 0, 1)
@@ -293,7 +288,12 @@ def self_test():
     cov = smoothstep(CHROME_LOW, min(1.0, CHROME_LOW + 0.85), np.maximum(d, li))[..., None]
     chr_ = smoothstep(0.15, 0.30, window.max(axis=2) - window.min(axis=2))[..., None]
     ch = np.maximum(cov, chr_)
-    e2 = np.abs(sin_mezcla - (base * (1 - ch) + window * ch)).max()
+    # THE MIDDLE ROWS ONLY. The hairline and the fillet are applied unconditionally now, as in the
+    # shader, so the edge rows deliberately differ from a formula that describes the material alone --
+    # they are asserted by their own tests. Comparing the whole frame made this check fail for a
+    # correct change, which is the difference between a test and a tripwire.
+    medio = slice(18, 42)
+    e2 = np.abs(sin_mezcla[medio] - (base * (1 - ch) + window * ch)[medio]).max()
     print(f"  GlassAlpha 1 -> the bar's own tone              (max diff {e2:.4f})")
 
     # the glyph's EDGE must be PARTIAL, which is what removes the baked-in white fringe, and

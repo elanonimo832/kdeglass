@@ -1328,6 +1328,51 @@ gone by name, and the rounded distance is checked numerically -- negative at the
 straight edge. The content path never reaches the maths this suite can exercise, so the SHAPE of the fix
 is the strongest check available, and it is now in place.
 
+## 9v. The audit, and what is queued from it
+
+An independent read-only audit of `effect-kwin/` (subagent, no files touched) measured where the cost
+actually is and ranked the margin. Its verdict: **the shader is not the problem** -- the bar costs 42
+taps per fragment with uniform branches, and the 36-tap frost is a measured decision -- while **the
+capture is**: one blit of the window's `expandedGeometry` (3840x2160 for a maximised window) plus an
+unconditional full-texture clear, per window per repaint. Roughly 31.6 MiB read + 8.0 MiB written +
+8.0 MiB cleared, where the band needs 3800x38 plus the kernels' reach.
+
+DONE IN THIS PASS -- the four simulator drifts, which could not affect the screen and mattered most
+because a tool that predicts wrongly is worse than no tool:
+
+1. it kept the white lift `* 0.15` that the shader retired when the fillet replaced it;
+2. it gated the hairline and the fillet on `rim_strength > 0`, which the shader applies regardless;
+3. it keyed the tone's radius to `BackgroundRadius` instead of `max(FrostRadius, barHeight/2)`;
+4. it bent per axis instead of normalising, giving a corner sqrt(2) times the displacement.
+Plus a fifth the audit did not list and that I found while fixing them: the block SHADOWED the rounded
+distance with a box one, which is the same defect that made the corners square in the shader. The two
+implementations now name the same quantities and the self-test compares the interior rows only, because
+the edge terms are unconditional now and have their own tests.
+
+QUEUED, with the audit's pointers, in its own order of impact x effort:
+
+| # | finding | where | effort |
+|---|---|---|---|
+| 1 | **capture only the band**, not the whole expanded window (~30x less traffic, the real win) | glass.cpp:912, 923, 1042 | high |
+| 2 | gate the unconditional `glClear` on `destination.size() != reducedSize` (~20% of capture traffic) | glass.cpp:1036-1039 | low |
+| 3 | drop `m_shader.reset()` on reconfigure: the GLSL has no config baked in and is recompiled on every `tune.sh` call | glass.cpp:738 | low |
+| 4 | key the capture cache by window instead of size: an LRU of 4 is pessimal for a cyclic 5-window set | glass.cpp:992-1002 | low-med |
+| 5 | bound the `static QHash<QString,int>` on captions in the paint path (the journal-flood class again) | glass.cpp:1167-1178 | low |
+| 6 | the tests pin GLSL *spelling*, so cleanup breaks them while real drift passes | test-glass.sh:461, 470-484 | med |
+| 7 | dead code: `deviation`/`byDeviation`, `kFrostOpacity`, `m_active` (never written, so the documented "effect off" path is unreachable), a duplicated luma and one re-fetch | glass.cpp:298-299, 254, 92 | low |
+| 8 | 19 string-keyed `setUniform` per window per paint: cache the locations | glass.cpp:1200-1255 | low |
+
+DO NOT TOUCH, per the audit, with its reasons: the 36-tap pyramid and the finest level's weight 6 (four
+equal levels only killed 82.5% of the text contrast and the radius alone did nothing); the 5-tap vertical
+median and the 9-exchange network (a mean or a horizontal sample brings the ghosting back); the content
+early-out, the corner discard, the radius-0 branch, the downsample cap of 2 and the tone clamp; one
+cache slot per size consumed in the same capture/draw pair; the per-paint uniforms; and the GLSL as a
+string literal, because the glslangValidator check extracts it.
+
+AND ONE DOCUMENTATION LIE the audit caught on its way out: README.md documents `CaptureSubRect` as
+false while glass.h has it true, and the suite's default check skips non-numeric defaults, so it cannot
+see it. That is the next thing to fix.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
