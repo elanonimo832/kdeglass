@@ -709,3 +709,25 @@ afirmar_codigo "the discard tests the frame's rounded distance alone" "$SOURCE" 
 afirmar_codigo "and it does NOT include the bar's bottom" "$SOURCE" 'float toEdge = min[(]edgeDistance, uTitleBarHeight - topDistance[)]'
 # and the retired form must be gone, by name, so it cannot come back
 afirmar_igual "the broken expression is gone" "0" "$(grep -c 'roundedDistance' effect-kwin/src/glass.cpp)"
+
+echo "  -- the rounded distance is signed the way the discard needs --"
+# The bug that made the corners square again after the crash fix: `uCornerRadius - (sdf - uCornerRadius)`
+# is the sdf mirrored about r, POSITIVE everywhere near a corner, so `discard` never fired there. The
+# simulator had the correct expression and the shader did not, which is the drift this project keeps
+# paying for. Two checks together, because either alone is weak: the shader's sign by grep, and the
+# formula evaluated at the points where the sign decides.
+afirmar_codigo "the minus sign is OUTSIDE the sdf" "$SOURCE" 'edgeDistance = -[(]length'
+if timeout 120 python3 - <<'PY' >/tmp/sdf.txt 2>&1
+def distance(px, py, w=900.0, h=300.0, r=20.0):
+    """The shader's expression, transcribed from the source and evaluated."""
+    qx = abs(px - w / 2) - (w / 2 - r)
+    qy = abs(py - h / 2) - (h / 2 - r)
+    return -(((max(qx, 0.0)) ** 2 + (max(qy, 0.0)) ** 2) ** 0.5 + min(max(qx, qy), 0.0) - r)
+esquina, centro, borde = distance(0.0, 0.0), distance(450.0, 150.0), distance(450.0, 6.0)
+print(f"esquina {esquina:+.2f} (NEGATIVA = fuera)  centro {centro:+.2f}  borde a 6 px {borde:+.2f}")
+assert esquina < 0, f"the corner is outside the rounded rectangle, got {esquina:+.2f}"
+assert centro > 0, f"the centre is inside, got {centro:+.2f}"
+assert abs(borde - 6.0) < 0.01, f"6 px inside a straight edge must measure 6, got {borde:+.2f}"
+PY
+then ok "negative at the corner, exact inside ($(cat /tmp/sdf.txt))"
+else fallo "the rounded distance is wrong:"; sed 's/^/      /' /tmp/sdf.txt | head -5; fi

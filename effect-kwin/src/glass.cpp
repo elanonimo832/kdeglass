@@ -175,8 +175,14 @@ void main()
     vec2 cornerPos = vTexCoord * uTextureSize;
     vec2 cornerHalf = 0.5 * uTextureSize;
     vec2 q = abs(cornerPos - cornerHalf) - (cornerHalf - vec2(uCornerRadius));
-    float edgeDistance = uCornerRadius
-                       - (length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - uCornerRadius);
+    // SIGNED, NEGATIVE OUTSIDE. The first version read `uCornerRadius - (sdf - uCornerRadius)`, which is
+    // the sdf mirrored about r: positive EVERYWHERE inside the box's corners, so the discard never fired
+    // and the corners came out square -- the user's screenshot after the crash fix showed exactly that,
+    // with a +20 px bias on every edge term as a bonus. The simulator had it right; the shader did not,
+    // which is the drift this project keeps paying for. Verified numerically before the build: the exact
+    // corner gives -8.28 here and +11.72 with the old expression, and 6 px inside a straight edge gives
+    // +6.00 against +26.00.
+    float edgeDistance = -(length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - uCornerRadius);
     // THE DISCARD TESTS THE FRAME'S BOUNDARY AND NOTHING ELSE. It used to test
     // `min(edgeDistance, uTitleBarHeight - topDistance)`, which is negative for EVERY PIXEL BELOW THE
     // BAR -- so the effect discarded the entire content of every window and left only the title bars.
