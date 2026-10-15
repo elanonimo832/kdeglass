@@ -52,13 +52,19 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    into any sub-rectangle. `CaptureSubRect` is now the EXTENT switch (band / whole window, the escape
    hatch). The hot reload did NOT pick the library up and a relogin did; the tell is the
    `capture texture` size.
-3. **Audit findings 4, 7 and 8 — small and safe.** Cache the capture per window instead of per size
-   (an LRU of 4 is pessimal for five cyclically repainting windows); delete the dead code, including
-   `m_active`, which is never written and makes the documented "effect off" measurement path
-   unreachable; cache the 19 `setUniform` locations.
-4. **Audit finding 6 — the tests pin GLSL spelling.** `tests/test-glass.sh` asserts exact strings, so a
-   correct cleanup breaks assertions while real drift passes. It has already cost several false
-   failures today.
+3. **Audit findings 4, 7 and 8 — DONE (2026-10-15).** #7 removed the dead code (`deviation`/
+   `byDeviation`, `kFrostOpacity`, `m_active`, a duplicated `kLuma` and one re-fetch) and the two
+   assertions that were keeping the retired expression alive. #8 resolves the uniform locations once
+   (`GLShader::uniformLocation` + `setUniform(int, ...)`) instead of 24 name lookups per paint. #4
+   keys the capture cache by **(window, size)** with the bound raised 4 to 8 -- cheap now that audit 1
+   shrank a slot from up to 8 MiB to ~0.5 MiB -- and drops a window's entries when it closes. The
+   build is ahead of the installed `.so`; the changes are behaviour-identical, so only a performance
+   gain is waiting on an install + relogin.
+4. **Audit finding 6 — DONE (2026-10-15).** `tests/lib.sh` grew `afirmar_glsl`, which strips comments
+   (as `afirmar_codigo` does), removes ALL whitespace from both sides and matches the pattern as a
+   CONTIGUOUS literal, so a reformat passes, an operator change fails, reordered tokens fail and a
+   pattern that lives only in a comment fails -- all four proven in `test-harness.sh`. 95 shader
+   assertions were converted, 19 of them from a NAME to the EXPRESSION that decides.
 5. **Then the shell**: M3 Plasma theme, M4 typography, M5 icons, M6 QStyle. See `ROADMAP.md`.
 
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT

@@ -1388,12 +1388,26 @@ relogin did (see the runbook above: the `capture texture` size is the tell now).
 **#2 was already done** in an earlier pass (the `glClear` is gated on
 `destination.size() != reducedSize`).
 
+**AND THE REST OF THE QUEUE IS DONE (2026-10-15).** #4: the cache key is `(window, size)` and the
+bound went 4 -> 8, with a closed window's entries dropped -- "key by window" alone, as the audit wrote
+it, would have served the OLD texture after a resize, so the size stayed in the key. #7: the dead code
+is gone (`deviation`/`byDeviation`, `kFrostOpacity`, `m_active`, a duplicated `kLuma` and one
+re-fetch), and two assertions that pinned the RETIRED expression were re-pointed at the live one --
+they would otherwise have kept the dead code green while breaking the cleanup. #8: the names resolve
+once through `GLShader::uniformLocation` and `setUniform(int, ...)`; the VALUES are still set per
+paint, which is what that has to mean. #6: `afirmar_glsl` strips comments, removes ALL whitespace and
+matches the pattern as a CONTIGUOUS literal, so a reformat passes while an operator change, reordered
+tokens or a pattern living only in a comment fail (all four proven in `test-harness.sh`); 95 shader
+assertions were converted, 19 of them from a NAME to the EXPRESSION that decides. #3 was already done
+(`reconfigure()` does not reset the shader).
+
 DO NOT TOUCH, per the audit, with its reasons: the 36-tap pyramid and the finest level's weight 6 (four
 equal levels only killed 82.5% of the text contrast and the radius alone did nothing); the 5-tap vertical
 median and the 9-exchange network (a mean or a horizontal sample brings the ghosting back); the content
 early-out, the corner discard, the radius-0 branch, the downsample cap of 2 and the tone clamp; one
-cache slot per size consumed in the same capture/draw pair; the per-paint uniforms; and the GLSL as a
-string literal, because the glslangValidator check extracts it.
+cache slot per `(window, size)` consumed in the same capture/draw pair -- the KEY changed in audit 4,
+the consumption rule did not; the per-paint uniform VALUES (audit 8 cached their LOCATIONS, not their
+values); and the GLSL as a string literal, because the glslangValidator check extracts it.
 
 AND ONE DOCUMENTATION LIE the audit caught on its way out: README.md documents `CaptureSubRect` as
 false while glass.h has it true, and the suite's default check skips non-numeric defaults, so it cannot
