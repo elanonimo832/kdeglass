@@ -433,15 +433,15 @@ afirmar_codigo "and its light end" "$SOURCE" 'kLabelLight = 245[.]0 / 255[.]0'
 afirmar_codigo "picking by the material's luminance" "$SOURCE" 'backdropLuma > 0[.]5 [?] kLabelDark : kLabelLight'
 afirmar_codigo "over a ramp, not an instant jump" "$SOURCE" 'falta = clamp'
 
-echo "  -- the sampling sub-rectangle is a live switch, off by default --"
-# The last open question of M1.3a: the capture covers the window's EXPANDED geometry while
-# every size the shader uses comes from the FRAME. With the switch off the shader samples the
-# whole texture (what was verified before), with it on it samples the frame's sub-rectangle.
-# Both are stable, so this is a measurement rather than a guess -- and it is a switch so that
-# the measurement costs no extra build.
+echo "  -- the sampling sub-rectangle, ON, decided by arithmetic --"
+# The last open question of M1.3a: the capture covers the window's EXPANDED geometry while every
+# size the shader uses comes from the FRAME. The user ran both and saw no difference -- correctly,
+# because a 16 px frost over a smooth backdrop absorbs a 14 px offset and a 2% scale. The
+# arithmetic decides it instead: the corners prove vTexCoord runs across the FRAME, so the capture
+# must be sampled at the frame's sub-rectangle, and the identity is a KNOWN offset.
 afirmar_codigo "the sub-rectangle switch exists" "$HEADER" 'm_captureSubRect'
-afirmar_codigo "off by default" "$HEADER" 'kCaptureSubRect = false'
-afirmar_codigo "and off sends the identity, which is the verified sampling" "$SOURCE" \
+afirmar_codigo "and it is ON, because the identity is a known 14 px offset" "$HEADER" 'kCaptureSubRect = true'
+afirmar_codigo "with it on the frame's place inside the capture is used" "$SOURCE" \
   'm_captureSubRect [?] m_sampleOffset : QVector2D[(]0[.]0f, 0[.]0f[)]'
 afirmar_codigo "the frame's place inside the capture is computed" "$SOURCE" \
   'm_sampleOffset = QVector2D[(]float[(]frameRect[.]x[(][)] - region[.]x[(][)][)]'
@@ -602,3 +602,9 @@ else
 fi
 # And the reason it is not in the shader, in the code that would have to pay for it.
 afirmar_codigo "dispersion costs THREE frosts, which is why it was measured first" "$EF/simulate.py" '1[.]0 [+] dispersion, 1[.]0, 1[.]0 - dispersion'
+
+echo "  -- the capture's geometry is written down where the default lives --"
+# A default that encodes arithmetic must carry the arithmetic, or the next session flips it back
+# because the user "saw no difference".
+afirmar_codigo "the shadow margin is named in the header" "$HEADER" 'shadowMargin'
+afirmar_codigo "and so is the scale drift" "$HEADER" '1415/1387'
