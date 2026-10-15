@@ -1006,6 +1006,35 @@ Lowering `GlassAlpha` is the direct lever on the plate, because it is the theme'
 fills it. The kit's `opacity = 25` assumes the material has its OWN colour; using the theme's bar as
 that colour is an approximation of mine, so 0.25 is not sacred and this is where to look first.
 
+## 9k. Approved on screen, and how to know nothing was lost
+
+The frosted rim was the user's own idea, asked as a question -- "que pasaria si le dieramos el valor
+escarcha a la orilla pero manteniendo la refraccion" -- implemented the same day, and then approved
+where it counts: "hice el install y se ve increible, estoy contento con el resultado". So the design
+that ships is: ONE frost for the whole band, its uv bent toward the interior near the edges, with a
+hairline of contrast at the outermost row and the gain's soft knee above mid grey.
+
+**How to know the repository matches the screen.** The build the effect was approved on and the build
+in the tree are the same file, checked by content and not by timestamp:
+
+    md5sum /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so   -> 334d88c7
+    md5sum effect-kwin/build/plugins/kwin/effects/macosglass2.so      -> 334d88c7
+
+The defaults are the user's choices, with their reasons next to them: `CornerRadius` 20,
+`Refraction` 20, `Rim` 0.30. A `--reset`, a clean install or another machine lands on what they
+picked by looking.
+
+WHAT IS STILL NOT DONE, said plainly so the next session does not have to rediscover it:
+
+- `dispersion = 20` and the specular highlight from the kit are not implemented; the edge bends
+  colour but does not separate it per channel.
+- The last M1.3a box is the alignment measurement that was stopping on the `CaptureSubRect`
+  question -- whether `vTexCoord` spans the expanded texture or the frame. Corner rounding landing
+  correctly at radius 20 is evidence for the frame reading, and `CaptureSubRect` exists so the
+  answer costs one setting rather than one build.
+- `tools/*.py` and `tokens/` still carry Spanish variable names. The effect's identifiers are guarded
+  by a test now; those two are not.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
