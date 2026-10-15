@@ -1292,6 +1292,42 @@ because the question I asked of the data was about a BAND and the answer was abo
 same failure as the one in 9r and 9s, in a third costume: measuring the wrong quantity, and this time
 the quantity was wrong because the RESOLUTION was.
 
+## 9u. Runbook: the effect took the windows away
+
+The symptom, in the user's words: "perdi las ventanas, solo se ve la barra superior, no puedo ver nada
+literal, solo el desktop y las barras de la ventana superior". If it happens again, this is the way out,
+and it needs no relogin and no working screen -- it runs from any shell on the machine:
+
+    export XDG_RUNTIME_DIR=/run/user/$UID DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$UID/bus
+    qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macosglass2
+    qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded macosglass2   # must print false
+    # and make it stick, in case a reconfigure loads it again:
+    kwriteconfig6 --file kwinrc --group Plugins --key macosglass2Enabled false
+    qdbus6 org.kde.KWin /KWin reconfigure
+
+TWO BUGS, one behind the other, and both mine:
+
+1. `discard` tested `min(edgeDistance, uTitleBarHeight - topDistance)`. The second term is NEGATIVE for
+   every pixel below the bar, so the effect discarded the entire content of every window and left only
+   the title bars. The bar's bottom belongs to the BAND's geometry, not to the shape of the window; it
+   was conflated with it one commit earlier, when the corner distance was unified. Fixed by testing the
+   frame's rounded distance alone.
+2. That unified distance then had its SIGN inverted: `uCornerRadius - (sdf - uCornerRadius)` is the sdf
+   mirrored about r -- positive everywhere near a corner -- so the discard never fired there and the
+   corners came back SQUARE, with a +20 px bias on every edge term. The simulator had the correct
+   expression and the shader did not, so their numbers never disagreed while their shapes did.
+
+RECOVERY AFTER A FIX, which worked here and is worth remembering: `unloadEffect` then `loadEffect`
+picked up the newly installed library with no relogin. If it does not, the tell is the SHAPE -- corners
+square again -- and a relogin is the guaranteed path, because the plugin stays enabled and the disk has
+the fix.
+
+FOUR TESTS came out of this, and none of the previous ones could have caught either bug: the discard
+tests the frame's distance alone, the bar's bottom appears only in the band, the retired expression is
+gone by name, and the rounded distance is checked numerically -- negative at the corner, exact inside a
+straight edge. The content path never reaches the maths this suite can exercise, so the SHAPE of the fix
+is the strongest check available, and it is now in place.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
