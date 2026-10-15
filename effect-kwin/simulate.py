@@ -279,22 +279,31 @@ def corners_report(radius, smoothing):
 def refraction_field(h, w, corner_radius, corner_smoothing, rim_width, refraction_reach, refraction):
     """The backdrop's bend near the band's edges, and the distances every edge term shares.
 
-    Returns `(shift_x, shift_y, to_edge, falloff_rim, falloff_refract)`.
+    Returns `(shift_x, shift_y, to_edge, falloff_rim, falloff_refract)`; the shifts are the offset of
+    the backdrop SAMPLE at each pixel, in image coordinates (y down).
 
-    THE DIRECTION IS THE GRADIENT OF `to_edge`, WHICH IS THE DISTANCE TO THE NEAREST EDGE OF THE
-    BAND -- the window's rounded frame AND the band's own bottom, which is the top of the content and
-    is NOT a frame edge at all. Taking the direction from the frame's distance alone leaves the
-    bottom edge with no gradient (it is flat there) and therefore bending nothing, which is what the
-    user saw. The simulator always used the whole box and so always bent at the bottom; the two
-    implementations disagreed, and this is the quantity they now name together.
+    THE BEND FOLLOWS THE NEAREST EDGE OF THE BAND, and the band has FOUR of them: the window's top,
+    left and right -- the frame's rounded boundary, whose top corners carry the clothoid -- and the
+    band's own BOTTOM, which is the top of the content and is NOT a frame edge at all. Taking the
+    direction from the frame's distance alone leaves the bottom with no gradient to follow, so it
+    bent nothing; that is the defect this exists for.
 
-    THE REACH IS ITS OWN NUMBER. Two falloffs read the same distance: the rim's (`rim_width`, the
-    look of the edge) and the bend's (`refraction_reach`, how far into the band the backdrop is
-    pulled). They used to be one, so the bend could not reach further without widening the rim.
+    THE TWO AXES ARE BLENDED, NOT MIN'ed. A hard `min` puts a seam wherever two edges are equally
+    far -- the middle of the band, and the diagonal out of every corner -- so each edge contributes
+    its inward direction weighted by its own proximity, and the sum is normalised. At the middle the
+    two weights are both zero (the reach is shorter than half the band), so the bend fades out
+    instead of flipping, which is what a seam is.
+
+    THE REACH IS ITS OWN NUMBER: the rim reads `rim_width` and the bend reads `refraction_reach`.
+    They used to be one, so the bend could not reach further without widening the rim.
     """
     yy0, xx0 = np.mgrid[0:h, 0:w].astype(float)
-    co = np.array([w, h], dtype=float) * 0.5
     ppos = np.stack([xx0, yy0], axis=2)
+    # THE FRAME IS MUCH TALLER THAN THE BAND: its bottom edge is pushed far away so that the
+    # distances that matter here are the top, the two sides and the corners. The band's own bottom
+    # is added below as a separate edge, which is what keeps the two from being confused.
+    frame_h = max(20.0 * h, 20.0 * corner_radius)
+    co = np.array([w, frame_h], dtype=float) * 0.5
     q = np.abs(ppos - co) - (co - corner_radius)
     if corner_smoothing > 0.001:
         curve, edge_q = clothoid_corner_q(corner_radius, corner_smoothing)
@@ -306,12 +315,27 @@ def refraction_field(h, w, corner_radius, corner_smoothing, rim_width, refractio
                + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
         grad_x = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
         grad_y = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
-    to_edge = -sdf
+    edge_frame = -sdf
+    band_edge = h - yy0                               # the band's bottom, positive above it
+    to_edge = np.minimum(edge_frame, band_edge)       # what the rim, hairline and fillet read
+
+    # THE TWO INWARD DIRECTIONS, in sample-offset space: the frame's is the negative gradient of its
+    # distance (into the band); the band's bottom one is straight up the image.
+    glen = np.hypot(grad_x, grad_y)
+    frame_x = np.where(glen > 1e-6, -grad_x / np.maximum(glen, 1e-9), 0.0)
+    frame_y = np.where(glen > 1e-6, -grad_y / np.maximum(glen, 1e-9), 0.0)
+    w_frame = 1.0 - smoothstep(0.0, refraction_reach, edge_frame)
+    w_bottom = 1.0 - smoothstep(0.0, refraction_reach, band_edge)
+    blend_x = w_frame * frame_x
+    blend_y = w_frame * frame_y - w_bottom            # the bottom's inward is UP (image y down)
+    blen = np.hypot(blend_x, blend_y)
+    inward_x = np.where(blen > 1e-6, blend_x / np.maximum(blen, 1e-9), 0.0)
+    inward_y = np.where(blen > 1e-6, blend_y / np.maximum(blen, 1e-9), 0.0)
+    magnitude = np.maximum(w_frame, w_bottom)
+    falloff_refract = magnitude
     falloff_rim = 1.0 - smoothstep(0.0, rim_width, to_edge)
-    falloff_refract = 1.0 - smoothstep(0.0, refraction_reach, to_edge)
-    largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)
-    shift_y = (-grad_y / largo) * refraction * falloff_refract
-    shift_x = (-grad_x / largo) * refraction * falloff_refract
+    shift_x = inward_x * refraction * magnitude
+    shift_y = inward_y * refraction * magnitude
     return shift_x, shift_y, to_edge, falloff_rim, falloff_refract
 
 

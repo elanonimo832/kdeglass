@@ -210,6 +210,14 @@ private:
     // the rim 5.4 levels -- invisible -- while 20 moves it 14.9. The user tried 20 and kept it.
     static constexpr float kRefraction = 20.0f;
     float m_refraction = kRefraction;
+    // HOW FAR THE BEND REACHES INWARD from the band's edges, in screen pixels. It used to be
+    // `RimWidth`, which is the rim's own width: the bend and the rim are different things, and
+    // sharing one number meant the bend could not reach further without widening the rim.
+    // Measured on a 38 px band: 16 is the largest reach whose falloff is still exactly zero at
+    // the middle, so the top and bottom bends meet without a seam (at 18 the middle flips
+    // +/-0.7 px, at 24 it flips +/-5.2 px).
+    static constexpr float kRefractionReach = 16.0f;
+    float m_refractionReach = kRefractionReach;
 
     // How wide the edge band is, in screen pixels. The user compared it with Apple's ("la de apple
     // es mas amplia") and the first version was five, which reads as a seam rather than a border.
