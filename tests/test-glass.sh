@@ -643,18 +643,21 @@ import numpy as np
 import simulate as S
 h, w = 60, 500
 tema = np.full((h, w, 3), 0.93); tema[20:34, 200:300] = 0.15
-def bandas(nivel):
-    out = S.simulate(tema, np.full((h, w, 3), nivel))
+def bandas(nivel, spec):
+    out = S.simulate(tema, np.full((h, w, 3), nivel), specular=spec)
     c = out[12:24].mean()
     return (out[0:2].mean() - c) * 255, (out[h-2:h].mean() - c) * 255
-arriba, abajo = bandas(0.35)
-claro, _ = bandas(0.85)
+# IT IS OFF BY DEFAULT now -- the user's correction: Apple's edge carries the ENVIRONMENT's colour
+# (blue, in their sample), not a fixed white -- so the curve is measured with the knob explicit.
+assert S.SPECULAR == 0.0, f"the specular must be off by default, got {S.SPECULAR}"
+arriba, abajo = bandas(0.35, 1.3)
+claro, _ = bandas(0.85, 1.3)
 print(f"oscuro arriba {arriba:.1f} abajo {abajo:.1f} | claro arriba {claro:.1f}")
 assert 45 <= arriba <= 66, f"the top band should match Apple's +56, got {arriba:.1f}"
 assert 18 <= abajo <= 34, f"the bottom band should match Apple's +26, got {abajo:.1f}"
 assert abs(claro) < 8, f"the specular must fade on a bright backdrop, got {claro:.1f}"
 PY
-then ok "the specular matches Apple's bands and fades on light ($(cat /tmp/especular.txt))"
+then ok "the specular KNOB reproduces Apple's bands and fades on light, and is off by default ($(cat /tmp/especular.txt))"
 else fallo "the specular does not reproduce Apple's numbers:"; sed 's/^/      /' /tmp/especular.txt | head -4; fi
 
 echo "  -- the simulator's defaults do not depend on where you stand --"

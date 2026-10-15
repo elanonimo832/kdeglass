@@ -177,12 +177,17 @@ private:
     // own sample: `light_angle = 0` puts the reflection at the top, and `splay_regular = 20` is its
     // spread (about 6 px at the scale refraction 70 -> 20 px, matching the 6 logical px bright band
     // measured on the user's Dock). The strength is the sample's own: 236 over a middle of 180.
-    // 1.3: calibrated against Apple's own sample, whose upper band rises 56 levels over the middle.
-    // Measured curve after fixing the order (the hairline was clipping it) and raising the cap to 2:
-    // 1.0 -> +37, 1.2 -> +49.5, 1.3 -> ~+56, 1.4 -> +62. A specular is the saturated image of the
-    // light source, so a weight past 1 is not an error: 1.0 would mean "all white" and could not lift
-    // a mid-grey edge to 236 at all.
-    static constexpr float kSpecular = 1.3f;
+    // OFF BY DEFAULT, because the user looked at Apple's edge and named what it does: "en apple no es
+    // color fijo, toma del entorno los colores... la linea superior tomo el color predominante de la
+    // parte inferior de lo que habia bajo el dock, y la linea inferior tomo el color de lo que habia
+    // arriba". They are right, and their sample shows it: rows of clear blue (129,150,186) sit against
+    // the edge, not white. An edge that carries the ENVIRONMENT is what the refraction already does;
+    // a fixed white line DESTROYS it. So this term is mine and not Apple's, the calibrated 1.3 was a
+    // correct measurement of the wrong thing, and the number stays only for whoever wants a highlight.
+    //
+    // It also re-reads the kit's token: `splay_regular = 20` is the SPREAD OF THE REFRACTION, not the
+    // width of a white highlight, which is the reading this default was built on.
+    static constexpr float kSpecular = 0.0f;
     float m_specular = kSpecular;
     static constexpr float kSpecularWidth = 6.0f;
     float m_specularWidth = kSpecularWidth;

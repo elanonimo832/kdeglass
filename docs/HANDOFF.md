@@ -1183,6 +1183,32 @@ it": since the bend lives in the frost's uv now, the fringe can come from three 
 already-reduced capture -- one per channel -- instead of three full frosts. That is M1.4's next move,
 and it exists because a wrong answer was found to be wrong.
 
+## 9q. M1.5 was built, measured, and is OFF: the edge carries the ENVIRONMENT
+
+The user stopped it with the observation that decides the term: "creo que hay una confusion, lo que
+hiciste es una linea blanca, pero en apple no es color fijo, toma del entorno los colores. Observa
+Untitled4.png, la linea superior tomo el color predominante de la parte inferior de lo que habia bajo
+el dock, en este caso el background y la linea inferior tomo el color de lo que habia arriba."
+
+They are right, and their own sample proves it: against that edge there are rows of unambiguous blue
+(129, 150, 186), not white. The colour comes from the backdrop OPPOSITE the edge -- below for the top
+band, above for the bottom -- which is what a glass bevel does with light bent around it, and which is
+exactly what the refraction term already samples (it displaces the frost's uv toward the interior, so
+the top band shows what is below). A fixed white line does not add to that; it DESTROYS it.
+
+So `Specular` defaults to 0. The measurement behind it was sound -- 1.3 reproduced Apple's upper band
+to within half a level -- and it was a correct measurement of the WRONG THING, which is a failure mode
+worth naming: eleven commits of arithmetic cannot tell you that the quantity is not the one the
+reference uses. What found it was the user's eye, again, and a sample this project had already
+measured twice without looking at its COLOUR.
+
+The token is re-read with it: `splay_regular = 20` is the SPREAD OF THE REFRACTION, not the width of
+a white highlight. That misreading is what the whole term was built on.
+
+M1.5 therefore closes as a negative result with a knob attached: the highlight is available, off by
+default, and the edge's colour behaviour is the refraction's job -- which is where the user's
+description points.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
