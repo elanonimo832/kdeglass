@@ -47,14 +47,19 @@ afirmar_glsl "the blit source is clamped to the render target" "$SOURCE" 'inters
 afirmar_glsl "the capture is sized in device pixels" "$SOURCE" 'mapToRenderTargetTexture(region)'
 # AND it must cover the region KWin redirected, or a SUB-RECTANGLE of it: the offscreen
 # texture is expandedGeometry()*scale (frame PLUS shadow margins), and after audit finding 1
-# the capture is the BAND -- the title bar plus the kernels' reach -- with the frame-to-capture
-# mapping doing the rest. What must NOT happen is a capture sized to the frame, which samples
-# the desktop shifted by the shadow margin.
+# the capture is the BAND -- the title bar plus the kernels' reach on EVERY side of the frame, not
+# capped inside the window's own expanded geometry, or the top edge has only the theme's 2 px shadow
+# margin to bend into and the environment bends below the bar but not above it -- with the
+# frame-to-capture mapping doing the rest. What must NOT happen is a capture sized to the frame
+# alone, which samples the desktop shifted by the shadow margin.
 afirmar_glsl "the capture covers the EXPANDED geometry KWin redirected" "$SOURCE" 'expandedGeometry()'
 afirmar_glsl "and it is snapped to the device grid the way KWin does" "$SOURCE" 'snapToPixels(w->expandedGeometry(), viewport.scale())'
 afirmar_glsl "the capture can be bounded to the title band" "$SOURCE" 'barHeight = w->clientGeometry().top() - w->frameGeometry().top()'
 afirmar_glsl "with a reach that covers the background kernels" "$SOURCE" 'const int reach = '
-afirmar_glsl "and the band stops at the bar plus that reach" "$SOURCE" 'frame.y() + int(std::ceil(barHeight)) + reach'
+afirmar_glsl "and the band is the FRAME plus that reach on every side" "$SOURCE" \
+  'Rect(frame.x() - reach, frame.y() - reach, frame.width() + 2 * reach, band + 2 * reach)'
+afirmar_glsl "clamped to the screen, because the environment runs out there" "$SOURCE" \
+  'region = region.intersected(viewport.renderRect().toRect())'
 negar "the capture region is never the frame alone" \
   grep -qE 'const Rect region = snapToPixels[(]w->frameGeometry' "$SOURCE"
 # THE MAPPING'S V AXIS IS BOTTOM-UP, and this is where audit 1's band capture broke the effect. The
@@ -490,7 +495,8 @@ afirmar_codigo "and it is ON, so the band is the default capture" "$HEADER" 'kCa
 afirmar_glsl "the frame's place inside the capture is ALWAYS applied" "$SOURCE" 'setUniform(uniformLocation("uBackgroundOffset"), m_sampleOffset'
 negar "the identity mapping path is gone" \
   grep -qE 'm_captureSubRect [?] m_sampleOffset' "$SOURCE"
-afirmar_glsl "and the switch selects the band instead" "$SOURCE" 'Rect region = expanded'
+afirmar_glsl "and the switch selects the band instead" "$SOURCE" \
+  'Rect region = snapToPixels(w->expandedGeometry(), viewport.scale()).toRect()'
 afirmar_glsl "the frame's place inside the capture is computed" "$SOURCE" 'm_sampleOffset = QVector2D(float(frameRect.x() - region.x())'
 afirmar_glsl "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" 'uBackgroundOffset + vTexCoord * uBackgroundScale'
 
