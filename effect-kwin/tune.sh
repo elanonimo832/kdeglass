@@ -65,11 +65,44 @@ show() {
         | grep 'reconfigure:' | grep -v systemd-run | tail -1 | sed 's/^/  /' || true
 }
 
+# THE RANGE OF EVERY KEY, because a typo must not be able to produce a broken material. On
+# 2026-10-14 the settings read `GlassAlpha=40 BackgroundRadius=50 MaterialGain=15 Refraction=80
+# RimWidth=90`: the values I had suggested, each with its DECIMAL POINT LOST. `GlassAlpha=40` makes
+# the band `bar*40 - backdrop*39`, which is why the buttons and the title vanished, and nothing in
+# the pipeline refused it -- the effect reads whatever it finds and KConfig writes whatever it is
+# given. Ranges are checked BEFORE anything is written, so a rejected argument changes nothing.
+range_of() { # range_of <Key> -> "min max", or nothing if unconstrained
+    case "$1" in
+        GlassAlpha|Rim|MaterialBoost)                    echo "0 2" ;;
+        MaterialGain)                                    echo "0.5 3" ;;
+        Refraction)                                      echo "0 32" ;;
+        RimWidth)                                        echo "1 32" ;;
+        BackgroundRadius|FrostRadius|CornerRadius)       echo "0 64" ;;
+        FrostDownsample)                                 echo "0 2" ;;
+        ChromeLow)                                       echo "0 1" ;;
+        Vibrancy)                                        echo "0 2" ;;
+        *)                                               echo "" ;;
+    esac
+}
+
+valid_value() { # valid_value <Key> <Value> -> 0 if it is a number in range
+    local k="$1" v="$2" rango min max
+    case "$v" in
+        "" | *[!0-9.]*)  return 1 ;;                 # only digits and one dot
+        *.*.*)           return 1 ;;                 # at most one dot
+    esac
+    rango=$(range_of "$k")
+    [ -n "$rango" ] || return 0
+    min="${rango%% *}"; max="${rango##* }"
+    awk -v v="$v" -v lo="$min" -v hi="$max" 'BEGIN { exit !(v + 0 >= lo + 0 && v + 0 <= hi + 0) }'
+}
+
 apply() { # apply <key=value>...
     local par k v
+    # VALIDATE EVERYTHING FIRST. A half-applied set is worse than a refused one: the user is left
+    # with a material that is part old and part new and no way to tell which is which.
     for par in "$@"; do
-        k="${par%%=*}"
-        v="${par#*=}"
+        k="${par%%=*}"; v="${par#*=}"
         if [ "$k" = "$par" ] || [ -z "$v" ]; then
             echo "BAD ARGUMENT: $par (expected Key=Value)"
             return 2
@@ -81,6 +114,20 @@ apply() { # apply <key=value>...
             echo "  the effect reads: $(known_keys | tr '\n' ' ')"
             return 2
         fi
+        if ! valid_value "$k" "$v"; then
+            echo "OUT OF RANGE: $k=$v (allowed $(range_of "$k" | tr ' ' '.'))"
+            case "$k" in
+                GlassAlpha) echo "  it is how much of the bar's colour stays: 0.25, not 40. At 40 the"
+                            echo "  band becomes bar*40 - backdrop*39, which is how the buttons and the" ;;
+                MaterialGain) echo "  it multiplies the backdrop: 1.6, not 15. A decimal point is not optional." ;;
+                *) echo "  check the decimal point: 0.15 and 15 are not the same number." ;;
+            esac
+            [ "$k" = "GlassAlpha" ] && echo "  title disappeared once already."
+            return 2
+        fi
+    done
+    for par in "$@"; do
+        k="${par%%=*}"; v="${par#*=}"
         "$KWRITE" --file kwinrc --group "Effect-$ID" --key "$k" "$v"
         printf '  %-20s = %s\n' "$k" "$v"
     done
@@ -103,6 +150,17 @@ apply() { # apply <key=value>...
 case "${1:-}" in
     "" | --show)
         show
+        ;;
+    --validate)
+        # Test mode: check arguments and write nothing at all, so the suite can prove that an
+        # out-of-range value is refused without risking the user's settings.
+        shift
+        for par in "$@"; do
+            k="${par%%=*}"; v="${par#*=}"
+            if ! grep -qx "$k" <<< "$(known_keys)"; then echo "UNKNOWN KEY: $k"; exit 2; fi
+            valid_value "$k" "$v" || { echo "OUT OF RANGE: $k=$v"; exit 2; }
+        done
+        echo "ok"
         ;;
     --preset)
         case "${2:-}" in

@@ -161,3 +161,27 @@ afirmar_codigo "with a fallback that KWin does honour" "$EF/capture-pair.sh" '--
 afirmar_codigo "and it refuses to capture if the effect is still loaded" "$EF/capture-pair.sh" 'a capture with the effect on is its OUTPUT'
 afirmar_codigo "the geometry comes from the ACTIVE window, fresh" "$EF/capture-pair.sh" 'w[.]normalWindow && w[.]active'
 afirmar_codigo "the trap puts the plugin key back too" "$EF/capture-pair.sh" 'PLUGIN_TOCADO'
+
+echo "  -- tune.sh refuses a value that would break the material --"
+# On 2026-10-14 the settings read GlassAlpha=40 BackgroundRadius=50 MaterialGain=15 Refraction=80
+# RimWidth=90: the values I had suggested, each with its DECIMAL POINT LOST. GlassAlpha=40 makes the
+# band `bar*40 - backdrop*39`, which is why the buttons and the title vanished, and nothing refused
+# it. --validate checks without writing, so this test cannot damage the user's settings.
+afirmar_igual "a sane alpha passes" "ok" "$("$EF/tune.sh" --validate GlassAlpha=0.15 2>&1 | tail -1)"
+afirmar_igual "a lost decimal point is refused" "OUT OF RANGE: GlassAlpha=40" \
+  "$("$EF/tune.sh" --validate GlassAlpha=40 2>&1 | tail -1)"
+afirmar_igual "and so is its little brother" "OUT OF RANGE: GlassAlpha=15" \
+  "$("$EF/tune.sh" --validate GlassAlpha=15 2>&1 | tail -1)"
+# Every key has its own range, not one global one: a radius of 50 is odd but legal, a GAIN of 50 is not.
+afirmar_igual "a large radius is still allowed" "ok" "$("$EF/tune.sh" --validate BackgroundRadius=50 2>&1 | tail -1)"
+afirmar_igual "a gain of 15 is not" "OUT OF RANGE: MaterialGain=15" \
+  "$("$EF/tune.sh" --validate MaterialGain=15 2>&1 | tail -1)"
+afirmar_igual "nor a refraction of 80" "OUT OF RANGE: Refraction=80" \
+  "$("$EF/tune.sh" --validate Refraction=80 2>&1 | tail -1)"
+afirmar_igual "nor a band 90 pixels wide" "OUT OF RANGE: RimWidth=90" \
+  "$("$EF/tune.sh" --validate RimWidth=90 2>&1 | tail -1)"
+# A non-number is not a number either.
+afirmar_igual "words are refused" "OUT OF RANGE: GlassAlpha=none" \
+  "$("$EF/tune.sh" --validate GlassAlpha=none 2>&1 | tail -1)"
+# And validation happens BEFORE anything is written: a good key next to a bad one changes nothing.
+afirmar_codigo "all arguments are validated before any is written" "$EF/tune.sh" 'VALIDATE EVERYTHING FIRST'
