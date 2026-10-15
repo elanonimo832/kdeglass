@@ -1801,6 +1801,29 @@ effect changed in this step:** this is the instrument and the decision, and the 
 verdicts (the arc continuous, the Figma curve flagged, the clothoid G2, the two rejected families
 overshooting) so a rewrite cannot quietly reach for one of the others.
 
+### 10c-quinquies. The clothoid is IMPLEMENTED in both, and its shape change is measured (2026-10-15)
+
+`simulate.py` and `src/glass.cpp` now carry the clothoid, both integrating the SAME heading in a
+bounded loop (the simulator 48 steps, the shader 16 with 8 for the arc) and both searching segments.
+What keeps the two integrals identical is asserted: `radians(90*(1-s))`, `dtheta = (pi/2-m)/2`,
+`L = 2*R*dtheta`, and the edge rays beginning at `edgeQ = R - p` -- NOT at 0, because p > R. At
+`smoothing = 0` the transition has no length and the corner is the circular arc, and that branch is
+untouched, operation for operation.
+
+**PARITY, MEASURED:** a transcription of the shader's block (16/8 steps, normal sign) against the
+simulator's `corner_sdf` (400-sample polyline, monotone sign) over a 61x61 grid covering the corner
+and both transitions -- **0 sign mismatches, maximum difference 0.0226 px**, all of it the step count.
+
+**AND ONE CONSEQUENCE THE CURVATURE INSTRUMENT COULD NOT SEE, reported rather than buried.** The
+clothoid is G2, but its ARC CENTRE is not at (R, R): measured (20.78, 20.78) for R=20, m=36, so the
+corner is **~1 px FULLER than the circle** -- `x` at y=1/5/10 is 17.02/8.39/3.86 against the arc's
+13.76/6.77/2.68, and the closest point to the vertex is 9.32 against 8.28. The Figma construction it
+replaced kept the middle ON the circle and paid a +46.9% curvature spike for it; the clothoid trades
+that middle for continuous curvature, and the trade is in the direction Apple's continuous corners
+go (they are fuller than a circular arc of the same radius). The suite pins the fuller numbers, so
+the change cannot be mistaken for a regression later. Whether the SIZE is the one the user wants is a
+look judgement, and it wants a screen: `install.sh` + relogin (the hot path does not re-read the .so).
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
