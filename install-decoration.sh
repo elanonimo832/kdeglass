@@ -153,11 +153,31 @@ cmd_rollback() {
   if [ ! -f "$MANIFIESTO" ]; then fallo "no manifest: nothing to revert"; return 1; fi
   info "Removing the KdeMacOS decoration"
   echo
+  # UN ROLLBACK NO BORRA UN TEMA VIVO SI NO TIENE DE DONDE RECUPERARLO. Los manifiestos escritos con
+  # el bug (dos entradas para el mismo destino) siguen existiendo donde el script ya se ejecuto, y el
+  # script arreglado los leeria y borraria igual -- le paso al autor de este arreglo, con el tema del
+  # usuario, que se salvo por una copia a mano. De ahi la guarda: si la entrada dice que esto era una
+  # MODIFICACION y la copia no aparece, se AVISA y se deja el tema donde esta. Borrar es la unica
+  # operacion de este script que no se puede deshacer.
+  #
+  # `creado` NO lleva copia nunca (lo garantiza el manifiesto: esa entrada solo se escribe cuando no
+  # habia nada), asi que un `creado` sin copia es una instalacion desde cero y su rollback SI borra.
   local n=0
   while IFS=$'\t' read -r destino estado backup; do
+    [ -n "$destino" ] || continue
     case "$estado" in
-      creado)     [ -d "$destino" ] && rm -rf "$destino" && ok "removed ${destino/#$HOME/~}" && n=$((n+1)) ;;
-      modificado) [ -d "$backup" ] && rm -rf "$destino" && cp -a "$backup" "$destino" && ok "restored ${destino/#$HOME/~}" && n=$((n+1)) ;;
+      creado)
+        if [ -d "$destino" ]; then
+          rm -rf "$destino" && ok "removed ${destino/#$HOME/~}" && n=$((n+1))
+        fi ;;
+      modificado)
+        if [ -d "$backup" ]; then
+          rm -rf "$destino" && cp -a "$backup" "$destino" \
+            && ok "restored ${destino/#$HOME/~}" && n=$((n+1))
+        else
+          aviso "NOT restored: the backup is gone (${backup/#$HOME/~})"
+          aviso "  nothing was deleted: ${destino} is untouched"
+        fi ;;
     esac
   done < "$MANIFIESTO"
   echo

@@ -118,6 +118,26 @@ fi
 duplicados=$(cut -f1 "$ISLA/state/kde-macos/manifest-decoracion.tsv" 2>/dev/null | sort | uniq -d | wc -l)
 afirmar_igual "el manifiesto tiene UNA entrada por destino, no dos" "0" "$duplicados"
 
+# UN ROLLBACK NO PUEDE BORRAR UN TEMA VIVO. Los manifiestos que ya existen en la maquina del usuario
+# se escribieron con el bug, asi que el script arreglado los leeria y borraria igual. Con el mismo
+# manifiesto (una entrada `modificado` con copia), un segundo rollback tiene que ser INOFENSIVO:
+#   - si hay copia -> restaura otra vez;
+#   - si el `creado` apunta a algo que existe pero NO hay copia -> avisa y NO borra.
+XDG_DATA_HOME="$ISLA/data" XDG_STATE_HOME="$ISLA/state" \
+  timeout 60 "$PROJECT/install-decoration.sh" rollback >/dev/null 2>&1
+afirmar_existe "un SEGUNDO rollback no borra el tema que ya estaba restaurado" \
+  "$ISLA/data/aurorae/themes/KdeMacOS/KdeMacOSrc"
+# Y EL CASO QUE PROTEGe AL USUARIO: una entrada `modificado` cuya copia YA NO ESTA. Es lo que hay
+# en las maquinas donde se ejecuto el script con el bug, y es el unico caso en que este script podria
+# destruir algo sin poder volver: tiene que AVISAR y no tocar nada. (`creado` no se prueba asi porque
+# esa entrada nunca lleva copia: es una instalacion desde cero y su rollback borra, a proposito.)
+printf '%s\t%s\t%s\n' "$ISLA/data/aurorae/themes/KdeMacOS" "modificado" \
+  "$ISLA/state/backups/una-copia-que-no-esta" > "$ISLA/state/kde-macos/manifest-decoracion.tsv"
+XDG_DATA_HOME="$ISLA/data" XDG_STATE_HOME="$ISLA/state" \
+  timeout 60 "$PROJECT/install-decoration.sh" rollback >/dev/null 2>&1
+afirmar_existe "una copia que falta AVISA y NO borra el tema (no se puede volver atras)" \
+  "$ISLA/data/aurorae/themes/KdeMacOS/KdeMacOSrc"
+
 # LA OTRA MITAD DEL CONTRATO, que no debe romperse al arreglar esto: si NO habia nada antes, el
 # rollback SI tiene que borrar lo que creo. Un `creado` que nunca se escribe dejaria basura instalada
 # y nadie se enteraria; por eso las dos ramas se prueban.
