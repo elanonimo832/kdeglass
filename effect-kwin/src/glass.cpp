@@ -71,6 +71,7 @@ uniform float uRim;
 uniform float uMaterialBoost;
 uniform float uMaterialGain;
 uniform float uRefraction;
+uniform float uRimWidth;
 in vec2 vTexCoord;
 out vec4 fragColor;
 
@@ -429,7 +430,7 @@ void main()
         float fromLeft = vTexCoord.x * uTextureSize.x;
         float fromRight = uTextureSize.x - fromLeft;
         float toEdge = min(min(fromTop, fromBottom), min(fromLeft, fromRight));
-        float rim = (1.0 - smoothstep(0.0, 5.0, toEdge)) * uRim;
+        float rim = (1.0 - smoothstep(0.0, uRimWidth, toEdge)) * uRim;
 
         // THE BEND, and this is what the user's new samples show. In one of them the edge carries
         // the backdrop's chroma as a GRADIENT across the boundary -- 62, 45, 19 over four rows --
@@ -448,7 +449,11 @@ void main()
         // a white window behind makes the band white too, and the boundary disappears where it
         // matters most. Apple's edge reads against ANY backdrop because it also carries a one
         // pixel line AWAY from the backdrop -- darker on a light one, lighter on a dark one.
-        float hair = 1.0 - smoothstep(0.0, 1.5, toEdge);
+        // The user's verdict on the first version, with two screenshots: "en fondo blanco se ve una
+        // linea muy pequena, la de apple es mas amplia si puede doblar tanto color". One pixel is
+        // not a border, it is a seam; the band is `uRimWidth` wide now and the displacement deeper,
+        // which is what lets it carry the backdrop's colour instead of hinting at it.
+        float hair = 1.0 - smoothstep(0.0, 2.5, toEdge);
         float backLuma = dot(desktop, kLuma);
         // NOT starting the continuation with '*' on purpose: tests/lib.sh strips lines that begin
         // with one, because that is how a C block comment continues, and a code line shaped like
@@ -588,6 +593,7 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     m_materialBoost = float(cfg.readEntry("MaterialBoost", double(kMaterialBoost)));
     m_materialGain = float(cfg.readEntry("MaterialGain", double(kMaterialGain)));
     m_refraction = float(cfg.readEntry("Refraction", double(kRefraction)));
+    m_rimWidth = float(cfg.readEntry("RimWidth", double(kRimWidth)));
 
     qInfo() << "[macos-glass] reconfigure: frostRadius=" << m_frostRadius
             << "backgroundFlipV=" << m_backgroundFlipV
@@ -601,7 +607,8 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "rim=" << m_rim
             << "materialBoost=" << m_materialBoost
             << "materialGain=" << m_materialGain
-            << "refraction=" << m_refraction;
+            << "refraction=" << m_refraction
+            << "rimWidth=" << m_rimWidth;
 
     m_shader.reset();
     loadShader();
@@ -1087,6 +1094,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform("uMaterialBoost", m_materialBoost);
     m_shader->setUniform("uMaterialGain", m_materialGain);
     m_shader->setUniform("uRefraction", m_refraction);
+    m_shader->setUniform("uRimWidth", m_rimWidth);
     m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
     m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 

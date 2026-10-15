@@ -165,8 +165,13 @@ private:
     // How far the edge's copy of the backdrop is bent toward the interior, in screen pixels. The
     // kit calls it `refraction = 70`; the samples show the band carrying the backdrop's chroma
     // across the boundary, which is a displacement and not a brightening. 0 disables the bend.
-    static constexpr float kRefraction = 3.0f;
+    static constexpr float kRefraction = 6.0f;
     float m_refraction = kRefraction;
+
+    // How wide the edge band is, in screen pixels. The user compared it with Apple's ("la de apple
+    // es mas amplia") and the first version was five, which reads as a seam rather than a border.
+    static constexpr float kRimWidth = 12.0f;
+    float m_rimWidth = kRimWidth;
 
     static constexpr float kMaterialBoost = 1.20f;
     float m_materialBoost = kMaterialBoost;

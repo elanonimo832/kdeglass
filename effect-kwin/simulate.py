@@ -59,6 +59,7 @@ MATERIAL_BOOST = DEFAULTS.get("MaterialBoost", 1.20)
 MATERIAL_GAIN = DEFAULTS.get("MaterialGain", 1.60)
 REFRACTION = DEFAULTS.get("Refraction", 3.0)
 RIM = DEFAULTS.get("Rim", 0.20)
+RIM_WIDTH = DEFAULTS.get("RimWidth", 12.0)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
 INNER_SCALE = 0.375          # the kit's frost 6/16/16, as in the shader
 LUMA = np.array([0.2126, 0.7152, 0.0722])
@@ -136,7 +137,7 @@ def smoothstep(edge0, edge1, x):
 
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
-             gain=MATERIAL_GAIN, refraction=REFRACTION):
+             gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     desktop = frost(backdrop, radius, factor)
 
@@ -166,7 +167,7 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
         h, w = window.shape[:2]
         yy, xx = np.mgrid[0:h, 0:w].astype(float)
         to_edge = np.minimum(np.minimum(yy, h - 1 - yy), np.minimum(xx, w - 1 - xx))
-        r = (1.0 - smoothstep(0.0, 5.0, to_edge))[..., None] * rim_strength
+        r = (1.0 - smoothstep(0.0, rim_width, to_edge))[..., None] * rim_strength
         el = luma(desktop)[..., None]
         rim_colour = np.clip(el + (desktop - el) * max(boost, 1.2), 0, 1)
         result = result * (1 - r * 0.85) + rim_colour * (r * 0.85)
@@ -179,7 +180,7 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
             bx = xx + inward_x * refraction * r[..., 0]
             result = result * (1 - r) + bilinear(backdrop, by, bx) * r
         # the hairline of contrast: away from the backdrop, so the boundary reads on any of them
-        hair = (1.0 - smoothstep(0.0, 1.5, to_edge))[..., None]
+        hair = (1.0 - smoothstep(0.0, 2.5, to_edge))[..., None]
         back = luma(desktop)[..., None]
         # the same numbers as the shader, deliberately: this file is a re-implementation, so the
         # two can drift and the only thing keeping them honest is that they are written the same
@@ -245,6 +246,7 @@ def main():
     ap.add_argument("--MaterialBoost", type=float, default=MATERIAL_BOOST)
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
+    ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
     ap.add_argument("--Rim", type=float, default=RIM)
     ap.add_argument("--ChromeLow", type=float, default=CHROME_LOW)
     ap.add_argument("--FrostDownsample", type=int, default=0)
@@ -274,7 +276,7 @@ def main():
         return 2
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
-                   args.Refraction)
+                   args.Refraction, args.RimWidth)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
     print(f"simulated band -> {args.out}")
     return 0
