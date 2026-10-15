@@ -546,7 +546,16 @@ void main()
         // the true normal: on a straight edge it points along that axis, inside the arc it is radial,
         // and the two agree exactly at the transition, so there is no seam to see.
         vec2 gradiente = qNormal * sign(cornerPos - cornerHalf);
-        vec2 inward = -normalize(gradiente + vec2(0.0001));
+        // DO NOT PUT A MAGIC EPSILON *INSIDE* THE VECTOR. `normalize(gradiente + vec2(0.0001))`
+        // invents a FIXED DIAGONAL direction wherever the frame's distance has no gradient -- the
+        // interior of a flat edge -- and the falloff is still on near the BOTTOM of the bar, whose
+        // edge is not part of the frame's rounded distance at all. That drew diagonal streaks across
+        // the lower half of the bar and the user reported exactly that: "desde la parte superior todo
+        // en 90 grados y casi en la parte baja de la barra se van a un angulo sin curvas hacia la
+        // derecha". The simulator normalises with `max(length, 1e-6)` and a zero gradient therefore
+        // shifts by ZERO; this now does the same, so the two implementations agree here again.
+        float gLen = length(gradiente);
+        vec2 inward = (gLen > 1e-6) ? (-gradiente / gLen) : vec2(0.0);
         vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
 
         if (uBackgroundRadius > 0.5) {
