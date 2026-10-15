@@ -36,7 +36,9 @@ from the side edge: 0 is the straight edge, r is the far edge of the r x r corne
 """
 import argparse
 import math
+import os
 import sys
+import tempfile
 
 import numpy as np
 from PIL import Image
@@ -349,12 +351,42 @@ def _case_refuse_empty():
     return ["an empty image was measured instead of refused"], "refused=no"
 
 
+def _case_image_png():
+    """The FILE adapter must recover the same shape as the in-memory render.
+
+    This case exists because the adapter was wrong twice on its first run, and both bugs were
+    invisible to the pixel reader: the automatic background took a median of ALL FOUR borders
+    (on a corner crop the window touches two of them, so the mask came out inverted and the tool
+    refused its own render), and a distance threshold saturated the alpha ramp (x=6.00 at y=5
+    where the arc is at 6.77). Neither would have been caught by a self-test that only measured
+    arrays in memory.
+    """
+    coverage = render_corner(inside_circle, RADIUS, ss=RENDER_SS)
+    handle = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    path = handle.name
+    handle.close()
+    try:
+        Image.fromarray((np.stack([coverage] * 3, axis=2) * 255).astype("uint8")).save(path)
+        measured = measure_corner(coverage_from_image(path, "tl"), int(RADIUS))
+    finally:
+        os.unlink(path)
+    expected = float(inset_circle(5, RADIUS))
+    error = abs(measured["x_at_y"][5] - expected)
+    problems = []
+    if error > 0.25:
+        problems.append(f"the PNG adapter read {measured['x_at_y'][5]:.2f} at y=5, the arc is at {expected:.2f}")
+    fields = (f"x_at_y_5={_fmt(measured['x_at_y'][5])} expected={_fmt(expected)}"
+              f" flat_run={measured['flat_run']}")
+    return problems, fields
+
+
 def self_test():
     cases = (
         ("circle", _case_circle),
         ("flat", _case_flat),
         ("spike", _case_spike),
         ("frame", _case_frame),
+        ("image_png", _case_image_png),
         ("refuse_empty", _case_refuse_empty),
     )
     failed = 0
@@ -378,12 +410,34 @@ def self_test():
 # The screenshot path. NOT yet validated against a real capture: 10c says the known-value case
 # comes first. It is here so the next session points it at an effect-off crop and refines it.
 # --------------------------------------------------------------------------------------------
-def coverage_from_image(path, background=None, tolerance=0.15):
+def _corner_edges(rgb, corner):
+    """The two edges at the OUTER vertex (background) and the two INNER ones (the window)."""
+    outer = {"tl": (rgb[0], rgb[:, 0]), "tr": (rgb[0], rgb[:, -1]),
+             "bl": (rgb[-1], rgb[:, 0]), "br": (rgb[-1], rgb[:, -1])}[corner]
+    inner = {"tl": (rgb[-1], rgb[:, -1]), "tr": (rgb[-1], rgb[:, 0]),
+             "bl": (rgb[0], rgb[:, -1]), "br": (rgb[0], rgb[:, 0])}[corner]
+    return outer, inner
+
+
+def coverage_from_image(path, corner="tl", background=None, tolerance=0.15):
     image = Image.open(path).convert("RGB")
     rgb = np.asarray(image, dtype=float) / 255.0
+    outer, inner = _corner_edges(rgb, corner)
     if background is None:
-        border = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
-        background = np.median(border, axis=0)
+        # THE BACKGROUND LIVES OUTSIDE THE CORNER: the two edges that meet at the outer vertex,
+        # not the median of all four. On a corner crop the window touches the two INNER edges, so
+        # a median of the whole border can land ON the window. Measured on a synthetic
+        # white-on-black corner, that inverted the mask and the tool refused its own render.
+        background = np.median(np.concatenate(outer), axis=0)
+    foreground = np.median(np.concatenate(inner), axis=0)
+    axis = foreground - background
+    denom = float(np.dot(axis, axis))
+    if denom > 1e-6:
+        # ALPHA ALONG THE BACKGROUND-TO-WINDOW COLOUR AXIS, not a distance threshold: a threshold
+        # saturates as soon as a pixel is 15% of the way and moves the 0.5 crossing. Measured on
+        # the synthetic white-on-black corner, the threshold read x=6.00 at y=5 where the arc is
+        # at 6.77; the projection reads it back.
+        return np.clip(np.tensordot(rgb - background, axis, axes=([2], [0])) / denom, 0.0, 1.0)
     distance = np.linalg.norm(rgb - background, axis=2)
     return np.clip(distance / max(tolerance, 1e-6), 0.0, 1.0)
 
@@ -408,7 +462,7 @@ def main(argv=None):
     background = None
     if args.background and args.background != "auto":
         background = np.array([float(v) / 255.0 for v in args.background.split(",")])
-    coverage = coverage_from_image(args.image, background, args.tolerance)
+    coverage = coverage_from_image(args.image, args.corner, background, args.tolerance)
     try:
         measured = measure_corner(coverage, int(round(args.radius)), corner=args.corner)
     except FrameError as exc:

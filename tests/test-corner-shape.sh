@@ -26,7 +26,7 @@ fi
 # EVERY failure mode needs a named case, or the self-test can pass while checking nothing. That is
 # exactly the M2 mistake: two anchors were pinned, both true by construction, and the SHAPE was not
 # checked at all. A case that stops running must be a failure, not a smaller number of passes.
-for name_ in circle flat spike frame refuse_empty; do
+for name_ in circle flat spike frame image_png refuse_empty; do
   afirmar "the self-test exercises '$name_' and it passes" \
     grep -qE "^case=$name_( |$).*verdict=ok" /tmp/corner-selftest.txt
 done

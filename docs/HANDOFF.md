@@ -1569,8 +1569,12 @@ TWO THINGS THE INSTRUMENT FOUND ON ITS FIRST RUN, both about frames rather than 
    anywhere; the instrument settles Apple's construction from pixels, in one frame, when that curve
    is built.
 
-The screenshot path (`--image`) exists and is NOT validated yet. The synthetic cases are the gate;
-the next session points it at an effect-off crop.
+The screenshot path (`--image`) is validated by the `image_png` case on a synthetic PNG round-trip:
+it was wrong twice on its first run, and both bugs were invisible to the in-memory reader (the
+automatic background took a median of all four borders, which on a corner crop lands on the window;
+and a distance threshold saturated the alpha ramp and read 6.00 at y=5 where the arc is at 6.77).
+It is NOT yet validated on a real capture; that is the next session's job, and it is why the case
+is named for what it is.
 
 ## 11. Repository state
 
