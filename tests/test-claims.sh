@@ -10,13 +10,19 @@ echo "  -- the docs must NOT quote a check count --"
 # this the hard way -- the count went 55 -> 68 -> 100 -> 109 -> 110 -> 109,
 # oscillating because the test that checked the number WAS one of the checks.
 # The stable rule: the docs name the harness, and never its size.
+#
+# Y LA REGLA TAPA LAS DOS LENGUAS. Buscaba `N checks` y `N comprobaciones`, asi que `PROMPT.md`,
+# que decia "330 aserciones", se le colaba mientras la suite iba por 356: la misma clase de agujero
+# que la regla existe para cerrar, un patron que no cubre lo que la regla dice. Ahora cubre
+# `aserciones` tambien.
+PATRON_CONTEO='[0-9]+ (checks|comprobaciones|aserciones|assertions)'
 bad=0
 for f in "$PROJECT"/*.md "$PROJECT"/docs/*.md "$PROJECT"/effect-kwin/README.md; do
   [ -f "$f" ] || continue
-  if grep -qE '[0-9]+ (checks|comprobaciones)' "$f" 2>/dev/null; then
+  if grep -qE "$PATRON_CONTEO" "$f" 2>/dev/null; then
     bad=$((bad+1))
     printf '      -> %s quotes a check count\n' "$(basename "$f")"
-    grep -nE '[0-9]+ (checks|comprobaciones)' "$f" | sed 's/^/         /'
+    grep -nE "$PATRON_CONTEO" "$f" | sed 's/^/         /'
   fi
 done
 afirmar_igual "no doc quotes a check count" "0" "$bad"

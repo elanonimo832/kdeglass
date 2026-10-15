@@ -19,7 +19,7 @@ and the wider desktop shell.
 |---|---|
 | installed plugin | `md5sum /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so` |
 | this tree's build | `md5sum effect-kwin/build/plugins/kwin/effects/macosglass2.so` |
-| suite | 330 assertions, `bash tests/run.sh`, about 5 seconds |
+| suite | `bash tests/run.sh`, about 5 seconds (the doc names the harness, never its size) |
 
 If those two hashes differ, an install is pending: `cd effect-kwin && ./install.sh` and then a relogin,
 **or** try the hot path first — `unloadEffect` + `loadEffect` over D-Bus has picked up a new library
@@ -59,7 +59,7 @@ to touch **with the measurement behind each one**. Read it before changing anyth
 
 ## The toolbox, and how to iterate without a relogin
 
-    bash tests/run.sh                 # 330 assertions, the whole safety net
+    bash tests/run.sh                 # the whole safety net, a few seconds
     ./build.sh                        # refuses to install if verify-chain.sh fails
     ./install.sh                      # needs the password; then a relogin, or the hot path below
     ./tune.sh --show                  # what is set; ./tune.sh Key=Value applies in ONE call, live

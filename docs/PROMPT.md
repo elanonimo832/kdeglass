@@ -33,7 +33,7 @@ ESTADO QUE HAY QUE COMPROBAR, no suponer:
 
     cd "/home/jracosta/Projects/Deepseek Harness/analisis-kde-macos"
     git log --oneline -1 && git status --short
-    bash tests/run.sh                       # 330 aserciones, ~5 s: tiene que estar verde
+    bash tests/run.sh                       # la red completa, unos segundos: tiene que estar verde
     md5sum effect-kwin/build/plugins/kwin/effects/macosglass2.so
     md5sum /usr/lib/qt6/plugins/kwin/effects/plugins/macosglass2.so
 
@@ -62,12 +62,26 @@ CÓMO SE TRABAJA AQUÍ — son acuerdos, no sugerencias:
   - Antes de tocar el shader, lee la lista de "no tocar" del §9v: son decisiones MEDIDAS y cada una
     lleva su número al lado.
 
+ANTES DE TOCAR M2, LEE `docs/HANDOFF.md` §10c. Es el trabajo que sigue y ya se intentó UNA VEZ
+MAL: la curva que hay en el árbol (una superelipse centrada en el vértice con una calibración
+inventada, `n = 2 + 5*smoothing`) NO es la construcción de Apple y deja la esquina casi cuadrada
+-- a y=5 el círculo tiene su borde en x=6.8 y esa curva en x=20.0, y el usuario lo vio en pantalla
+antes que yo en los números. La construcción correcta es un arco reducido a `r*(1-s)` más dos
+transiciones Bézier tangentes, y abulta 0.23 px donde la mía abultaba 4.62. Sustituirla toca
+`simulate.py` Y el shader a la vez, y rompe la premisa de la búsqueda del punto más cercano
+(tabla en Python, gruesa+refinado en GLSL), porque una curva por tramos no es una paramétrica
+simple: eso hay que decidirlo y medirlo.
+
+  Y EL INSTRUMENTO DE FORMA, PRIMERO. En la sesión anterior se intentó tres veces y se borró;
+  los tres modos de fallo están en §10c. Se construye contra una esquina SINTÉTICA de respuesta
+  conocida antes de mirar una captura del usuario.
+
 QUÉ HACER:
 
   Lee `docs/NEXT.md` y propón el orden de los siguientes pasos citando ese documento, en vez de
-  improvisar uno. Los candidatos, por orden de valor: M2 (esquinas squircle, lo más visible por
-  esfuerzo), la auditoría #1 (capturar solo la banda en vez de la ventana entera, ~30x menos
-  tráfico, esfuerzo alto y merece su propia sesión) y los pequeños y seguros #4, #7 y #8.
+  improvisar uno. El primero es M2 (las esquinas, con el aviso de arriba). Después: la auditoría
+  #1 (capturar solo la banda en vez de la ventana entera, ~30x menos tráfico, esfuerzo alto y
+  merece su propia sesión) y los pequeños y seguros #4, #7 y #8.
 
   Si algo no cuadra —los hashes, la suite, lo que ves en pantalla—, dilo antes de cambiar nada.
 ```
