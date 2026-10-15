@@ -16,46 +16,45 @@ SOURCE="$EF/src/glass.cpp"
 HEADER="$EF/src/glass.h"
 
 echo "  -- the title bar is translucent --"
-afirmar_codigo "the shader writes a reduced alpha in the band" "$SOURCE" 'uGlassAlpha'
+afirmar_glsl "the shader writes a reduced alpha in the band" "$SOURCE" 'alfaFallback = uGlassAlpha * cornerCoverage'
 afirmar_codigo "the glass alpha is a named constant" "$HEADER" 'kGlassAlpha'
 
 echo "  -- the content is left alone --"
-afirmar_codigo "outside the band the window texel is returned unmodified" "$SOURCE" 'vec4 window = texture[(]sampler, vTexCoord[)]'
-afirmar_codigo "and that is exactly what the content path returns" "$SOURCE" 'fragColor = window [*] cornerCoverage'
+afirmar_glsl "outside the band the window texel is returned unmodified" "$SOURCE" 'vec4 window = texture(sampler, vTexCoord)'
+afirmar_glsl "and that is exactly what the content path returns" "$SOURCE" 'fragColor = window * cornerCoverage'
 
 echo "  -- the scene is told the window is translucent --"
 # Setting an alpha in the shader is not enough: the scene blends the redirected
 # texture only for a window it considers translucent.
-afirmar_codigo "the effect marks the window translucent" "$SOURCE" 'data\.setTranslucent[(][)]'
+afirmar_glsl "the effect marks the window translucent" "$SOURCE" 'data.setTranslucent()'
 
 echo "  -- the DESKTOP is captured, because an alpha cannot invent it --"
 # The mechanism limit that made M1.3a measure OPAQUE: the shader's only input was
 # the window's own texture, and no alpha puts the desktop into a texture that does
 # not contain it. So the desktop is copied out of the screen before the window is
 # painted over it.
-afirmar_codigo "the background is captured from the render target" "$SOURCE" 'blitFromRenderTarget'
-afirmar_codigo "the capture has its own texture and framebuffer" "$SOURCE" 'GLTexture::allocate'
-afirmar_codigo "the capture happens before the window is drawn" "$SOURCE" 'captureBackground[(]'
+afirmar_glsl "the background is captured from the render target" "$SOURCE" 'blitFromRenderTarget(renderTarget, viewport, source, destination)'
+afirmar_glsl "the capture has its own texture and framebuffer" "$SOURCE" 'GLTexture::allocate(GL_RGBA8, reducedSize)'
+afirmar_glsl "the capture happens before the window is drawn" "$SOURCE" 'captureBackground('
 # The override must continue the chain on its only path, or the screen goes black.
-afirmar_codigo "the drawWindow override continues the chain" "$SOURCE" 'OffscreenEffect::drawWindow[(]'
+afirmar_glsl "the drawWindow override continues the chain" "$SOURCE" 'OffscreenEffect::drawWindow('
 # RISK: frameGeometry() of a maximised window is the whole screen, and a window
 # dragged past the edge goes outside it. An out-of-bounds blit is undefined
 # behaviour, so the source MUST be clamped.
-afirmar_codigo "the blit source is clamped to the render target" "$SOURCE" 'intersected[(]'
+afirmar_glsl "the blit source is clamped to the render target" "$SOURCE" 'intersected('
 # Device pixels, not logical ones: at scale != 1 the texture must be larger than
 # frameGeometry(). KWin's own transform, not arithmetic done by hand.
-afirmar_codigo "the capture is sized in device pixels" "$SOURCE" 'mapToRenderTargetTexture'
+afirmar_glsl "the capture is sized in device pixels" "$SOURCE" 'mapToRenderTargetTexture(region)'
 # AND it must cover the region KWin redirected, or a SUB-RECTANGLE of it: the offscreen
 # texture is expandedGeometry()*scale (frame PLUS shadow margins), and after audit finding 1
 # the capture is the BAND -- the title bar plus the kernels' reach -- with the frame-to-capture
 # mapping doing the rest. What must NOT happen is a capture sized to the frame, which samples
 # the desktop shifted by the shadow margin.
-afirmar_codigo "the capture covers the EXPANDED geometry KWin redirected" "$SOURCE" 'expandedGeometry[(][)]'
-afirmar_codigo "and it is snapped to the device grid the way KWin does" "$SOURCE" 'snapToPixels'
-afirmar_codigo "the capture can be bounded to the title band" "$SOURCE" 'barHeight'
-afirmar_codigo "with a reach that covers the background kernels" "$SOURCE" 'const int reach = '
-afirmar_codigo "and the band stops at the bar plus that reach" "$SOURCE" \
-  'frame[.]y[(][)] [+] int[(]std::ceil[(]barHeight[)][)] [+] reach'
+afirmar_glsl "the capture covers the EXPANDED geometry KWin redirected" "$SOURCE" 'expandedGeometry()'
+afirmar_glsl "and it is snapped to the device grid the way KWin does" "$SOURCE" 'snapToPixels(w->expandedGeometry(), viewport.scale())'
+afirmar_glsl "the capture can be bounded to the title band" "$SOURCE" 'barHeight = w->clientGeometry().top() - w->frameGeometry().top()'
+afirmar_glsl "with a reach that covers the background kernels" "$SOURCE" 'const int reach = '
+afirmar_glsl "and the band stops at the bar plus that reach" "$SOURCE" 'frame.y() + int(std::ceil(barHeight)) + reach'
 negar "the capture region is never the frame alone" \
   grep -qE 'const Rect region = snapToPixels[(]w->frameGeometry' "$SOURCE"
 # THE MAPPING'S V AXIS IS BOTTOM-UP, and this is where audit 1's band capture broke the effect. The
@@ -79,10 +78,10 @@ else
 fi
 # The composite happens in the shader, so there is no second quad that could be
 # drawn under the window (HANDOFF section 5, risk 4).
-afirmar_codigo "the shader samples the captured background" "$SOURCE" 'texture[(]background'
-afirmar_codigo "the composite does not depend on the scene blending alpha" "$SOURCE" 'uHasBackground'
-afirmar_codigo "the composite keeps part of the bar colour" "$SOURCE" 'mix[(]gained, baseline, uGlassAlpha[)]'
-afirmar_codigo "the bar's opacity is tunable too" "$SOURCE" 'GlassAlpha'
+afirmar_glsl "the shader samples the captured background" "$SOURCE" 'texture(background'
+afirmar_glsl "the composite does not depend on the scene blending alpha" "$SOURCE" 'if (uHasBackground > 0.5)'
+afirmar_glsl "the composite keeps part of the bar colour" "$SOURCE" 'mix(gained, baseline, uGlassAlpha)'
+afirmar_glsl "the bar's opacity is tunable too" "$SOURCE" 'readEntry("GlassAlpha"'
 
 echo "  -- the chrome stays readable, and the corners stay round --"
 # The user, after the frost landed: "que se vean los botones y el titulo de la ventana".
@@ -90,43 +89,43 @@ echo "  -- the chrome stays readable, and the corners stay round --"
 # were smeared into it. Now the blur is the BASELINE, and what deviates from it is the
 # chrome, which is drawn crisp over the glass -- the way macOS does it: the glass is
 # behind the chrome, not over it.
-afirmar_codigo "the chrome is found by its coverage against the bar's median tone" "$SOURCE" 'byCoverage = smoothstep[(]uChromeLow'
+afirmar_glsl "the chrome is found by its coverage against the bar's median tone" "$SOURCE" 'byCoverage = smoothstep(uChromeLow'
 # The glass carries the bar's TONE, so any chrome left in it is a ghost of the title
 # behind the crisp title. A 6 px average keeps ~11 levels of a 2 px stroke; half the
 # bar's height keeps ~4, which cannot be seen.
-afirmar_codigo "the bar's tone is averaged over the bar's own scale" "$SOURCE" 'max[(]uRadius, uTitleBarHeight [*] 0[.]5[)]'
-afirmar_codigo "and it is composited crisp on top of the glass" "$SOURCE" 'mix[(]glass, chromeColour, chrome[)]'
+afirmar_glsl "the bar's tone is averaged over the bar's own scale" "$SOURCE" 'max(uRadius, uTitleBarHeight * 0.5)'
+afirmar_glsl "and it is composited crisp on top of the glass" "$SOURCE" 'mix(glass, chromeColour, chrome)'
 # VIBRANCY, off by default: the theme's title is dark and the frosted backdrop can be
 # dark, so with little of the bar's colour kept the title disappears. macOS adapts the
 # chrome to the material. It is a setting because it changes the title's colour, which is
 # a decision for a screen.
 afirmar_codigo "vibrancy is off by default" "$HEADER" 'kVibrancy = 0'
-afirmar_codigo "and it is a live setting" "$SOURCE" 'Vibrancy'
-afirmar_codigo "it adapts achromatic chrome only, never the coloured buttons" "$SOURCE" 'isColour > 0[.]15'
+afirmar_glsl "and it is a live setting" "$SOURCE" 'readEntry("Vibrancy"'
+afirmar_glsl "it adapts achromatic chrome only, never the coloured buttons" "$SOURCE" 'isColour > 0.15'
 # 0.15 and not 0.5: the anti-aliased edge of a button is only PARTLY saturated, and at the
 # looser threshold vibrancy pushed those edge pixels to ~0.86 of luminance -- measured as a
 # light ring of 206-217 around the traffic lights against a band of 117.
 # The wiring: the main path must go through the helper, or vibrancy is a function nobody
 # calls -- the same trap as the `discard;` that could never run.
-afirmar_codigo "and the main path uses it" "$SOURCE" 'chromeWithVibrancy[(]window[.]rgb, glass, chrome, byColour[)]'
+afirmar_glsl "and the main path uses it" "$SOURCE" 'chromeWithVibrancy(window.rgb, glass, chrome, byColour)'
 # The wiring, not the name: the adaptation must be what gets composited.
-afirmar_codigo "and the adapted chrome is the one composited" "$SOURCE" 'mix[(]glass, chromeColour, chrome[)]'
+afirmar_glsl "and the adapted chrome is the one composited" "$SOURCE" 'mix(glass, chromeColour, chrome)'
 # THE BASELINE MUST BE TIGHT. The first version measured the deviation against the
 # 6-texel blur, and a wide average is dragged towards every glyph and button, so the bar
 # pixels AROUND them were classified as chrome and drawn crisp: a bright halo around
 # each letter and each traffic light, which is what the user saw.
-afirmar_codigo "the chrome is measured against the bar's own median tone" "$SOURCE" 'toneLuma = dot[(]baseline, kLuma[)]'
-afirmar_codigo "and its threshold is one tunable knob" "$SOURCE" 'uChromeLow'
+afirmar_glsl "the chrome is measured against the bar's own median tone" "$SOURCE" 'toneLuma = dot(baseline, kLuma)'
+afirmar_glsl "and its threshold is one tunable knob" "$SOURCE" 'smoothstep(uChromeLow, min(1.0, uChromeLow + 0.85), max(darker, lighter))'
 # Colour is chrome too. Without this the traffic lights come out as bright rings with
 # glass in the middle, because a tight baseline sees the same colour in the centre of a
 # 12 px disc as around it. Chroma is local, so it costs no halo.
 # ...and it must be USED, not merely declared: asserting the name alone passed while
 # the term was disconnected, which is the third time this shape has bitten.
-afirmar_codigo "coloured chrome is detected by its chroma, so discs stay solid" "$SOURCE" 'max[(]byCoverage, byColour[)]'
+afirmar_glsl "coloured chrome is detected by its chroma, so discs stay solid" "$SOURCE" 'max(byCoverage, byColour)'
 # And the mask is a COVERAGE, not a switch: the theme bakes its own white into every
 # anti-aliased boundary pixel, so drawing those "crisp" is a white fringe over our glass. The
 # estimated coverage turns a half-covered pixel into half glass.
-afirmar_codigo "the chrome weight is an estimated coverage" "$SOURCE" 'clamp[(][(]toneLuma - luma[)] / toneLuma'
+afirmar_glsl "the chrome weight is an estimated coverage" "$SOURCE" 'clamp((toneLuma - luma) / toneLuma'
 # #7 -- THE RETIRED DEVIATION MASK AND THE KNOBS THAT WERE NEVER WIRED. `deviation`/`byDeviation`
 # were superseded by the coverage above and left behind; `m_active` is never assigned, so every
 # `if (!m_active ...)` was dead and the documented "effect off" path was unreachable; `kFrostOpacity`
@@ -141,15 +140,15 @@ negar "the never-assigned effect-off flag is gone from the source" codigo_contie
 negar "and from the header" codigo_contiene "$HEADER" 'm_active'
 negar "the unread frost-opacity constant is gone" codigo_contiene "$HEADER" 'kFrostOpacity'
 # The tone median's centre tap re-read the texel the band had already fetched; it reuses it now.
-afirmar_codigo "the tone median reuses the window fetch" "$SOURCE" 'vec4 c0 = window'
+afirmar_glsl "the tone median reuses the window fetch" "$SOURCE" 'vec4 c0 = window'
 # PREMULTIPLIED output: KWin blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA, so an
 # unpremultiplied colour with alpha below 1 ADDS to the backdrop instead of replacing it.
-afirmar_codigo "the band's colour is premultiplied by its alpha" "$SOURCE" 'result [*] alfa'
+afirmar_glsl "the band's colour is premultiplied by its alpha" "$SOURCE" 'result * alfa'
 # And the corners: this theme's SVG has a 12 px arc but aurorae clips it into a 1 px
 # cell, so the frame is a rectangle and there is no shape to follow. The effect draws
 # the rounded rectangle itself and discards what falls outside it (0 disables it).
-afirmar_codigo "the window's rounded corners are drawn by the effect" "$SOURCE" 'uCornerRadius'
-afirmar_codigo "by discarding what falls outside the rounding" "$SOURCE" 'discard;'
+afirmar_glsl "the window's rounded corners are drawn by the effect" "$SOURCE" 'q = abs(cornerPos - cornerHalf) - (cornerHalf - vec2(uCornerRadius))'
+afirmar_glsl "by discarding what falls outside the rounding" "$SOURCE" 'if (edgeDistance < -0.5) { discard; }'
 # The condition itself, not just the two names: the first version of this assertion was
 # satisfied by a `discard;` that never ran, which is the "a check that does not run is
 # not a check" lesson in its newest costume.
@@ -157,15 +156,15 @@ afirmar_codigo "by discarding what falls outside the rounding" "$SOURCE" 'discar
 # es `length(max(q,0))` y con el squircle la distancia a la superelipse. La asercion fixa el termino
 # del arco y el de la parte plana por separado, que es lo que decide la forma; antes fijaba la linea
 # entera y un refactor que no cambia nada la rompia (hallazgo 6 de la auditoria en vivo).
-afirmar_codigo "which is a rounded-box distance at the corners" "$SOURCE"   'cornerDistance = length[(]max[(]q, vec2[(]0[.]0[)][)][)]'
-afirmar_codigo "y la parte plana del contorno sigue ahi" "$SOURCE"   'min[(]max[(]q[.]x, q[.]y[)], 0[.]0[)]'
+afirmar_glsl "which is a rounded-box distance at the corners" "$SOURCE" 'cornerDistance = length(max(q, vec2(0.0)))'
+afirmar_glsl "y la parte plana del contorno sigue ahi" "$SOURCE" 'min(max(q.x, q.y), 0.0)'
 # ...and only for the windows the material covers. A fullscreen window IS the screen:
 # rounding it would carve arcs out of the screen and show the desktop through them. A
 # client-side decoration is the case this effect leaves alone everywhere else.
-afirmar_codigo "only decorated, non-fullscreen windows are rounded" "$SOURCE" 'isNormalWindow[(][)] && w->hasDecoration[(][)] && !w->isFullScreen[(][)]'
+afirmar_glsl "only decorated, non-fullscreen windows are rounded" "$SOURCE" 'isNormalWindow() && w->hasDecoration() && !w->isFullScreen()'
 # The one orientation that cannot be settled without a screen is a setting, so it
 # can be flipped and reconfigured WITHOUT a relogin.
-afirmar_codigo "the capture orientation is configurable, not assumed" "$SOURCE" 'BackgroundFlipV'
+afirmar_glsl "the capture orientation is configurable, not assumed" "$SOURCE" 'readEntry("BackgroundFlipV"'
 
 echo "  -- M1.3a step 3a: the frost over the captured desktop --"
 # Step 2 shows the desktop SHARP; macOS shows it frosted. It is a setting so it can be
@@ -173,20 +172,20 @@ echo "  -- M1.3a step 3a: the frost over the captured desktop --"
 # user's eye selected on screen. 0 is the sharp composite step 2 was verified with, and
 # 6 is real but invisible against anything coarser than text.
 afirmar_codigo "the frost radius defaults to the kit's outer 16" "$HEADER" 'kBackgroundRadius = 16'
-afirmar_codigo "the radius is read from the effect's config" "$SOURCE" 'BackgroundRadius'
-afirmar_codigo "the shader can blur the captured background" "$SOURCE" 'uBackgroundRadius'
+afirmar_glsl "the radius is read from the effect's config" "$SOURCE" 'readEntry("BackgroundRadius"'
+afirmar_glsl "the shader can blur the captured background" "$SOURCE" 'if (uBackgroundRadius > 0.5)'
 # The capture is a different texture from the window's, so it has its own texel size.
 # Reusing the window's would make the radius a ~3% lie, which is free to avoid.
-afirmar_codigo "the frost is measured in the capture's own texels" "$SOURCE" 'uBackgroundTexel'
+afirmar_glsl "the frost is measured in the capture's own texels" "$SOURCE" 'vec2 dir = vec2(float(x), float(y)) * uBackgroundTexel'
 # Radius 0 must be the SINGLE-sample path, not a stack of samples of the same texel:
 # the sharp state has to stay identical to what was verified.
-afirmar_codigo "radius 0 keeps the single-sample path" "$SOURCE" 'desktop = texture[(]background, uvFrost[)]'
+afirmar_glsl "radius 0 keeps the single-sample path" "$SOURCE" 'desktop = texture(background, uvFrost)'
 # TWO SCALES, because one 3x3 at the outer spacing samples nine isolated points and a
 # background with text reads as nine ghost copies of it -- seen on screen at radius 16.
 # The pair is the kit's `frost 6/16/16`, the outer sampled twice because that is how the
 # kit writes it.
-afirmar_codigo "the frost samples an inner scale derived from the kit" "$SOURCE" 'kInnerScale'
-afirmar_codigo "the frost is a pyramid of four levels" "$SOURCE" 'kLevelScale\[3\] = float\[3\]'
+afirmar_glsl "the frost samples an inner scale derived from the kit" "$SOURCE" 'const float kInnerScale = 0.375'
+afirmar_glsl "the frost is a pyramid of four levels" "$SOURCE" 'kLevelScale[3] = float[3]'
 
 echo "  -- there is a measurement for background show-through --"
 afirmar_existe "measure-glass.py exists" "$EF/measure-glass.py"
@@ -385,7 +384,7 @@ echo "  -- a diagnostic may not flood the journal --"
 # quotes the buggy expression, and a check that matched it would be checking the prose.
 negar "the per-paint diagnostic cannot log on every paint" \
   codigo_contiene "$SOURCE" 'pre <= 6'
-afirmar_codigo "the diagnostic uses one gate and one counter" "$SOURCE" 'const bool shouldLog ='
+afirmar_glsl "the diagnostic uses one gate and one counter" "$SOURCE" 'const bool shouldLog ='
 
 echo "  -- the capture is cached per size, not rebuilt per paint --"
 # Two windows of different sizes repainting used to allocate and free a texture and a
@@ -394,11 +393,11 @@ echo "  -- the capture is cached per size, not rebuilt per paint --"
 # mechanism was verified; the capture measured 73.8 against a threshold of 12, so it is.
 afirmar_codigo "the capture lives in a per-size cache" "$HEADER" 'm_captures'
 afirmar_codigo "the cache is bounded, so a resizing window cannot grow it forever" "$HEADER" 'kMaxCaptureSlots'
-afirmar_codigo "a capture is looked up by size" "$SOURCE" 'm_captures[.]find[(]key[)]'
+afirmar_glsl "a capture is looked up by size" "$SOURCE" 'm_captures.find(key)'
 # And the wiring, which is the check that keeps mattering: apply() must bind the capture
 # this paint filled, not one it hopes is current.
-afirmar_codigo "apply() binds the capture this paint filled" "$SOURCE" 'm_currentCapture->texture->bind[(][)]'
-afirmar_codigo "a failed capture clears it, so no stale texture can be bound" "$SOURCE" 'm_currentCapture = nullptr;'
+afirmar_glsl "apply() binds the capture this paint filled" "$SOURCE" 'm_currentCapture->texture->bind()'
+afirmar_glsl "a failed capture clears it, so no stale texture can be bound" "$SOURCE" 'm_currentCapture = nullptr;'
 
 echo "  -- the live instruments' journal contract still holds --"
 # The live scripts measure by READING the effect's journal: test-glass.sh matches
@@ -454,15 +453,15 @@ fi
 # terminal is the window this cache exists for. The cap must evict the least recently used.
 negar "the cache does not evict by key order" \
   codigo_contiene "$SOURCE" 'm_captures.erase[(]m_captures.begin[(][)][)]'
-afirmar_codigo "it evicts the least recently used entry" "$SOURCE" 'm_lastUse\[leastRecentlyUsed->first\]'
+afirmar_glsl "it evicts the least recently used entry" "$SOURCE" 'm_lastUse[leastRecentlyUsed->first]'
 # A destination built from the CLAMPED source can be smaller than the texture, and with a
 # cache the unwritten strip would hold a PREVIOUS window's capture.
-afirmar_codigo "the capture is cleared before the blit" "$SOURCE" 'glClear[(]GL_COLOR_BUFFER_BIT[)]'
+afirmar_glsl "the capture is cleared before the blit" "$SOURCE" 'glClear(GL_COLOR_BUFFER_BIT)'
 # Both paths write premultiplied: the scene blends with GL_ONE, GL_ONE_MINUS_SRC_ALPHA.
-afirmar_codigo "the no-capture fallback is premultiplied too" "$SOURCE" 'fallback [*] alfaFallback'
+afirmar_glsl "the no-capture fallback is premultiplied too" "$SOURCE" 'fallback * alfaFallback'
 # Rounding a window whose frame reaches the screen edge would carve an arc out of the screen.
-afirmar_codigo "windows that reach the screen edge are not rounded" "$SOURCE" '&& !m_touchesEdge'
-afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touchesEdge = frameRect.left'
+afirmar_glsl "windows that reach the screen edge are not rounded" "$SOURCE" '&& !m_touchesEdge'
+afirmar_glsl "and that is computed where the viewport is" "$SOURCE" 'm_touchesEdge = frameRect.left'
 # Vibrancy must DELIVER the minimum contrast, not approach it: aim at a luminance that far
 # from the glass and shift, which is exact, instead of mixing towards black or white.
 # CHANGED: aiming at the minimum contrast produced a mid-grey glyph on a mid-grey glass,
@@ -472,10 +471,10 @@ afirmar_codigo "and that is computed where the viewport is" "$SOURCE" 'm_touches
 # the user asked whether the light case should be black or a dark grey, and their own tokens
 # answer it -- and the VIBRANT group is the right one because it is opaque, unlike `[label]`,
 # which is a veil (black at 85%).
-afirmar_codigo "vibrancy flips to Apple's vibrant label colours" "$SOURCE" 'kLabelDark = 26[.]0 / 255[.]0'
-afirmar_codigo "and its light end" "$SOURCE" 'kLabelLight = 245[.]0 / 255[.]0'
-afirmar_codigo "picking by the material's luminance" "$SOURCE" 'backdropLuma > 0[.]5 [?] kLabelDark : kLabelLight'
-afirmar_codigo "over a ramp, not an instant jump" "$SOURCE" 'falta = clamp'
+afirmar_glsl "vibrancy flips to Apple's vibrant label colours" "$SOURCE" 'kLabelDark = 26.0 / 255.0'
+afirmar_glsl "and its light end" "$SOURCE" 'kLabelLight = 245.0 / 255.0'
+afirmar_glsl "picking by the material's luminance" "$SOURCE" 'backdropLuma > 0.5 ? kLabelDark : kLabelLight'
+afirmar_glsl "over a ramp, not an instant jump" "$SOURCE" 'falta = clamp'
 
 echo "  -- the sampling sub-rectangle, ON, and now load-bearing --"
 # The last open question of M1.3a: the capture covers the window's EXPANDED geometry while every
@@ -488,15 +487,12 @@ echo "  -- the sampling sub-rectangle, ON, and now load-bearing --"
 # hatch) -- instead of switching the mapping off.
 afirmar_codigo "the sub-rectangle switch exists" "$HEADER" 'm_captureSubRect'
 afirmar_codigo "and it is ON, so the band is the default capture" "$HEADER" 'kCaptureSubRect = true'
-afirmar_codigo "the frame's place inside the capture is ALWAYS applied" "$SOURCE" \
-  'setUniform[(]uniformLocation[(]"uBackgroundOffset"[)], m_sampleOffset'
+afirmar_glsl "the frame's place inside the capture is ALWAYS applied" "$SOURCE" 'setUniform(uniformLocation("uBackgroundOffset"), m_sampleOffset'
 negar "the identity mapping path is gone" \
   grep -qE 'm_captureSubRect [?] m_sampleOffset' "$SOURCE"
-afirmar_codigo "and the switch selects the band instead" "$SOURCE" 'Rect region = expanded'
-afirmar_codigo "the frame's place inside the capture is computed" "$SOURCE" \
-  'm_sampleOffset = QVector2D[(]float[(]frameRect[.]x[(][)] - region[.]x[(][)][)]'
-afirmar_codigo "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" \
-  'uBackgroundOffset [+] vTexCoord [*] uBackgroundScale'
+afirmar_glsl "and the switch selects the band instead" "$SOURCE" 'Rect region = expanded'
+afirmar_glsl "the frame's place inside the capture is computed" "$SOURCE" 'm_sampleOffset = QVector2D(float(frameRect.x() - region.x())'
+afirmar_glsl "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" 'uBackgroundOffset + vTexCoord * uBackgroundScale'
 
 echo "  -- the bar's kernels do not look outside the bar --"
 # Measured on the user's screen: the lower 14 rows of a 39-row band had an implied tone of
@@ -505,8 +501,8 @@ echo "  -- the bar's kernels do not look outside the bar --"
 # samples make a step and not a gradient. Both kernels over the WINDOW texture are clamped to
 # the band now; the kernel over the CAPTURE must NOT be, because the backdrop legitimately
 # extends past the bar.
-afirmar_codigo "the band's v span is computed" "$SOURCE" 'vBandBottom = 1[.]0 - uTitleBarHeight [*] uTexelSize[.]y'
-afirmar_codigo "the tone can only sample inside the bar" "$SOURCE" 'clamp[(]vTexCoord[.]y - toneRadius [*] uTexelSize[.]y, vBandBottom, vBandTop[)]'
+afirmar_glsl "the band's v span is computed" "$SOURCE" 'vBandBottom = 1.0 - uTitleBarHeight * uTexelSize.y'
+afirmar_glsl "the tone can only sample inside the bar" "$SOURCE" 'clamp(vTexCoord.y - toneRadius * uTexelSize.y, vBandBottom, vBandTop)'
 afirmar_igual "the backdrop kernel is NOT clamped (the backdrop goes past the bar)" "2" \
   "$(grep -c 'uvFrost + dir' effect-kwin/src/glass.cpp)"
 
@@ -516,9 +512,9 @@ echo "  -- the tone is a median, not a displaced blur --"
 # the band carried a dark ghost of them, because one sample of the tone's 3x3 had landed on
 # the buttons, 19 rows above them -- the radius. A blur of the bar always contains the chrome
 # displaced; a median of five discards a minority of it by construction.
-afirmar_codigo "the tone takes five samples" "$SOURCE" 'vec4 c4 = texture'
-afirmar_codigo "and sorts them channel-wise for the median" "$SOURCE" 'KSORT[(]c0, c1[)]'
-afirmar_codigo "the median is what becomes the bar's tone" "$SOURCE" 'vec3 baseline = c2[.]rgb'
+afirmar_glsl "the tone takes five samples" "$SOURCE" 'vec4 c4 = texture'
+afirmar_glsl "and sorts them channel-wise for the median" "$SOURCE" 'KSORT(c0, c1)'
+afirmar_glsl "the median is what becomes the bar's tone" "$SOURCE" 'vec3 baseline = c2.rgb'
 # The network itself is pinned: nine compare-exchanges, and the median is the third element.
 afirmar_igual "the sorting network is the verified one" "9" \
   "$(grep -o 'KSORT[(]c[0-9], c[0-9][)]' effect-kwin/src/glass.cpp | wc -l)"
@@ -532,7 +528,7 @@ afirmar_igual "no tone sample is taken along the row" "0" \
   "$(grep -c 'toneRadius [*] uTexelSize[.]x' effect-kwin/src/glass.cpp)"
 afirmar_igual "and all five are vertical" "4" \
   "$(grep -c 'toneRadius [*] uTexelSize[.]y' effect-kwin/src/glass.cpp)"
-afirmar_codigo "reaching two radii out" "$SOURCE" '2[.]0 [*] toneRadius [*] uTexelSize[.]y'
+afirmar_glsl "reaching two radii out" "$SOURCE" '2.0 * toneRadius * uTexelSize.y'
 
 echo "  -- the documented defaults are the ones in the code --"
 # The table listed keys and defaults, and the keys were checked; the DEFAULTS were not. They
@@ -605,16 +601,16 @@ echo "  -- the material's edge and its amplification --"
 # transparencia, y este toma el color del background pero lo hace mas fuerte". Measured: bright
 # bands of 215-236 (top) and 206-218 (bottom) around a middle of 168-190, and a colour that
 # tracks the backdrop with a gain of ~1.6 -- which a plain blend cannot produce.
-afirmar_codigo "the band has an edge highlight" "$SOURCE" 'float rim = falloff [*] uRim'
-afirmar_codigo "and the material amplifies the backdrop's chroma" "$SOURCE" 'uMaterialBoost'
+afirmar_glsl "the band has an edge highlight" "$SOURCE" 'float rim = falloff * uRim'
+afirmar_glsl "and the material amplifies the backdrop's chroma" "$SOURCE" '(desktop - vec3(luma)) * uMaterialBoost'
 afirmar_igual "1.0 is off, so the knob defaults above it" "1" \
   "$(grep -c 'kMaterialBoost = 1[.]20f' effect-kwin/src/glass.h)"
 
 echo "  -- the capture's reduction is capped at two --"
 # A GL_LINEAR blit minifying by 2 reads exactly the four texels of each block (a true box); by 4
 # it reads four of sixteen and aliases, which is the moire the user saw over large text.
-afirmar_codigo "the downsample factor is clamped to 2" "$SOURCE" 'std::clamp[(]m_backgroundDownsample, 1, 2[)]'
-afirmar_codigo "and the derived one too" "$SOURCE" 'std::clamp[(]m_backgroundRadius / 8, 1, 2[)]'
+afirmar_glsl "the downsample factor is clamped to 2" "$SOURCE" 'std::clamp(m_backgroundDownsample, 1, 2)'
+afirmar_glsl "and the derived one too" "$SOURCE" 'std::clamp(m_backgroundRadius / 8, 1, 2)'
 
 echo "  -- the simulator models the shader faithfully --"
 # The user asked for a way to stop paying a relogin per idea. This is it, and the maths is only
@@ -676,23 +672,19 @@ echo "  -- M2 in the SHADER: the same geometry, or the two implementations drift
 # and the default still the approved arc. There is no `n` any more to compare -- 10c's family is gone.
 afirmar_codigo "el header define el knob del squircle" "$HEADER" 'kCornerSmoothing = 0[.]0f'
 afirmar_codigo "y su miembro, con el default puesto" "$HEADER" 'm_cornerSmoothing = kCornerSmoothing'
-afirmar_codigo "el shader declara el uniforme" "$SOURCE" 'uniform float uCornerSmoothing'
-afirmar_codigo "el shader calcula p=(1+s)*R, como el simulador" "$SOURCE" '[(]1[.]0 [+] s[)] [*] R'
-afirmar_codigo "y la misma medida de arco 90*(1-s)" "$SOURCE" '90[.]0 [*] [(]1[.]0 - s[)]'
+afirmar_glsl "el shader declara el uniforme" "$SOURCE" 'uniform float uCornerSmoothing'
+afirmar_glsl "el shader calcula p=(1+s)*R, como el simulador" "$SOURCE" '(1.0 + s) * R'
+afirmar_glsl "y la misma medida de arco 90*(1-s)" "$SOURCE" '90.0 * (1.0 - s)'
 afirmar_codigo "el simulador calcula el mismo p" "$EF/simulate.py" '[(]1[.]0 [+] s[)] [*] R'
 afirmar_codigo "y la misma medida de arco" "$EF/simulate.py" '90[.]0 [*] [(]1[.]0 - s[)]'
 # A piecewise boundary has no single parametric nearest point: BOTH search segments.
-afirmar_codigo "el shader busca el punto mas cercano en SEGMENTOS" "$SOURCE" \
-  'float t = clamp[(]dot[(]q - a, seg[)]'
+afirmar_glsl "el shader busca el punto mas cercano en SEGMENTOS" "$SOURCE" 'float t = clamp(dot(q - a, seg)'
 afirmar_codigo "y el simulador tambien" "$EF/simulate.py" \
   'np[.]clip[(][(][(]qx - ax[)] [*] ex'
-afirmar_codigo "la config se lee, como el resto de mandos" "$SOURCE" \
-  'readEntry[(]"CornerSmoothing", double[(]kCornerSmoothing[)][)]'
-afirmar_codigo "y el uniforme se pasa con el mismo gate que el radio" "$SOURCE" \
-  'shouldRound [?] m_cornerSmoothing : 0[.]0f'
+afirmar_glsl "la config se lee, como el resto de mandos" "$SOURCE" 'readEntry("CornerSmoothing", double(kCornerSmoothing))'
+afirmar_glsl "y el uniforme se pasa con el mismo gate que el radio" "$SOURCE" 'shouldRound ? m_cornerSmoothing : 0.0f'
 # The control has to stay the arc: the circular branch is the approved one and the squircle is opt-in.
-afirmar_codigo "con smoothing 0 la rama es la del circulo" "$SOURCE" \
-  'uCornerSmoothing <= 0[.]001'
+afirmar_glsl "con smoothing 0 la rama es la del circulo" "$SOURCE" 'uCornerSmoothing <= 0.001'
 afirmar_codigo "y el default del header es 0 (el arco aprobado)" "$HEADER" \
   'static constexpr float kCornerSmoothing = 0[.]0f'
 # AND THE OLD SUPER-ELLIPSE IS GONE BY NAME, in both files: a rewrite that brought it back would draw
@@ -717,13 +709,13 @@ echo "  -- the edge bends the backdrop and draws a line of contrast --"
 # outside, which is refraction. And the bend alone cannot fix their concrete complaint -- a white
 # window behind makes the band white, so the boundary vanishes -- which needs a hairline AWAY from
 # the backdrop.
-afirmar_codigo "the bend is applied to the frost's own uv" "$SOURCE" 'uvFrost = uvBackground [+] inward'
-afirmar_codigo "the bend is a knob, from the kit's refraction" "$SOURCE" 'uRefraction'
-afirmar_codigo "a hairline goes away from the backdrop, not toward white" "$SOURCE" 'lineFactor = [(]backLuma > 0[.]5[)] [?] 0[.]35 : 1[.]7'
+afirmar_glsl "the bend is applied to the frost's own uv" "$SOURCE" 'uvFrost = uvBackground + inward'
+afirmar_glsl "the bend is a knob, from the kit's refraction" "$SOURCE" 'uvBackground + inward * uRefraction * uBackgroundTexel * falloff'
+afirmar_glsl "a hairline goes away from the backdrop, not toward white" "$SOURCE" 'lineFactor = (backLuma > 0.5) ? 0.35 : 1.7'
 # And it has its OWN strength, independent of Rim: a boundary that is subtle is the problem the
 # user reported, and macOS's window border is one you can see -- 52.7 levels away from a white app
 # in the simulation of their exact case.
-afirmar_codigo "the hairline strength does not depend on Rim" "$SOURCE" 'hair [*] 0[.]35'
+afirmar_glsl "the hairline strength does not depend on Rim" "$SOURCE" 'hair * 0.35'
 
 echo "  -- the bend is measured in pixels, not in Rim units --"
 # The first version multiplied the displacement by `rim`, the band's STRENGTH (0.2), so a six pixel
@@ -731,17 +723,17 @@ echo "  -- the bend is measured in pixels, not in Rim units --"
 # veo ningun desplazamiento del color por las orillas". The falloff, 0..1, is what scales it, and
 # Rim decides how much of the band is the bend at all. Simulated on a striped backdrop, the fix
 # moves edge pixels by up to 157.6 levels.
-afirmar_codigo "the displacement scales with the falloff" "$SOURCE" 'uRefraction [*] uBackgroundTexel [*] falloff'
+afirmar_glsl "the displacement scales with the falloff" "$SOURCE" 'uRefraction * uBackgroundTexel * falloff'
 # The bend is no longer blended beside the frost -- it is the frost's own uv, which is why
 # frosting the rim costs a fetch LESS and makes the band one material instead of two.
-afirmar_codigo "the rim is the same frost, only bent" "$SOURCE" 'uvFrost = uvBackground [+] inward'
-afirmar_codigo "and its strength comes from the same falloff" "$SOURCE" 'float rim = falloff [*] uRim'
+afirmar_glsl "the rim is the same frost, only bent" "$SOURCE" 'uvFrost = uvBackground + inward'
+afirmar_glsl "and its strength comes from the same falloff" "$SOURCE" 'float rim = falloff * uRim'
 
 echo "  -- the gain is tone-mapped, not clipped --"
 # "se ve un como cuadro blancoso en la parte central" was the hard clamp: everything above 0.625
 # went to flat white, so a bright part of the backdrop became a plateau -- a white square with an
 # outline -- while the edges, which mix the RAW backdrop, looked more translucent than the middle.
-afirmar_codigo "the gain has a soft knee above mid grey" "$SOURCE" '0[.]5 [+] over / [(]1[.]0 [+] 2[.]0 [*] over[)]'
+afirmar_glsl "the gain has a soft knee above mid grey" "$SOURCE" '0.5 + over / (1.0 + 2.0 * over)'
 # The BOUND is a mathematical property, not a string, so it is not asserted here: the first knee
 # (over/(1+over)) reached 1.5 and only the measurement caught it. A string test of a formula is a
 # test of its spelling.
@@ -888,8 +880,8 @@ echo "  -- the discard can only ever test the FRAME's boundary --"
 # of every window and left only the title bars -- "solo se ve la barra superior, no puedo ver nada".
 # These two assertions are the shape of the fix, and they are the strongest a shell test can make
 # here because the content path never reaches the shader maths this suite can exercise.
-afirmar_codigo "the discard tests the frame's rounded distance alone" "$SOURCE" 'if [(]edgeDistance < -0[.]5[)]'
-afirmar_codigo "and it does NOT include the bar's bottom" "$SOURCE" 'float toEdge = min[(]edgeDistance, uTitleBarHeight - topDistance[)]'
+afirmar_glsl "the discard tests the frame's rounded distance alone" "$SOURCE" 'if (edgeDistance < -0.5)'
+afirmar_glsl "and it does NOT include the bar's bottom" "$SOURCE" 'float toEdge = min(edgeDistance, uTitleBarHeight - topDistance)'
 # and the retired form must be gone, by name, so it cannot come back
 afirmar_igual "the broken expression is gone" "0" "$(grep -c 'roundedDistance' effect-kwin/src/glass.cpp)"
 
@@ -899,7 +891,7 @@ echo "  -- the rounded distance is signed the way the discard needs --"
 # simulator had the correct expression and the shader did not, which is the drift this project keeps
 # paying for. Two checks together, because either alone is weak: the shader's sign by grep, and the
 # formula evaluated at the points where the sign decides.
-afirmar_codigo "the minus sign is OUTSIDE the sdf" "$SOURCE" 'edgeDistance = -[(]cornerDistance'
+afirmar_glsl "the minus sign is OUTSIDE the sdf" "$SOURCE" 'edgeDistance = -(cornerDistance'
 if timeout 120 python3 - <<'PY' >/tmp/sdf.txt 2>&1
 def distance(px, py, w=900.0, h=300.0, r=20.0):
     """The shader's expression, transcribed from the source and evaluated."""
@@ -919,8 +911,8 @@ echo "  -- the corners are antialiased, which the user asked for by looking at t
 # "se ve un poco pixeleado en la esquina derecha e izquierda". A binary `discard` is a one-bit edge, so
 # the arc came out with stair steps. The signed distance was already there, so the boundary is a ONE
 # PIXEL RAMP OF ALPHA now, and it rides on all three output paths or the band's corners stay stepped.
-afirmar_codigo "the corner boundary is an alpha ramp, not a cut" "$SOURCE" 'cornerCoverage = clamp[(]edgeDistance [+] 0[.]5'
-afirmar_codigo "and outside the ramp it still discards" "$SOURCE" 'if [(]edgeDistance < -0[.]5[)]'
+afirmar_glsl "the corner boundary is an alpha ramp, not a cut" "$SOURCE" 'cornerCoverage = clamp(edgeDistance + 0.5'
+afirmar_glsl "and outside the ramp it still discards" "$SOURCE" 'if (edgeDistance < -0.5)'
 afirmar_igual "the coverage reaches every output path" "4" \
   "$(grep -c 'cornerCoverage' effect-kwin/src/glass.cpp)"
 
@@ -929,8 +921,8 @@ echo "  -- #8: the uniform locations are resolved once, not per paint --"
 # and the location cannot change while the shader lives. The shader is created once and never reset
 # (reconfigure stopped resetting it), so a cache is the whole fix and a lookup is pure overhead.
 afirmar_codigo "the uniform locations are cached" "$HEADER" 'm_uniformLocations'
-afirmar_codigo "and resolved by a helper" "$SOURCE" 'int MacosGlassEffect::uniformLocation'
-afirmar_codigo "with the per-paint uniforms going through it" "$SOURCE" 'setUniform[(]uniformLocation[(]'
+afirmar_glsl "and resolved by a helper" "$SOURCE" 'int MacosGlassEffect::uniformLocation'
+afirmar_glsl "with the per-paint uniforms going through it" "$SOURCE" 'setUniform(uniformLocation('
 nombres=$(grep -c 'm_shader->setUniform("' "$SOURCE")
 afirmar_igual "no name-keyed setUniform is left in the paint path" "0" "$nombres"
 
@@ -942,7 +934,7 @@ echo "  -- #4: the capture cache is per window AND per size --"
 # expanded window to a band of ~0.5 MiB, so eight band slots cost less than one old slot.
 afirmar_codigo "the cache key carries the window and the size" "$HEADER" 'struct CaptureKey'
 afirmar_codigo "with the window as its first field" "$HEADER" 'EffectWindow [*]window'
-afirmar_codigo "and it is built from the current window and reduced size" "$SOURCE" 'CaptureKey key[{]w, reducedSize'
+afirmar_glsl "and it is built from the current window and reduced size" "$SOURCE" 'CaptureKey key{w, reducedSize'
 afirmar_igual "the bound covers a desktop without evicting" "8" \
   "$(grep -oE 'kMaxCaptureSlots = [0-9]+' "$HEADER" | grep -oE '[0-9]+')"
-afirmar_codigo "a deleted window's slots are dropped" "$SOURCE" 'it->first[.]window == w'
+afirmar_glsl "a deleted window's slots are dropped" "$SOURCE" 'it->first.window == w'
