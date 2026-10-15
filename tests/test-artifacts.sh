@@ -73,19 +73,12 @@ afirmar_codigo "the generator keeps the 16 px buttons the user asked for" \
   "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" '^ButtonWidth=16$'
 afirmar_codigo "and the measured vertical centring (PaddingTop 2, margin 4)" \
   "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" '^ButtonMarginTop=4$'
-# EL FONDO DE LA DECORACION ES TRANSPARENTE. Era `fill="#FFFFFF"`: un rectangulo blanco solido que
-# aurorae estira por toda la ventana por detras del contenido, y como el efecto solo pinta la banda
-# del titulo, asomaba como un marco blanco alrededor de cada ventana. El usuario: "tiene un borde
-# blanco la ventana muy grande y feo".
-# El `<g>` y el `<rect>` estan en lineas distintas y `afirmar_codigo` es un grep linea a linea, asi
-# que van dos comprobaciones de una linea cada una, y la segunda es la que de verdad importa: que no
-# quede NINGUN blanco solido. El `fill="none"` solo es el mecanismo.
-afirmar_literal "la pieza del centro sigue existiendo" \
-  "$PROJECT/output/aurorae/KdeMacOS/decoration.svg" 'id="decoration-center"'
-afirmar_literal "y es TRANSPARENTE (fill=none)" \
-  "$PROJECT/output/aurorae/KdeMacOS/decoration.svg" 'fill="none"'
-negar "y no queda ningun relleno blanco solido" \
-  grep -q 'fill="#FFFFFF"' "$PROJECT/output/aurorae/KdeMacOS/decoration.svg"
+# NO HAY ASERCION SOBRE EL `fill` DE LA PIEZA DEL CENTRO, y es deliberado. Se intento quitar su
+# blanco porque en una captura parecia un "borde blanco muy grande y feo", y fue un error: ese
+# rectangulo no es un borde, es lo que le da cuerpo a la ventana por detras del contenido. Al
+# quitarlo el escritorio se vio a traves de los lados y las esquinas de abajo quedaron sin nada --
+# el usuario: "mis ventanas estan extranas". Se revirtio. Lo que si queda es la reproducibilidad de
+# abajo, que es lo que impide que el generador vuelva a divergir del arbol.
 if cmp -s "$d1" "$PROJECT/output/aurorae/KdeMacOS/KdeMacOSrc" \
    && cmp -s "$d2" "$PROJECT/output/aurorae/KdeMacOS/decoration.svg"; then
   ok "regenerating the decoration produces identical files"

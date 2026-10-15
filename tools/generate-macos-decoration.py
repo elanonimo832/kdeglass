@@ -155,7 +155,7 @@ def svg_marco(alto_titulo: float, radio: float) -> str:
     <rect x="0" y="0" width="{w:g}" height="{alto_titulo:g}" fill="url(#barra)"/>
   </g>
   <g id="decoration-center">
-    <rect x="0" y="{alto_titulo:g}" width="{w:g}" height="{h-alto_titulo:g}" fill="none"/>
+    <rect x="0" y="{alto_titulo:g}" width="{w:g}" height="{h-alto_titulo:g}" fill="#FFFFFF"/>
   </g>
   <g id="decoration-topleft">
     <path d="M 0 {radio:g} A {radio:g} {radio:g} 0 0 1 {radio:g} 0 L 0 0 Z" fill="#F6F6F6"/>
