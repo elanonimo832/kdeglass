@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "kdeglass (generated from the kit's tokens)"
+            }
+        ],
+        "Category": "",
+        "Description": "macOS-style desktop: measured from the kit's tokens, no Apple material",
+        "EnabledByDefault": true,
+        "Id": "KdeMacOS",
+        "License": "GPLv3",
+        "Name": "KdeMacOS",
+        "Version": "0.1.0",
+        "Website": ""
+    }
+}
