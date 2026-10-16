@@ -31,36 +31,28 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
 
 ## What to do next, in order
 
-1. **M2 — squircle corners: the CLOTHOID is implemented, and it wants a screen.** Read `HANDOFF.md`
-   §10c first. `CornerSmoothing` (default 0, range 0..1, in `tune.sh`, the README table, the suite and
-   the shader) selects it. Two wrong curves are behind it: the superellipse with the invented
-   calibration (a nearly square corner), then the Figma G1 construction, whose curvature SPIKED +46.9%
-   over the arc -- measured by `effect-kwin/measure-corner.py --curvature`, which turns curvature
-   continuity into a check. It is now the EULER SPIRAL (clothoid), the only G2 candidate the
-   instrument accepted: +0.0% overshoot, 0 maxima above the arc, in `simulate.py` AND the shader,
-   searched in segments. NOTE: at `0.6` the corner is ~1 px FULLER than the circle (its arc centre
-   sits at 20.78, not 20), the arc measure is still `90*(1-s)`, and a HIGH `s` makes the corner look
-   SMALLER because the curvature is spread over a longer transition -- `CornerRadius` is the knob that
-   makes a corner dominate. NEXT: install the new `.so`, set `CornerSmoothing=0.6` and LOOK.
-2. **The bend follows all four edges of the band — DONE, and it wants the same screen.** The user: "en
-   el fondo de la barra se ven lineas verticales, no curvea nada de ese fondo". The band's bottom is
-   the top of the CONTENT and not a frame edge, so the frame's distance is flat there and the bend
-   along the bottom was exactly zero; the simulator always bent, so the two disagreed and the shader
-   was the wrong one. `bandEdge` is that edge now and the direction BLENDS the edges by proximity
-   instead of taking a `min` (a min seams wherever two edges are equally far). The reach is its own
-   knob, `RefractionReach`, default 16 px, MEASURED as the largest reach whose falloff is exactly
-   zero at the middle of a 38 px band. Parity measured: `effect-kwin/measure-refraction.py`
-   transcribes the shader and compares it with the simulator -- **0.000 px** at all four edges, the
-   bottom's direction vertical. NEXT: install + relogin, then look at a window over an app with
-   vertical lines.
-3. **Audit finding 1 — DONE (2026-10-15), and verified on screen.** The capture is the BAND now: the
+1. **M2 — squircle corners: the curve is REPLACED, and it wants a screen.** Read `HANDOFF.md` §10c
+   first. The door exists and works: `CornerSmoothing` (default 0, range 0..1, in `tune.sh`, the
+   README table, the suite and the shader). What used to be behind it was the wrong curve -- a
+   superellipse with an invented calibration that made a nearly square corner (at y=5 the circle's
+   boundary is at x=6.8 and that curve's was at 20.0). It is now the FIGMA construction the kit's
+   `0.6` names: the edges end at `p=(1+s)*R`, the arc keeps radius `R` with its measure shrunk to
+   `90*(1-s)` degrees, and two tangent Beziers join them -- in `simulate.py` AND the shader together,
+   with the piecewise boundary searched in segments. The SHAPE instrument exists
+   (`effect-kwin/measure-corner.py`, run by the suite against synthetic known-value corners) and it
+   measured the construction back from pixels. NEXT: install the new `.so`, set
+   `CornerSmoothing=0.6` and LOOK, then point `measure-corner.py --image` at an effect-off crop --
+   its screenshot path is validated on synthetic captures and was run on a real one; its own accuracy
+   (0.36 px) is the same size as the Figma-to-arc difference, so a capture proves the corner is a round
+   arc of about the right radius, not which of the two curves it is.
+2. **Audit finding 1 — DONE (2026-10-15), and verified on screen.** The capture is the BAND now: the
    journal reads `capture texture QSize(466, 42)` where it read `QSize(466, 381)` (Konsole `933x762 ->
    933x84`, ~9x; a maximised window ~17x), and `test-glass.sh` still returns GLASS (146.2 against 12).
    The shader needed no change: `uBackgroundOffset + vTexCoord*uBackgroundScale` already maps the frame
    into any sub-rectangle. `CaptureSubRect` is now the EXTENT switch (band / whole window, the escape
    hatch). The hot reload did NOT pick the library up and a relogin did; the tell is the
    `capture texture` size.
-4. **Audit findings 4, 7 and 8 — DONE (2026-10-15).** #7 removed the dead code (`deviation`/
+3. **Audit findings 4, 7 and 8 — DONE (2026-10-15).** #7 removed the dead code (`deviation`/
    `byDeviation`, `kFrostOpacity`, `m_active`, a duplicated `kLuma` and one re-fetch) and the two
    assertions that were keeping the retired expression alive. #8 resolves the uniform locations once
    (`GLShader::uniformLocation` + `setUniform(int, ...)`) instead of 24 name lookups per paint. #4
@@ -68,12 +60,12 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    shrank a slot from up to 8 MiB to ~0.5 MiB -- and drops a window's entries when it closes. The
    build is ahead of the installed `.so`; the changes are behaviour-identical, so only a performance
    gain is waiting on an install + relogin.
-5. **Audit finding 6 — DONE (2026-10-15).** `tests/lib.sh` grew `afirmar_glsl`, which strips comments
+4. **Audit finding 6 — DONE (2026-10-15).** `tests/lib.sh` grew `afirmar_glsl`, which strips comments
    (as `afirmar_codigo` does), removes ALL whitespace from both sides and matches the pattern as a
    CONTIGUOUS literal, so a reformat passes, an operator change fails, reordered tokens fail and a
    pattern that lives only in a comment fails -- all four proven in `test-harness.sh`. 95 shader
    assertions were converted, 19 of them from a NAME to the EXPRESSION that decides.
-6. **Then the shell**: M3 Plasma theme, M4 typography, M5 icons, M6 QStyle. See `ROADMAP.md`.
+5. **Then the shell**: M3 Plasma theme, M4 typography, M5 icons, M6 QStyle. See `ROADMAP.md`.
 
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.
