@@ -620,13 +620,11 @@ fi
 # Its knob defaults must come from the header, or a changed default would be simulated wrongly.
 afirmar_codigo "the simulator reads its defaults from the effect" "$EF/simulate.py" 'defaults_from_source'
 
-echo "  -- M2.5: the G2 corner, and the proof the arc is still an arc --"
+echo "  -- M2: the squircle the kit names, and the proof the arc is still an arc --"
 # THE KNOWN-VALUE CASE, and the numbers are the construction's own. cornerSmoothing 0 must give
-# EXACTLY the circular arc approved on screen; the kit's 0.6 must give the CLOTHOID, whose curvature
-# rises linearly from 0 to 1/R and so cannot spike -- measured with measure-corner.py: +0.0% over the
-# arc and no local maximum, where the Figma G1 construction it replaced read +46.9% (the angle the
-# user saw in the highlight). The clothoid's corner is ~1 px FULLER than the circle and its middle is
-# no longer the arc, which is a measured shape change and NOT hidden: the numbers below say so.
+# EXACTLY the circular arc approved on screen; the kit's 0.6 must give the Figma squircle -- edges
+# reached at p=(1+s)*R=32, and the MIDDLE of the corner still the circle. This replaces a table
+# (a 4.6229 px bulge and a 0.04 deg gradient) that was true about a curve of the wrong FAMILY.
 if timeout 300 python3 "$EF/simulate.py" --corners --CornerRadius 20 --CornerSmoothing 0 \
      >/tmp/sim-corners-0.txt 2>&1; then
   ok "el modo --corners corre (radio 20, smoothing 0 = el arco de siempre)"
@@ -642,62 +640,52 @@ afirmar_igual "y la curva es monotona (la columna de 10c no lo era)" \
 
 if timeout 300 python3 "$EF/simulate.py" --corners --CornerRadius 20 --CornerSmoothing 0.6 \
      >/tmp/sim-corners-kit.txt 2>&1; then
-  # p comes from the clothoid's own symmetry, NOT from (1+s)*R: measured 30.0898 where Figma's
-  # calibration said 32. Pinning the measured value is the point -- a calibration is not a measurement.
-  afirmar_igual "con el smoothing del kit (0.6) las aristas acaban en p=30.0898" \
-    "edge_offset_p=30.0898" "$(grep -oE 'edge_offset_p=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
-  # THE CLOTHOID IS FULLER THAN THE CIRCLE, and that is reported rather than assumed: x at y=1/5/10 is
-  # 17.02/8.39/3.86 against the arc's 13.76/6.77/2.68. The middle is no longer the circle, which the
-  # Figma construction it replaced did preserve; the clothoid trades that for continuous curvature.
-  afirmar_igual "y su frontera en y=1 es la del clotoides (mas llena que el arco)" \
-    "x_at_y_1=17.0154" "$(grep -oE 'x_at_y_1=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
-  afirmar_igual "y en y=5" \
-    "x_at_y_5=8.3881" "$(grep -oE 'x_at_y_5=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+  afirmar_igual "con el smoothing del kit (0.6) las aristas acaban en p=(1+s)*R = 32" \
+    "edge_offset_p=32.0000" "$(grep -oE 'edge_offset_p=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+  # THE MIDDLE OF THE CORNER IS THE CIRCLE: the smoothing changes the transitions, not the arc.
+  afirmar_igual "y el medio del arco SIGUE siendo el circulo en y=5" \
+    "x_at_y_5=6.7712" "$(grep -oE 'x_at_y_5=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
   afirmar_igual "y en y=10" \
-    "x_at_y_10=3.8592" "$(grep -oE 'x_at_y_10=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+    "x_at_y_10=2.6795" "$(grep -oE 'x_at_y_10=[0-9.]+' /tmp/sim-corners-kit.txt | head -1)"
+  # FULLER ONLY AT THE TRANSITION: 14.1 at y=1 against the circle's 13.76. Two assertions, because a
+  # missing field greps empty and awk reads it as 0.
+  fuller=$(grep -oE 'x_at_y_1=[0-9.]+' /tmp/sim-corners-kit.txt | head -1 | sed 's/.*=//')
+  afirmar "la transicion se mide (el campo existe)" grep -qE '^[0-9.]+$' <<< "$fuller"
+  afirmar "y es mas llena que el circulo en y=1: ${fuller:-sin dato} (el arco da 13.76)" \
+    awk -v v="$fuller" 'BEGIN{exit !(v+0 > 13.9 && v+0 < 14.4)}'
   afirmar_igual "y la construccion es monotona" \
     "monotone=yes" "$(grep -oE 'monotone=(yes|no)' /tmp/sim-corners-kit.txt | head -1)"
 else
   fallo "el modo --corners FALLA con el smoothing del kit:"; sed 's/^/      /' /tmp/sim-corners-kit.txt | head -6
 fi
 
-echo "  -- M2.5 in the SHADER: the same geometry, or the two implementations drift --"
+echo "  -- M2 in the SHADER: the same geometry, or the two implementations drift --"
 # The shader and simulate.py are TWO implementations of one formula and this house has seen them
 # drift four times. The cable: the SAME construction in both, the smoothing read from the config,
-# and the default still the approved arc. The clothoid is numeric, so BOTH integrate the heading and
-# BOTH search segments -- the shared constants below are what keeps the two integrals identical.
+# and the default still the approved arc. There is no `n` any more to compare -- 10c's family is gone.
 afirmar_codigo "el header define el knob del squircle" "$HEADER" 'kCornerSmoothing = 0[.]0f'
 afirmar_codigo "y su miembro, con el default puesto" "$HEADER" 'm_cornerSmoothing = kCornerSmoothing'
 afirmar_glsl "el shader declara el uniforme" "$SOURCE" 'uniform float uCornerSmoothing'
-afirmar_glsl "el shader integra la MISMA medida de arco 90*(1-s)" "$SOURCE" \
-  'radians(90.0 * (1.0 - uCornerSmoothing))'
-afirmar_glsl "y la misma longitud de transicion L = 2*R*dtheta" "$SOURCE" '2.0 * R * dtheta'
-afirmar_glsl "y la misma dtheta = (pi/2 - m)/2" "$SOURCE" '(1.5707963268 - m) * 0.5'
-afirmar_glsl "el simulador integra la misma medida de arco" "$EF/simulate.py" \
-  'radians(90.0 * (1.0 - float(smoothing)))'
-afirmar_glsl "y la misma L" "$EF/simulate.py" '2.0 * R * dtheta'
-# A piecewise boundary has no single parametric nearest point: BOTH search segments, and the edge
-# rays begin where the curve leaves them, at q = edgeQ = R - p (negative when p > R), NOT at 0.
+afirmar_glsl "el shader calcula p=(1+s)*R, como el simulador" "$SOURCE" '(1.0 + s) * R'
+afirmar_glsl "y la misma medida de arco 90*(1-s)" "$SOURCE" '90.0 * (1.0 - s)'
+afirmar_codigo "el simulador calcula el mismo p" "$EF/simulate.py" '[(]1[.]0 [+] s[)] [*] R'
+afirmar_codigo "y la misma medida de arco" "$EF/simulate.py" '90[.]0 [*] [(]1[.]0 - s[)]'
+# A piecewise boundary has no single parametric nearest point: BOTH search segments.
 afirmar_glsl "el shader busca el punto mas cercano en SEGMENTOS" "$SOURCE" 'float t = clamp(dot(q - a, seg)'
 afirmar_codigo "y el simulador tambien" "$EF/simulate.py" \
   'np[.]clip[(][(][(]qx - ax[)] [*] ex'
-afirmar_glsl "el shader corta las aristas en edgeQ, que sale de la curva" "$SOURCE" 'float edgeQ = R - p'
-afirmar_codigo "y el simulador tambien" "$EF/simulate.py" 'edge_q'
 afirmar_glsl "la config se lee, como el resto de mandos" "$SOURCE" 'readEntry("CornerSmoothing", double(kCornerSmoothing))'
 afirmar_glsl "y el uniforme se pasa con el mismo gate que el radio" "$SOURCE" 'shouldRound ? m_cornerSmoothing : 0.0f'
 # The control has to stay the arc: the circular branch is the approved one and the squircle is opt-in.
 afirmar_glsl "con smoothing 0 la rama es la del circulo" "$SOURCE" 'uCornerSmoothing <= 0.001'
 afirmar_codigo "y el default del header es 0 (el arco aprobado)" "$HEADER" \
   'static constexpr float kCornerSmoothing = 0[.]0f'
-# AND THE WRONG FAMILIES ARE GONE BY NAME, in both files: the superellipse with the invented
-# calibration (10c) and the Figma G1 construction (+46.9% spike) that replaced it. A rewrite that
-# brought either back would draw the angle the user asked to remove.
+# AND THE OLD SUPER-ELLIPSE IS GONE BY NAME, in both files: a rewrite that brought it back would draw
+# the near-square corner of 10c again. This is the assertion the old section could not make, because
+# it pinned the wrong curve as the right one.
 negar "la superelipse vieja (n = 2+5*s) ya no esta en el shader" \
   grep -qE '2[.]0 [+] 5[.]0 [*] uCornerSmoothing|pow[(]sin[(]phi[)]' "$SOURCE"
 negar "ni en el simulador" grep -qE 'squircle_n|2[.]0 [+] 5[.]0 [*] smoothing' "$EF/simulate.py"
-negar "la construccion de Figma ya no esta en el shader" \
-  grep -qE 'figmaCorner|figmaPoint|FigmaCorner' "$SOURCE"
-negar "ni en el simulador" grep -qE 'figma_params|figma_corner' "$EF/simulate.py"
 
 echo "  -- no Spanish identifiers, checked instead of remembered --"
 # The language pass renamed 133 identifiers and I relapsed four times afterwards (salida, cromo,

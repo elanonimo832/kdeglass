@@ -138,30 +138,77 @@ vec3 chromeWithVibrancy(vec3 chromeColour, vec3 backdrop, float isChrome, float 
 }
 
 // ---------------------------------------------------------------------------
-// A G2 CORNER: THE CLOTHOID (Euler spiral), built inline in main().
+// THE FIGMA SQUIRCLE, as a signed distance.
 //
-// The Figma construction that used to live here was tangent-continuous (G1) but NOT
-// curvature-continuous: its curvature spiked to +46.9% of the arc's 1/R (measured with
-// measure-corner.py), and that spike is what the user saw as an angle in the highlight -- "se pierde
-// el efecto apple". A clothoid has kappa(s) = s/(R*L), a straight line from 0 at the straight edge
-// to 1/R at the arc, so it is continuous, monotone and cannot overshoot: the instrument reads
-// +0.0% and no local maximum above the arc.
+// HANDOFF 10c described this as "an arc shrunk to r*(1-s) plus two tangent Beziers that reach the
+// straight edge at r*s"; measured against the canonical algorithm, none of those three numbers is
+// right. What the kit's cornerSmoothing = 0.6 actually names (Figma's "Desperately seeking
+// squircles", MartinRGB's Figma_Squircles, the figma_squircle crate):
 //
-//     transition   heading theta(s) = pi - s^2/(2*R*L), length L = 2*R*dtheta,
-//                  dtheta = (pi/2 - m)/2; the arc keeps its measure m = 90*(1-s)
-//     edge offset  p, fixed by the corner's symmetry about x = y
+//     p          = (1 + s) * R    the straight edges end p from the vertex
+//     arc        = radius R, its MEASURE shrunk to 90*(1-s) degrees, centred at (R, R)
+//     transition = two cubic Beziers, tangent to the edge at p and to the arc
 //
-// IT IS NUMERIC (a Fresnel integral), so it is SAMPLED: the heading is integrated in a bounded loop
-// and the points are then searched by segments, exactly as the Figma curve was. There are NO uniform
-// arrays -- GLShader has no setUniform for them -- and the local arrays are fixed-size, filled once
-// per fragment of the corner region.
+// At s = 0 it collapses to the circle, which is why the branch in main() keeps the approved shape
+// literal. The boundary is PIECEWISE, so the nearest point is a SEGMENT search and the two edges
+// stay as rays -- the decision 10c said had to be made and measured. Its middle IS the circle:
+// measured x at y=5 and y=10 is 6.77 and 2.68, the same as the arc.
 //
-// q is measured from the arc centre with the axes pointing back toward the vertex. The curve leaves
-// the straight edges at q = edgeQ = R - p, which is NEGATIVE whenever p > R: that is why the
-// circle's "the corner is q.x > 0 and q.y > 0" split cannot be reused, and why the edge rays begin
-// at edgeQ and not at 0. At s = 0 the transition has no length, p = R and edgeQ = 0 -- but that case
-// never reaches here, because the branch below keeps the approved circular arc literal.
-// ---------------------------------------------------------------------------
+// q is measured from the arc centre with the axes pointing back toward the vertex, so the curve
+// runs from (R, -s*R) on the top edge's line to (-s*R, R) on the left edge's line. It extends past
+// q = 0, which is the whole point of the smoothing and the reason the circle's "the corner is
+// q.x>0 and q.y>0" split cannot be reused.
+struct FigmaCorner {
+    vec2 start; vec2 k1; vec2 k2; vec2 e1;
+    vec2 e2; vec2 k3; vec2 k4; vec2 end;
+    float a1; float a2; float sR; float radius;
+};
+
+FigmaCorner figmaCorner(float R, float s) {
+    FigmaCorner f;
+    float p = (1.0 + s) * R;
+    float measure = 90.0 * (1.0 - s);
+    float chord = sin(radians(measure * 0.5)) * R * 1.41421356;
+    float alpha = (90.0 - measure) * 0.5;
+    float p3p4 = R * tan(radians(alpha * 0.5));
+    float beta = 45.0 * s;
+    float c = p3p4 * cos(radians(beta));
+    float d = c * tan(radians(beta));
+    float b = (p - chord - c - d) / 3.0;
+    float a = 2.0 * b;
+    f.sR = s * R;
+    f.radius = R;
+    f.start = vec2(R, -f.sR);
+    f.k1 = vec2(R, a - f.sR);
+    f.k2 = vec2(R, a + b - f.sR);
+    f.e1 = vec2(R - d, a + b + c - f.sR);
+    f.e2 = f.e1 + vec2(-chord, chord);
+    f.k3 = f.e2 + vec2(-c, d);
+    f.k4 = f.e2 + vec2(-(b + c), d);
+    f.end = vec2(-f.sR, R);
+    f.a1 = atan(f.e1.y, f.e1.x);
+    f.a2 = atan(f.e2.y, f.e2.x);
+    if (f.a2 - f.a1 > 3.14159265) f.a2 -= 6.28318531;
+    if (f.a1 - f.a2 > 3.14159265) f.a2 += 6.28318531;
+    return f;
+}
+
+vec2 figmaBezier(vec2 p0, vec2 c1, vec2 c2, vec2 p3, float t) {
+    float u = 1.0 - t;
+    return u * u * u * p0 + 3.0 * u * u * t * c1 + 3.0 * u * t * t * c2 + t * t * t * p3;
+}
+
+vec2 figmaPoint(FigmaCorner f, float t) {
+    if (t < 0.3333333) {
+        return figmaBezier(f.start, f.k1, f.k2, f.e1, t * 3.0);
+    } else if (t < 0.6666667) {
+        float ang = f.a1 + (f.a2 - f.a1) * ((t - 0.3333333) * 3.0);
+        // THE ARC KEEPS RADIUS R; only its measure shrank. Reading it off `end` gave s*R and a
+        // 12 px arc for a 20 px corner -- caught by grepping the file, not by the patch's "ok".
+        return f.radius * vec2(cos(ang), sin(ang));
+    }
+    return figmaBezier(f.e2, f.k3, f.k4, f.end, (t - 0.6666667) * 3.0);
+}
 
 void main()
 {
@@ -209,11 +256,11 @@ void main()
     // same family, which is the whole lesson of HANDOFF 10c:
     //   * `uCornerSmoothing` 0 -- the circular arc, `length(max(q, 0))`, the shape approved on
     //     screen. This branch is unchanged and is the default.
-    //   * `uCornerSmoothing` > 0 -- the CLOTHOID G2 corner built below. Its boundary is piecewise,
-    //     so its nearest point is a segment search and its edges are rays. Two wrong families are
-    //     gone: the superellipse with the invented calibration `n = 2 + 5*smoothing` (a nearly square
-    //     corner: at y=5 the circle's boundary is at x=6.8 and that curve's was at 20.0, HANDOFF 10c)
-    //     and the Figma G1 construction that replaced it, whose curvature spiked +46.9% over the arc.
+    //   * `uCornerSmoothing` > 0 -- the Figma squircle the kit's `cornerSmoothing = 0.6` names,
+    //     built in `figmaCorner()` above. The boundary is piecewise, so its nearest point is a
+    //     segment search and its edges are rays; the old superellipse with the invented calibration
+    //     `n = 2 + 5*smoothing` is gone, because it made a nearly square corner (at y=5 the circle's
+    //     boundary is at x=6.8 and that curve's was at 20.0).
     // THE SIGNED DISTANCE TO THE ROUNDED BOUNDARY. POSITIVE INSIDE, NEGATIVE OUTSIDE, which is the
     // convention `discard` and the antialiased ramp below use: the old expression was the same sign
     // as `-(distance)`. `qNormal` carries the OUTWARD direction for the refraction's gradient.
@@ -226,63 +273,18 @@ void main()
         edgeDistance = -(cornerDistance + min(max(q.x, q.y), 0.0) - uCornerRadius);
         qNormal = max(q, vec2(0.0));
     } else {
-        // THE CLOTHOID CORNER. It depends only on the uniforms, but a fragment shader has nowhere
-        // to keep it between fragments, so it is built here -- in the corner region, where the
-        // search that follows needs it.
-        const int kClothoidSteps = 16;      // the transition, integrated
-        const int kArcSteps = 8;            // the arc, sampled
-        const int kCornerPoints = 2 * kClothoidSteps + kArcSteps + 1;
-        float R = uCornerRadius;
-        float m = radians(90.0 * (1.0 - uCornerSmoothing));
-        float dtheta = (1.5707963268 - m) * 0.5;
-        float L = 2.0 * R * dtheta;
-        float ds = L / float(kClothoidSteps);
-        float xs[kClothoidSteps + 1];
-        float ys[kClothoidSteps + 1];
-        xs[0] = 0.0;
-        ys[0] = 0.0;
-        for (int i = 1; i <= kClothoidSteps; ++i) {
-            float s0 = float(i - 1) * ds;
-            float s1 = float(i) * ds;
-            float h0 = 3.1415926536 - (s0 * s0) / (2.0 * R * L);
-            float h1 = 3.1415926536 - (s1 * s1) / (2.0 * R * L);
-            xs[i] = xs[i - 1] + ds * 0.5 * (cos(h0) + cos(h1));
-            ys[i] = ys[i - 1] + ds * 0.5 * (sin(h0) + sin(h1));
-        }
-        float hEnd = 3.1415926536 - (L * L) / (2.0 * R * L);
-        vec2 inwardNormal = vec2(cos(hEnd + 1.5707963268), sin(hEnd + 1.5707963268));
-        if (inwardNormal.x + inwardNormal.y < 0.0) inwardNormal = -inwardNormal;
-        float p = ys[kClothoidSteps] - xs[kClothoidSteps] + R * (inwardNormal.y - inwardNormal.x);
-        float edgeQ = R - p;
-        vec2 arcStart = vec2(p + xs[kClothoidSteps], ys[kClothoidSteps]);
-        vec2 arcCentre = arcStart + R * inwardNormal;
-        float a0 = atan(arcStart.y - arcCentre.y, arcStart.x - arcCentre.x);
-        vec2 heading = vec2(cos(hEnd), sin(hEnd));
-        vec2 increasing = vec2(-sin(a0), cos(a0));
-        // TRAVERSE THE ARC THE WAY THE TRANSITION ARRIVES: `a0 +/- m` with the wrong sign picks the
-        // MAJOR arc (324 degrees instead of 36) and leaves a cusp worth thousands of percent.
-        float arcStep = (dot(increasing, heading) > 0.0) ? m : -m;
-        // THE POINTS IN q-SPACE, in the order the python builds them: the top transition, the arc
-        // (without its duplicated first point), then the mirrored transition (without its first).
-        vec2 pts[kCornerPoints];
-        int k = 0;
-        for (int i = 0; i <= kClothoidSteps; ++i) {
-            pts[k++] = vec2(R - (p + xs[i]), R - ys[i]);
-        }
-        for (int i = 1; i <= kArcSteps; ++i) {
-            float ang = a0 + arcStep * (float(i) / float(kArcSteps));
-            pts[k++] = vec2(R - (arcCentre.x + R * cos(ang)), R - (arcCentre.y + R * sin(ang)));
-        }
-        for (int i = kClothoidSteps - 1; i >= 0; --i) {
-            pts[k++] = vec2(R - ys[i], R - (p + xs[i]));
-        }
-        // A SEGMENT SEARCH, because a piecewise boundary is not one parametric curve.
+        FigmaCorner f = figmaCorner(uCornerRadius, uCornerSmoothing);
+        // A SEGMENT SEARCH, because a piecewise boundary is not one parametric curve. 24 segments
+        // put the polyline within ~0.02 px of the true curve on a 20 px radius, which is finer than
+        // the antialiased ramp can see; the search is paid only in the corner region, ~2.5x the
+        // circle's box, and only when the smoothing is on.
+        const int kSegments = 24;
         float best = 1e9;
         int ib = 0;
         vec2 cp = vec2(0.0);
-        for (int i = 0; i < kCornerPoints - 1; ++i) {
-            vec2 a = pts[i];
-            vec2 b = pts[i + 1];
+        for (int i = 0; i < kSegments; ++i) {
+            vec2 a = figmaPoint(f, float(i) / float(kSegments));
+            vec2 b = figmaPoint(f, float(i + 1) / float(kSegments));
             vec2 seg = b - a;
             float t = clamp(dot(q - a, seg) / max(dot(seg, seg), 1e-9), 0.0, 1.0);
             vec2 pnt = a + t * seg;
@@ -290,21 +292,23 @@ void main()
             if (d2 < best) { best = d2; ib = i; cp = pnt; }
         }
         float du = sqrt(best);
-        // THE TWO EDGE RAYS begin where the curve leaves them, at q = edgeQ, NOT at 0.
-        if (q.x <= edgeQ) du = min(du, abs(uCornerRadius - q.y));
-        if (q.y <= edgeQ) du = min(du, abs(uCornerRadius - q.x));
+        // THE TWO EDGE RAYS: q.y = R for q.x <= -sR and q.x = R for q.y <= -sR. They start where the
+        // curve ends, which is why the test is -sR and NOT 0.
+        if (q.x <= -f.sR) du = min(du, abs(uCornerRadius - q.y));
+        if (q.y <= -f.sR) du = min(du, abs(uCornerRadius - q.x));
         // The outward normal of the winning segment, oriented away from the arc centre. The curve is
         // convex and contains the origin, so this orientation is well defined.
-        vec2 tang = pts[ib + 1] - pts[ib];
+        vec2 tang = figmaPoint(f, float(ib + 1) / float(kSegments))
+                  - figmaPoint(f, float(ib) / float(kSegments));
         vec2 nrm = normalize(vec2(tang.y, -tang.x) + vec2(1e-9));
         if (dot(nrm, cp) < 0.0) nrm = -nrm;
         bool inside;
-        if (q.x <= edgeQ) {
+        if (q.x <= -f.sR) {
             inside = (q.y <= uCornerRadius);
-            qNormal = max(q - vec2(edgeQ), vec2(0.0));
-        } else if (q.y <= edgeQ) {
+            qNormal = max(q + vec2(f.sR), vec2(0.0));
+        } else if (q.y <= -f.sR) {
             inside = (q.x <= uCornerRadius);
-            qNormal = max(q - vec2(edgeQ), vec2(0.0));
+            qNormal = max(q + vec2(f.sR), vec2(0.0));
         } else {
             inside = dot(q - cp, nrm) <= 0.0;
             qNormal = nrm;

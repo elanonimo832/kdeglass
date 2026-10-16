@@ -26,7 +26,6 @@ The two inputs must be the SAME crop of the SAME region, one with the window and
 GlassAlpha 0 the band is the frosted backdrop, and with GlassAlpha 1 it is the bar's own tone.
 """
 import argparse
-import math
 import pathlib
 import sys
 
@@ -158,83 +157,85 @@ def smoothstep(edge0, edge1, x):
     return t * t * (3 - 2 * t)
 
 
-def clothoid_corner_cf(radius, smoothing, samples=96):
-    """The G2 corner as a polyline in the corner's own frame, from (p, 0) on the TOP edge to
-    (0, p) on the LEFT one, plus the edge offset `p`.
+def figma_params(radius, smoothing):
+    """The Figma squircle, which is what the kit's cornerSmoothing = 0.6 actually names.
 
-    A CLOTHOID (Euler spiral): the curvature rises LINEARLY from 0 at the straight edge to 1/R at
-    the arc -- kappa(s) = s/(R*L) -- and the arc keeps its measure `m = 90*(1-s)`. It is therefore
-    curvature-continuous BY CONSTRUCTION, which is what the user asked for after seeing the shade
-    break at an angle: measured with measure-corner.py the clothoid overshoots the arc by +0.0% and
-    has no local maximum above it, where the Figma construction it replaces overshot by +46.9%.
-    The transition's turn is fixed by the arc (dtheta = (pi/2 - m)/2), which fixes its length
-    L = 2*R*dtheta, and the corner's symmetry about x = y fixes where it meets the straight edge.
+    HANDOFF 10c described this as "an arc shrunk to r*(1-s) plus two tangent Beziers that reach
+    the straight edge at r*s"; measured against the canonical algorithm, none of those three
+    numbers is right. The real construction (Figma's "Desperately seeking squircles", as in
+    MartinRGB's Figma_Squircles and the figma_squircle crate):
+
+        p          = (1 + s) * R    the straight edges end p from the vertex
+        arc        = radius R, its MEASURE shrunk to 90*(1-s) degrees, centred at (R, R)
+        transition = two cubic Beziers, tangent to the edge at p and to the arc
+
+    At s = 0 it collapses exactly to the circular corner, which is what keeps the shape already
+    approved on screen from moving.
     """
-    R = float(radius)
-    # THE ARC MEASURE STAYS FIGMA'S `90*(1-s)`: with s = 0.6 that is 36 degrees, the value the
-    # current screen was tuned against. Choosing m is taste and comparison with the sample, not
-    # curvature, so it is held fixed here to change ONE thing at a time.
-    m = math.radians(90.0 * (1.0 - float(smoothing)))
-    dtheta = (math.pi / 2.0 - m) / 2.0
-    L = 2.0 * R * dtheta
-    n = max(8, int(samples) // 2)
-    if L <= 1e-12:
-        # s = 0: the transition has NO length and the corner IS the circular arc. Return it directly
-        # instead of dividing by zero in the heading below.
-        alphas = np.linspace(-math.pi / 2.0, -math.pi, max(4, int(samples)) + 1)
-        arc = np.stack([R + R * np.cos(alphas), R + R * np.sin(alphas)], axis=1)
-        return arc, R
-    s = np.linspace(0.0, L, n + 1)
-    theta = math.pi - (s * s) / (2.0 * R * L)   # heading: from 180 deg (-x), turning toward +y
-    ds = L / n
-    xs = np.zeros(n + 1)
-    ys = np.zeros(n + 1)
-    for i in range(1, n + 1):
-        xs[i] = xs[i - 1] + ds * 0.5 * (math.cos(theta[i - 1]) + math.cos(theta[i]))
-        ys[i] = ys[i - 1] + ds * 0.5 * (math.sin(theta[i - 1]) + math.sin(theta[i]))
-    # The arc's centre must sit on the diagonal for the corner to be symmetric, and that fixes the
-    # edge offset p. The normal toward the centre is perpendicular to the end heading.
-    nx, ny = math.cos(theta[-1] + math.pi / 2.0), math.sin(theta[-1] + math.pi / 2.0)
-    if nx + ny < 0.0:
-        nx, ny = -nx, -ny
-    p = float(ys[-1] - xs[-1] + R * (ny - nx))
-    top = np.stack([p + xs, ys], axis=1)
-    A = top[-1]
-    cc = A + R * np.array([nx, ny])
-    a0 = math.atan2(A[1] - cc[1], A[0] - cc[0])
-    heading = np.array([math.cos(theta[-1]), math.sin(theta[-1])])
-    increasing = np.array([-math.sin(a0), math.cos(a0)])
-    # TRAVERSE THE ARC THE WAY THE TRANSITION ARRIVES. atan2 returns an angle in (-pi, pi], so
-    # `a0 +/- m` picks the MAJOR arc (324 degrees instead of 36) and leaves a cusp worth thousands of
-    # percent of curvature. The direction is chosen by matching the tangent, not by a subtraction.
-    step = m if float(np.dot(increasing, heading)) > 0.0 else -m
-    alphas = a0 + np.linspace(0.0, step, max(4, n // 2) + 1)
-    arc = cc + R * np.stack([np.cos(alphas), np.sin(alphas)], axis=1)
-    left = top[::-1][:, ::-1]
-    return np.vstack([top, arc[1:], left[1:]]), p
+    R, s = float(radius), float(smoothing)
+    p = (1.0 + s) * R
+    arc_measure = 90.0 * (1.0 - s)
+    chord = np.sin(np.radians(arc_measure / 2.0)) * R * np.sqrt(2.0)
+    alpha = (90.0 - arc_measure) / 2.0
+    p3p4 = R * np.tan(np.radians(alpha / 2.0))
+    beta = 45.0 * s
+    c = p3p4 * np.cos(np.radians(beta))
+    d = c * np.tan(np.radians(beta))
+    b = (p - chord - c - d) / 3.0
+    return dict(p=p, chord=chord, a=2.0 * b, b=b, c=c, d=d)
 
 
-def clothoid_corner_q(radius, smoothing, samples=96):
-    """The same polyline in q-space, plus the q where it leaves the straight edges.
+def _bezier(p0, c1, c2, p3, t):
+    u = 1.0 - t
+    return u ** 3 * p0 + 3 * u * u * t * c1 + 3 * u * t * t * c2 + t ** 3 * p3
 
-    q is measured from the arc centre (R, R) with the axes pointing back toward the vertex, so
-    q = (R - x, R - y). The curve runs from (R - p, R) on the top edge's line to (R, R - p) on the
-    left one. `edge_q = R - p` is where it leaves the straight edges and is NEGATIVE whenever
-    p > R, which is why the circle's "the corner is q > 0" split cannot be reused: the flat rays
-    begin at edge_q, not at 0. For the plain circular arc edge_q = 0.
+
+def figma_corner_q(radius, smoothing, samples=96):
+    """The corner boundary as a polyline in q-space, ending on the two straight edges.
+
+    q is measured from the arc centre (R, R) with the axes pointing back toward the vertex -- the
+    same q the circle's `length(max(q, 0))` uses -- so the curve runs from (R, -s*R), on the top
+    edge's line, to (-s*R, R) on the left edge's line. It has to extend past q = 0: that is the
+    whole point of the smoothing, and it is why the circle's "corner is q.x>0 and q.y>0" split is
+    wrong here.
     """
-    points, p = clothoid_corner_cf(radius, smoothing, samples)
-    q = np.stack([float(radius) - points[:, 0], float(radius) - points[:, 1]], axis=1)
-    return q, float(radius) - p
+    R, s = float(radius), float(smoothing)
+    pr = figma_params(R, s)
+    p, chord, a, b, c, d = pr["p"], pr["chord"], pr["a"], pr["b"], pr["c"], pr["d"]
+    sR = s * R
+    start = np.array([R, -sR])
+    k1, k2 = np.array([R, a - sR]), np.array([R, a + b - sR])
+    e1 = np.array([R - d, a + b + c - sR])
+    e2 = e1 + np.array([-chord, chord])
+    k3, k4 = e2 + np.array([-c, d]), e2 + np.array([-(b + c), d])
+    end = np.array([-sR, R])
+    a1, a2 = np.arctan2(e1[1], e1[0]), np.arctan2(e2[1], e2[0])
+    while a2 - a1 > np.pi:
+        a2 -= 2.0 * np.pi
+    while a1 - a2 > np.pi:
+        a2 += 2.0 * np.pi
+    pts = []
+    for i in range(samples + 1):
+        t = i / samples
+        if t < 1.0 / 3.0:
+            pts.append(_bezier(start, k1, k2, e1, t * 3.0))
+        elif t < 2.0 / 3.0:
+            ang = a1 + (a2 - a1) * ((t - 1.0 / 3.0) * 3.0)
+            pts.append(np.array([R * np.cos(ang), R * np.sin(ang)]))
+        else:
+            pts.append(_bezier(e2, k3, k4, end, (t - 2.0 / 3.0) * 3.0))
+    return np.array(pts)
 
 
-def corner_sdf(qx, qy, radius, curve, edge_q):
-    """Signed distance to a corner boundary given as a polyline in q-space, POSITIVE OUTSIDE.
+def figma_corner_sdf(qx, qy, radius, smoothing, curve):
+    """Signed distance to the Figma corner, POSITIVE OUTSIDE, like `length(max(q,0)) + min - R`.
 
-    A piecewise boundary has no single parametric nearest point, so the nearest point is a SEGMENT
-    search and the two straight edges stay as rays, beginning where the curve leaves them. The sign
-    follows the curve's own inside test, which is monotone in q.y, so the reader cannot get it wrong.
+    THE DECISION 10c SAID HAD TO BE MADE. A piecewise boundary is not one parametric curve, so the
+    nearest point is a SEGMENT search, and the two straight edges stay as rays: `q.y = R` for
+    `q.x <= -s*R` and `q.x = R` for `q.y <= -s*R`. The sign follows the curve's own inside test,
+    which is monotone in q.y, so the reader does not need a normal and cannot get its sign wrong.
     """
+    sR = smoothing * radius
     best = np.full(qx.shape, np.inf)
     for i in range(len(curve) - 1):
         ax, ay = curve[i]
@@ -244,30 +245,32 @@ def corner_sdf(qx, qy, radius, curve, edge_q):
         t = np.clip(((qx - ax) * ex + (qy - ay) * ey) / length2, 0.0, 1.0)
         px, py = ax + t * ex, ay + t * ey
         best = np.minimum(best, np.hypot(qx - px, qy - py))
-    top = np.where(qx <= edge_q, np.abs(radius - qy), np.hypot(qx - edge_q, qy - radius))
-    left = np.where(qy <= edge_q, np.abs(radius - qx), np.hypot(qx - radius, qy - edge_q))
+    top = np.where(qx <= -sR, np.abs(radius - qy), np.hypot(qx + sR, qy - radius))
+    left = np.where(qy <= -sR, np.abs(radius - qx), np.hypot(qx - radius, qy + sR))
     distance = np.minimum(np.minimum(best, top), left)
     order = np.argsort(curve[:, 1])
     curve_x = np.interp(qy, curve[order, 1], curve[order, 0])
-    inside = np.where(qx <= edge_q, qy <= radius,
-                      np.where(qy <= edge_q, qx <= radius, qx <= curve_x))
+    inside = np.where(qx <= -sR, qy <= radius,
+                      np.where(qy <= -sR, qx <= radius, qx <= curve_x))
     return np.where(inside, -distance, distance)
 
 
 def corners_report(radius, smoothing):
     """Measures the corner and prints key=value, so the suite can pin the numbers."""
     r = float(radius)
-    curve_q, edge_q = clothoid_corner_q(r, smoothing, samples=4000)
+    pr = figma_params(r, smoothing)
+    curve_q = figma_corner_q(r, smoothing, samples=4000)
     # back to the corner's own frame: x = R - qx, y = R - qy
     cf_x, cf_y = r - curve_q[:, 0], r - curve_q[:, 1]
     order = np.argsort(cf_y)
     ys, xs = cf_y[order], cf_x[order]
     print(f"corner_radius={r:g}")
     print(f"corner_smoothing={smoothing:g}")
-    print(f"edge_offset_p={r - edge_q:.4f}")
+    print(f"edge_offset_p={pr['p']:.4f}")
     for y in (1.0, 5.0, 10.0):
         print(f"x_at_y_{int(y)}={float(np.interp(y, ys, xs)):.4f}")
-    # x DECREASES as y grows: it starts at p on the top edge and ends at 0 on the left one.
+    # x DECREASES as y grows: it starts at p on the top edge and ends at 0 on the left one. The
+    # first version of this check asked for the opposite and called both curves non-monotone.
     print(f"monotone={'yes' if np.all(np.diff(xs) <= 1e-9) else 'no'}")
     return 0
 
@@ -289,12 +292,13 @@ def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS
     ppos = np.stack([xx0, yy0], axis=2)
     q = np.abs(ppos - co) - (co - corner_radius)
     if corner_smoothing > 0.001:
-        # THE G2 CORNER, as a signed distance and not as a re-used circle trick. The old branch
-        # reused `largo = R - distance`, which only works when the boundary is a circle centred
-        # where the clamp lands; for a clothoid it does not, so this computes the distance directly.
-        # `smoothing = 0` does NOT come through here, which keeps the approved screen literal.
-        curve, edge_q = clothoid_corner_q(corner_radius, corner_smoothing)
-        sdf = corner_sdf(q[..., 0], q[..., 1], corner_radius, curve, edge_q)
+        # THE FIGMA SQUIRCLE, as a signed distance and not as a superellipse. The old branch reused
+        # the old `largo = R - distance` trick, which only works when the boundary is a circle
+        # centred where the clamp lands; for a curve that reaches the edges at p = (1+s)*R it does
+        # not, so this computes the distance directly. `smoothing = 0` does NOT come through here,
+        # which keeps the approved screen's arithmetic literal.
+        curve = figma_corner_q(corner_radius, corner_smoothing)
+        sdf = figma_corner_sdf(q[..., 0], q[..., 1], corner_radius, corner_smoothing, curve)
         # The OUTWARD normal is the gradient of the inside distance: `to_edge` grows inward, so its
         # gradient points inward and the outward direction is its negative. That avoids needing the
         # curve's own tangent, and it cannot disagree with the distance the way a second formula can.
