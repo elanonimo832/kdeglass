@@ -2153,6 +2153,66 @@ reported nothing usable -- and was not: with no HOME the probe cannot do its boo
 suite run outside a normal environment reports the environment, which is why the incident is written
 here instead of being debugged into the plugin.
 
+## 10i. M6, slice 1: the primitive instrument, and the four times it measured the wrong thing
+
+The plan's rule is that a primitive is only changed with its measurement in front, and this slice IS
+that measurement, built so the NEXT slice moves a number instead of a taste. It renders nineteen
+controls under the base style and under ours, reports the pixel difference **per widget**, and prints
+what Qt answers for each control (`sizeHint`, `pixelMetric`, `sizeFromContents`, `subControlRect`,
+`subElementRect`) together with whether OUR answers differ from the base's.
+[`primitive-gallery.cpp`](../style-kde-macos/tests/primitive-gallery.cpp) draws it and
+[`test-style-gallery.sh`](../tests/test-style-gallery.sh) runs it under the offscreen platform; the
+evidence is `evidence/2026-10-15-m6-gallery.png` (OUR drawing: the base panel beside ours) and the
+baseline table is `evidence/2026-10-15-m6-baseline-metrics.txt`. Today: **19 primitives, 0 pixel
+differences, 0 metric differences** -- a starting line, not an achievement.
+
+**FOUR TIMES THE INSTRUMENT MEASURED THE WRONG THING. Every one was caught by looking at the OUTPUT
+and not at the code**, which is the method this repository wants to keep:
+
+1. **`PAINTED base=6216 of 6216`.** It counted pixels that were not the canvas colour, and the
+   WINDOW'S OWN BACKGROUND covers the canvas -- so the number was the canvas area, and it would have
+   been green for a style that painted no control at all. The same trap the slice-0 probe recorded,
+   repeated by the file that quotes it. What is counted now is what the CONTROL contributes beyond an
+   EMPTY widget of its own size: the same window is rendered twice, once with the control and once
+   with a blank child.
+2. **`menu PAINTED base=0`, and `show()` did not help.** A real `QMenu` does not paint under the
+   offscreen platform: its painting depends on the platform's popup handling. The row now draws the
+   menu's OWN primitives (`PE_PanelMenu` plus `CE_MenuItem` per row) through the style -- the code
+   path a slice would change -- rather than a row named "menu" that measured nothing while looking
+   like a measurement.
+3. **`METRIC menu sizeHint=-1x-1` and `sizeFromContents(CT_MenuItem)=109x129`.** A plain `QWidget`
+   answers -1x-1, and the call was handed the WIDGET's size hint: "how big is an item" asked with the
+   whole menu. The row has a size hint now, and each content type is given a text-sized box.
+4. **`subElementRect(SE_TabBarTabText)=0,0,0,0`** for the tab, the list item and the header: a
+   sub-element rect is computed FROM the option's rectangle, so an option without one reports a zero
+   rectangle -- a number that reads as "the style has nothing to say" when it means "nobody asked".
+
+**TWO FACTS ABOUT Qt 6 THAT CHANGED THE DESIGN**, both read out of `<QtWidgets/qstyle.h>` after the
+compiler refused the guesses:
+
+* **A button, a checkbox and a radio button are NOT complex controls.** There is no `CC_PushButton`,
+  `CC_CheckBox` or `CC_RadioButton`, so `subControlRect` has nothing to answer for the most visible
+  control on the desktop; their geometry is `subElementRect(SE_PushButtonBevel|SE_CheckBoxIndicator|
+  SE_RadioButtonIndicator|...)`. The gallery reports BOTH families for that reason -- a table with
+  only one of them would have left the button with no rectangle at all.
+* **A sub-control only means something with its complex control.** Qt REUSES the values
+  0x1/0x2/0x4/0x8 in every group, so `SC_SliderGroove`, `SC_ScrollBarAddLine` and `SC_ComboBoxFrame`
+  are all `0x1`. A table keyed on the sub-control alone would print the WRONG NAME for two of the
+  three, and the cases do not even compile as a plain `switch`.
+
+**THE TABLE'S FIRST USE: nine controls have NO macOS reference.** `scrollbar`, `tabbar`, `menubar`,
+`progressbar`, `listview-selected`, `tableheader` and the focus ring are not defined in the kit's
+Sizes collection at all. They are DECLARED in the test (not only in this section), so the list cannot
+grow silently and a slice cannot redraw one of them from taste. The first control to redraw is the
+**push button**: the largest measured gap against a reference that EXISTS -- its height is 34 px
+where the kit's `global` height is 24, **42% too tall** -- the most visible control on the desktop,
+with its radius (6) and its padding (16) already in `tokens/tokens-sizes.toml`. Its risk is stated
+with it: a button's size hint is every dialog's layout.
+
+**A TRAP IN THE TEST ITSELF.** The per-widget assertion asked for a function called `renderUnder`,
+which does not exist -- the gallery's is `renderOne`. The test was right to fail, because the contract
+is the name; the fix was to correct the expectation, not to rename working code to satisfy a test.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).

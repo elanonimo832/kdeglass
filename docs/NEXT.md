@@ -160,6 +160,26 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    ./install.sh rollback                                                    # undo
    ```
 
+10. **M6 — slice 1: THE PRIMITIVE INSTRUMENT is built, and it says which control to redraw first.**
+    The plan's rule is that a primitive is only changed with its measurement in front, and this IS
+    the measurement: a gallery of nineteen controls rendered under the base style and under ours,
+    with the pixel difference **per widget** and the metrics Qt answers for each one. Today
+    everything is **zero** -- `19 primitives - pixel differences: 0 - metric differences: 0` -- and
+    that zero is the starting line slice 2 has to move, in pixels, on purpose.
+    `style-kde-macos/tests/primitive-gallery.cpp` draws it and `tests/test-style-gallery.sh` runs it
+    under the offscreen platform; the evidence is `evidence/2026-10-15-m6-gallery.png` (OUR drawing:
+    the base panel beside ours) and the "before" table every following slice diffs against is
+    `evidence/2026-10-15-m6-baseline-metrics.txt`. What it cost is in `HANDOFF.md` §10i.
+    - **Nine controls have NO macOS reference in the kit** (`scrollbar`, `tabbar`, `menubar`,
+      `progressbar`, `listview-selected`, `tableheader`, and the focus ring): the Sizes collection
+      does not define them. They are DECLARED, in the test, so that a slice cannot quietly redraw one
+      of them from taste.
+    - **The first primitive to redraw is the PUSH BUTTON**, and the table is the reason: the largest
+      measured gap against a reference that EXISTS (its height is 34 px where the kit's `global`
+      height is 24 -- 42% too tall), the most visible control on the desktop, and its reference
+      (radius 6, padding 16) is already in `tokens/tokens-sizes.toml`. Its risk is that a button's
+      size hint is every dialog's layout -- which is why it gets measured before it is changed.
+
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.
 

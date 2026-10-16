@@ -113,6 +113,16 @@ primitive changes, and the change is a number.
 | 6 | **Focus rings, selection and disabled states.** The states, not the shapes: these are what make a style look unfinished when they are missing. | the focus ring's width and colour, the selection and disabled palettes |
 | 7 | **The type tracking, as QSS or per-widget font work.** `docs/NEXT.md` point 7 records that **64 of the 80 typography tokens are tracking** (letter-spacing), and that `kdeglobals` has no destination for them — applying them belongs to the style layer. | the tracking per text style, against the tokens |
 
+**Slice 1 is DONE.** `tests/test-style-gallery.sh` and
+[`../style-kde-macos/tests/primitive-gallery.cpp`](../style-kde-macos/tests/primitive-gallery.cpp)
+render nineteen controls, report the pixel difference per widget and print the metrics table, which
+is kept as `evidence/2026-10-15-m6-baseline-metrics.txt` with the gallery drawn into
+`evidence/2026-10-15-m6-gallery.png`. Today the difference is zero in every primitive and every
+metric, which is the line slice 2 has to move. It also settled as much of the first OPEN question as
+can be settled without redrawing anything: `HANDOFF.md` §10i lists the **nine controls with no
+reference in the kit** and the **first one to redraw** (the push button, 42% too tall against the
+kit's `global` height), with the measurements behind both.
+
 The dark scheme (`KdeMacosDark`, already generated) has to be honoured by every slice above, and
 the style must read its colours from the active palette rather than hard-coding the light ones.
 

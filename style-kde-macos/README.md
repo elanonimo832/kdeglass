@@ -15,6 +15,28 @@ to be sure of that before the primitives exist is for selecting it to change not
 same widget twice — once under the base style, once under ours — and comparing the images pixel by
 pixel. Measured here: **`DIFF: 0`**.
 
+## The primitive instrument (slice 1)
+
+Slice 1 of the plan is what measures **before** anything is redrawn, and it lives in
+`tests/primitive-gallery.cpp`:
+
+```bash
+./build.sh
+QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$PWD/build" ./build/bin/primitive-gallery
+QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$PWD/build" ./build/bin/primitive-gallery \
+    --render /tmp/gallery.png --baseline /tmp/baseline.txt
+```
+
+It renders nineteen controls under the base style and under ours and reports, **per widget**, the
+pixel difference between the two, what Qt answers for that control (`sizeHint`, `pixelMetric`,
+`sizeFromContents`, `subControlRect`, `subElementRect`) and whether our answers differ from the
+base's. Today every number is zero, because this style still delegates every primitive: that zero is
+the line the next slice has to move. `--render` draws the two panels side by side (our own drawing,
+never a screenshot) and `--baseline` writes the "before" table.
+
+A difference that is not zero makes the tool **exit non-zero on purpose**: it means a primitive
+changed, and a primitive changes only with its measurement in the test that goes with it.
+
 ## Build
 
 ```bash

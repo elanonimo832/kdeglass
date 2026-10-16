@@ -46,6 +46,14 @@ set_target_properties(kdemacosstyle PROPERTIES PREFIX "" OUTPUT_NAME "kdemacosst
 add_executable(style-probe tests/style-probe.cpp)
 target_link_libraries(style-probe PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
 
+# Slice 1: the PRIMITIVE INSTRUMENT. The probe above answers "does it change anything" for ONE
+# widget; this renders a gallery and reports, per primitive, the pixel difference against the base
+# style, what Qt asks that control for (pixelMetric, sizeFromContents, subControlRect, sizeHint),
+# and whether OUR metrics differ from the base's. It is what the following slices diff against, and
+# it is built here so `tests/test-style-gallery.sh` has something to run.
+add_executable(primitive-gallery tests/primitive-gallery.cpp)
+target_link_libraries(primitive-gallery PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+
 # The user-level path, which is the one the repository's installer uses: it never escalates and
 # never writes outside $HOME. Qt does NOT search it by itself (MEASURED: the library paths are
 # QT_PLUGIN_PATH, then /usr/lib/qt6/plugins, then the application's directory), so the installer
