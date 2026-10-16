@@ -1377,9 +1377,9 @@ QUEUED, with the audit's pointers, in its own order of impact x effort:
 AN UPDATE (2026-10-15): **#1 is DONE and VERIFIED ON SCREEN.** `CaptureSubRect` now selects
 the capture's EXTENT -- the band by default -- and the frame-to-capture mapping became mandatory in
 BOTH modes, because its OFF was the known 14 px offset and could never be the identity again. The
-FIRST cut of the band was `expanded width, from expanded.top to frame.top + barHeight + reach`, and
-its top was therefore capped by the window's own 2 px shadow margin. Measured BEFORE the change:
-Konsole `933x762 -> 933x84` (~9x), a maximised window `3840x2160 -> 3840x~126`.
+reach is `BackgroundRadius + ceil(Refraction) + 8`; this theme's 2 px top shadow margin caps it at the
+texture's own edge, exactly as the full capture already did, so the band is not a new clamp. Measured
+BEFORE the change: Konsole `933x762 -> 933x84` (~9x), a maximised window `3840x2160 -> 3840x~126`.
 Measured AFTER it, on screen: the journal reads
 `capture texture QSize(466, 42) (1/2 de QSize(933, 84))` where it read `QSize(466, 381)`, and
 `test-glass.sh` still returns **GLASS** -- the band moves 146.2 with the background, against a
@@ -1387,18 +1387,6 @@ threshold of 12, with `capture: ok=3000 refused=0`. The hot path did NOT pick th
 relogin did (see the runbook above: the `capture texture` size is the tell now).
 **#2 was already done** in an earlier pass (the `glClear` is gated on
 `destination.size() != reducedSize`).
-
-**AND THE BAND'S TOP EDGE WAS STILL STARVED, which the user saw before the numbers (2026-10-15).**
-Their report: the backdrop bends along the bar's BOTTOM and not along its TOP, "curves very straight
-at a very right angle", the Apple effect lost. The cause is the FIRST cut above: capping the region at
-the window's expanded geometry left only the theme's 2 px top shadow margin for the frost and the
-refraction to read, so the top edge had nothing to bend INTO and clamped; below the bar there is the
-client, so it bent freely. **The blit reads the RENDER TARGET -- the screen -- not the window's own
-texture**, so the environment above, below and beside the window is capturable. The region is now the
-FRAME plus `reach` on every side, clamped to the render rect (the environment runs out at the screen's
-edge, and a blit outside the target is undefined). For Konsole that is `993x126` against the full
-window's `933x762`. Apple's material samples the environment AROUND the window; this is the same, and
-it makes the two edges behave alike.
 
 **AND THE REST OF THE QUEUE IS DONE (2026-10-15).** #4: the cache key is `(window, size)` and the
 bound went 4 -> 8, with a closed window's entries dropped -- "key by window" alone, as the audit wrote

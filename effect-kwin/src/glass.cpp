@@ -1115,19 +1115,18 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // KWin redirects the window into a texture of expandedGeometry() * scale -- the frame PLUS the
     // decoration's shadow margins -- and the shader's vTexCoord runs across the FRAME. The mapping
     // `uBackgroundOffset + vTexCoord * uBackgroundScale` already turns a frame coordinate into a
-    // coordinate of ANY sub-rectangle of the capture, so the capture does not have to be the whole
+    // coordinate of ANY sub-rectangle of that texture, so the capture does not have to be the whole
     // expanded geometry: it can be just the band, which is the only place the material is drawn. On
-    // a maximised window that is 3840x2160 -> 3840x(barHeight + 2*reach), the audit's big win.
+    // a maximised window that is 3840x2160 -> 3840x(barHeight + 2*reach), which is the audit's big
+    // win; on the Konsole measured here it is 933x762 -> 933x84.
     //
-    // THE REACH IS TAKEN AROUND THE FRAME, NOT INSIDE THE WINDOW'S OWN expandedGeometry(). The blit
-    // reads the RENDER TARGET -- the screen -- so the environment above, below and beside the window
-    // is capturable. Capping the region at the expanded geometry stopped the TOP edge at the theme's
-    // 2 px shadow margin, so the backdrop could bend along the bar's BOTTOM (the client sits below
-    // it, inside the window) and NOT along the TOP, and the user saw exactly that and called it the
-    // lost Apple effect. Apple's material samples the ENVIRONMENT around the window and bends every
-    // edge the same way.
+    // WHAT THE BAND MUST COVER, or the kernels clamp and the edge streaks: the title bar plus the
+    // reach of every kernel that reads the BACKGROUND (the frost's outer radius and the refraction's
+    // displacement) above and below it. The TOP is capped by the expanded geometry, which is the
+    // texture's own edge anyway: this theme's top shadow margin is 2 px, so the frost has always
+    // clamped above the bar and the band does not make that worse.
     //
-    // `CaptureSubRect` selects the EXTENT now: true (default) is this band, false is the whole
+    // `CaptureSubRect` selects the EXTENT now: true (default) is the band, false is the whole
     // expanded geometry -- the pre-audit behaviour, kept as the escape hatch if a screen disagrees.
     const qreal barHeight = w->hasDecoration()
         ? (w->clientGeometry().top() - w->frameGeometry().top()) : 0.0;
@@ -1136,16 +1135,14 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     }
     // snapToPixels is KWin's own rounding to the device grid, the same call maybeRender uses, so the
     // captured region is the texture's region and not approximately it.
+    const Rect expanded = snapToPixels(w->expandedGeometry(), viewport.scale()).toRect();
     const Rect frame = snapToPixels(w->frameGeometry(), viewport.scale()).toRect();
     const int reach = m_backgroundRadius + int(std::ceil(m_refraction)) + 8;
-    const int band = std::max(1, int(std::ceil(barHeight)));
-    Rect region = snapToPixels(w->expandedGeometry(), viewport.scale()).toRect();
+    Rect region = expanded;
     if (m_captureSubRect) {
-        region = Rect(frame.x() - reach, frame.y() - reach,
-                      frame.width() + 2 * reach, band + 2 * reach);
-        // The environment runs out at the screen's edge, and a blit outside the render target is
-        // undefined behaviour: clamp, and the kernels clamp with it there.
-        region = region.intersected(viewport.renderRect().toRect());
+        const int top = std::max(expanded.y(), frame.y() - reach);
+        const int bottom = std::min(expanded.bottom(), frame.y() + int(std::ceil(barHeight)) + reach);
+        region = Rect(expanded.x(), top, expanded.width(), std::max(1, bottom - top));
     }
     if (region.isEmpty()) {
         return false;
