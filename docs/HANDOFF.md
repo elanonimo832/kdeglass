@@ -1545,6 +1545,45 @@ Suite 430 pass / 0 fail, and the GLSL compiles under KWin's preambles for deskto
 `50a68291...` against the installed `7ae6e419...`). The case to look at is the user's own -- a window
 over an app with vertical lines.
 
+## 9z. M3: the installer installed NOTHING, and the reproducibility gate was a formality
+
+Two things came out of building the global theme, and both came out of **measuring** instead of
+reading the scripts.
+
+**1. `install.sh` pointed at a directory that does not exist.** It had `SALIDA="$AQUI/salida"`,
+while every generator writes to `output/` (`install-decoration.sh` has always read
+`$AQUI/output/aurorae/...`, and `tests/test-artifacts.sh` asserts `output/`). `./install.sh plan`
+printed `source does not exist` for **all six** map entries -- the two colour schemes and the four
+GTK files -- so `aplicar` copied nothing, wrote nothing and reported nothing wrong while looking
+like it worked. The `.gitignore` comment still calls that directory "salida/", which is where the
+wrong name came from: **a stale comment became a path**. `tests/test-global-theme.sh` now walks
+`plan` and forbids that sentence, so the two names cannot drift apart again.
+
+**2. The colour schemes' reproducibility check could not fail.** It calls
+`python3 tools/generate-kde-schemes.py` **with no arguments**, and that `main()` starts with
+`if len(sys.argv) < 3: print(__doc__); return 2`. It regenerates NOTHING, so the `cmp` compares a
+file with itself and passes every time. The check meant to catch a generator drifting from the tree
+was a same-file formality. (The decoration's check IS real: `generate-macos-decoration.py` has
+working defaults, which is how it once caught its own drift.) The new generator is written to run
+bare and the test asserts its **exit code**, so the M3 comparison is real. The scheme check is left
+untouched on purpose: it is named here so the small pass that fixes it is not forgotten.
+
+**3. What M3 ships.** `output/look-and-feel/KdeMacOS/` (`metadata.json` with
+`KPackageStructure: Plasma/LookAndFeel`, plus `contents/defaults`) and
+`output/desktoptheme/KdeMacOS/` (`metadata.json` with `X-Plasma-API: 5.0`, `colors`, `plasmarc`).
+The formats were **measured on this machine**, not remembered: `breeze-dark` and `breeze-light` are
+exactly `metadata.json + colors + plasmarc`, and Breeze's own global theme supplied the shape of
+`defaults` (its `[file][group]` sections) and the KPlugin keys. The version is **read** from the
+decoration's metadata, so the project declares it once. The parts we do not ship yet (icons, widget
+style, cursor) point at KDE's own defaults, because naming a component the user does not have is
+exactly how a global theme breaks a desktop; M5 and M6 change one constant each.
+
+**Verified, in an isolated `XDG_DATA_HOME`:** `install.sh aplicar --si` now copies all five package
+files (11 created, 0 modified), so the install path works and the user's session was not touched.
+
+**Applying it is the user's step** -- the exact commands are in `docs/NEXT.md` -- and it has NOT
+been verified on screen: the effect's session is not mine to change.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next
