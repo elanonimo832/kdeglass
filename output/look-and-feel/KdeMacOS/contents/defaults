@@ -9,15 +9,15 @@ widgetStyle=Breeze
 
 [kdeglobals][General]
 ColorScheme=KdeMacosLight
-font=Inter,-1,13,5,50,0,0,0,0,0
-menuFont=Inter,-1,13,5,50,0,0,0,0,0
-toolBarFont=Inter,-1,11,5,50,0,0,0,0,0
-smallestReadableFont=Inter,-1,10,5,57,0,0,0,0,0
-fixed=Noto Sans Mono,-1,13,5,50,0,0,0,0,0
+font=Inter,9.75,-1,5,50,0,0,0,0,0
+menuFont=Inter,9.75,-1,5,50,0,0,0,0,0
+toolBarFont=Inter,8.25,-1,5,50,0,0,0,0,0
+smallestReadableFont=Inter,7.5,-1,5,57,0,0,0,0,0
+fixed=Noto Sans Mono,9.75,-1,5,50,0,0,0,0,0
 
 [kdeglobals][WM]
-activeFont=Inter,-1,13,5,75,0,0,0,0,0
-inactiveFont=Inter,-1,13,5,50,0,0,0,0,0
+activeFont=Inter,9.75,-1,5,75,0,0,0,0,0
+inactiveFont=Inter,9.75,-1,5,50,0,0,0,0,0
 
 [kdeglobals][Icons]
 Theme=breeze

@@ -65,11 +65,18 @@ SPLASH = "org.kde.breeze.desktop"
 # M4 -- THE TYPE SCALE. Three measured facts decide these lines. The probe was a small Qt 6.12
 # program run against this machine, and the numbers are recorded in docs/HANDOFF.md (M4):
 #
-#   * THE UNIT IS PIXELS. macOS draws a "13 pt" style at 13 px, and it has NO Dynamic Type: the
-#     scale is fixed (the HIG says so, and the ROADMAP repeats it). KDE renders POINTS at its font
-#     DPI -- 96 here, with no `forceFontDPI` key set -- so 13 pt would render 13 * 96/72 = 17.3 px,
-#     a third larger than macOS. macOS's number therefore goes in the PIXEL field and the point
-#     field stays -1. `QFont::fromString` round-trips it (measured: pixelSize=13 back).
+#   * THE SIZE GOES IN POINTS, DERIVED FROM THE PIXEL TOKEN. macOS draws a "13 pt" style at 13 px
+#     and it has NO Dynamic Type (the scale is fixed, the HIG says so), so 13 px is the size to
+#     reproduce. kdeglobals takes POINTS and KDE renders them at its font DPI -- 96 here, with no
+#     `forceFontDPI` key set -- so 13 px is 9.75 pt (72/96) and the two render IDENTICALLY here.
+#     THE PIXEL FIELD WAS THE FIRST ATTEMPT AND IT IS WRONG, in a way only a real application shows:
+#     `QFont` holds points OR pixels, never both, so with a pixel size `pointSize()` is -1 and any
+#     code that re-applies it prints "QFont::setPointSize: Point size <= 0 (-1)". Measured in
+#     Dolphin -- and measured WITH `QT_STYLE_OVERRIDE=Breeze` too, so it was the font, not the
+#     QStyle. tests/test-typography.sh compiles tools/font-probe.cpp and asserts BOTH that Qt reads a
+#     point size > 0 AND that the metrics still equal the pixel form's, so the render cannot drift.
+#     THE COST, accepted and written down: at a font DPI other than 96 the points scale and a pixel
+#     size would not. A fixed scale is what macOS has; a valid `pointSize()` is what KDE needs.
 #   * THE WEIGHT IS THE LEGACY 0..99 CODE. `QFont::fromString` reads `400` as **900 (Black)**: the
 #     modern Qt/CSS weights all saturate at Black. Measured table: 0->100, 12->200, 25->300,
 #     50->400, 57->500, 63->600, 75->700, 81->800, 87->900. Writing Qt's own `toString()` output
@@ -86,6 +93,13 @@ FAMILIA_MONO = "Noto Sans Mono"   # macOS's SF Mono has no HIG size token: a DEC
 # If it is absent, fontconfig substitutes its own default (measured on this machine: Noto Sans) and
 # the generated file is still correct: it asks for the family the project chose, and says so here.
 PESO_LEGACY = {100: 0, 200: 12, 300: 25, 400: 50, 500: 57, 600: 63, 700: 75, 800: 81, 900: 87}
+
+# The font DPI this machine reports, with no `forceFontDPI` key (measured -- see the M4 block above).
+# kdeglobals takes POINTS, so macOS's token -- which is in PIXELS -- is multiplied by this factor.
+# It is derived HERE and nowhere else: tests/test-typography.sh derives the same factor from the same
+# token, so a change in one without the other is a failing test and not a silent drift.
+DPI_FUENTES = 96
+PUNTOS_POR_PX = 72.0 / DPI_FUENTES
 
 # WHICH macOS STYLE GOES TO WHICH KDE ROLE. kdeglobals has about seven font keys and the HIG has
 # eleven styles, so this is a MAPPING with a reason per line, not a translation:
@@ -109,10 +123,12 @@ ROLES_M4 = {
 def fuente(tamano_px: int, peso_css: int, familia: str = FAMILIA) -> str:
     """One kdeglobals font string: `family,pointSize,pixelSize,styleHint,weight,...`.
 
-    The point size is -1 ON PURPOSE: the size goes in PIXELS (measured -- see the M4 block above),
-    and the weight is the LEGACY code (also measured: 400 would be read as Black).
+    The SIZE GOES IN POINTS, derived from the pixel token at the measured font DPI (see the M4 block
+    above): macOS's 13 px becomes `9.75`. The pixel field is -1 because a `QFont` holds one or the
+    other and a pixel size leaves `pointSize()` at -1 -- which is what printed "Point size <= 0" in
+    real applications. The weight is the LEGACY code (also measured: 400 would be read as Black).
     """
-    return f"{familia},-1,{tamano_px},5,{PESO_LEGACY[peso_css]},0,0,0,0,0"
+    return f"{familia},{tamano_px * PUNTOS_POR_PX:g},-1,5,{PESO_LEGACY[peso_css]},0,0,0,0,0"
 
 
 def leer_estilos(raiz: str) -> dict:

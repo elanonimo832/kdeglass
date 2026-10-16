@@ -100,8 +100,13 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    `tools/generate-global-theme.py` writes the font keys into the SAME `contents/defaults` M3 ships
    (there is no second package) and READS the sizes and weights from the tokens instead of
    restating them. Three facts were MEASURED with a Qt 6.12 probe before any of it was written, and
-   `HANDOFF.md` §10d has the numbers: **the size goes in the PIXEL field** (13 pt at KDE's 96 DPI
-   renders 17.3 px, a third larger than macOS), **the weight must be the LEGACY 0..99 code**
+   `HANDOFF.md` §10d has the numbers: **the size goes in the POINTS field**, derived from the pixel
+   token at the measured 96 DPI (13 px -> 9.75 pt) -- see the AMENDMENT in §10d-bis, because the
+   first attempt wrote it in the pixel field and real applications printed
+   "QFont::setPointSize: Point size <= 0 (-1)": `QFont` holds points OR pixels, so a pixel size
+   answers `pointSize()` with -1. It is NOT the QStyle -- measured with Breeze too -- and
+   `tools/font-probe.cpp` now proves both halves (Qt reads a size > 0, and the metrics still equal
+   the pixel form's, so the render did not move). **The weight must be the LEGACY 0..99 code**
    (`fromString` reads 400 as 900 = Black), and **the tracking has NO destination in kdeglobals** --
    64 of the 80 tokens, which is why applying it belongs to M6. Pinned by
    `tests/test-typography.sh`, which forbids a modern weight by name. Evidence:

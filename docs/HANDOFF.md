@@ -1961,6 +1961,46 @@ surprise later is a finding and not a forgotten doubt.
 a modern one by name. (The counted size of the suite is deliberately NOT written here: a doc that
 quotes the count breaks the run that verifies it -- section 11.)
 
+## 10d-bis. AMENDMENT to 10d: the size moved to the POINTS field, and the pixel field was wrong
+
+**What 10d got wrong, and how it showed.** 10d's item 1 put macOS's size in the PIXEL field and
+called it the faithful unit, flagging one risk (the font KCM works in points). The KCM turned out
+BENIGN -- it shows `Inter 9.75pt` and accepts it, measured on screen -- but a different symptom
+appeared in real applications, and only there:
+
+```
+QFont::setPointSize: Point size <= 0 (-1), must be greater than 0
+```
+
+**The cause is a fact of `QFont`, not a choice:** it holds a size in POINTS **or** in PIXELS, never
+both. A pixel-sized font answers `pointSize()` with **-1**, and any code that re-applies it prints
+that line. **Measured, and this is what settles where the bug lives:** the message appears with
+`QT_STYLE_OVERRIDE=Breeze` too, so it is NOT the QStyle (`style-kde-macos/`). It is the font.
+
+**The fix.** The generator now writes the size in the POINT field, derived from the pixel token at
+the measured font DPI (96, no `forceFontDPI`): `72/96 = 0.75`, so macOS's 13 px -> **9.75 pt**,
+11 -> **8.25**, 10 -> **7.5**. The factor lives in one place (`PUNTOS_POR_PX`), and
+`tests/test-typography.sh` derives the same factor from the same token, so they cannot drift.
+
+**The proof, in two independent halves.**
+
+1. **`tools/font-probe.cpp`** (built by `tests/test-typography.sh` with the Qt 6 the desktop runs)
+   parses each emitted string and reports what Qt sees. The test asserts `pointSizeF() > 0` for all
+   six roles -- `9.75 / 9.75 / 8.25 / 7.50 / 9.75 / 9.75` -- AND that the metrics still equal the
+   pixel-form YARDSTICK, which is the same font, same family and same weight with only the unit
+   changed, so a bold title is not compared against a 13 px body. Measured: identical (`height`
+   16/16/14/12/16/16 and `advance` 276/276/233/214/283/276 before and after). The test also runs the
+   OLD pixel form on purpose and requires it to read `-1.00`, because an assertion that cannot fail
+   proves nothing.
+2. **The render evidence is byte-identical.** `tools/render-type-comparison.py` prints the same
+   advance widths (`335 -> 272`, `336 -> 273`, `210 -> 171`, `220 -> 179`) and regenerates the same
+   PNG: `git status` does not even list it.
+
+**The accepted cost, written down.** At a font DPI other than 96 the points scale and a pixel size
+would not. A fixed scale is what macOS has; a valid `pointSize()` is what KDE needs without
+warnings, and at this machine's DPI the two are the same pixels. 10d's item 1 is SUPERSEDED; its
+items 2 (the legacy weight) and 3 (the tracking) stand unchanged.
+
 ## 10e. The global theme carried a type scale and an effect switch, and NOTHING applied them
 
 M4 wrote the macOS fonts into the global theme's `contents/defaults`, `install.sh aplicar` copied the

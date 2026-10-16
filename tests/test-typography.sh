@@ -5,14 +5,17 @@
 #
 #   1. THE FONTS REACH kdeglobals THROUGH THE GLOBAL THEME. There is no second package: M3 already
 #      ships `contents/defaults`, and M4 adds the font keys to the block that is already there.
-#   2. THE SIZE IS THE macOS ONE, IN THE UNIT THAT MATCHES. Measured with a Qt 6.12 probe on this
-#      machine, BEFORE any of this was written:
-#          setPointSize(13)  -> "Inter,13,-1,..."  -> KDE renders 13 pt; at its default 96 DPI that
-#                               is 13 * 96/72 = 17.3 logical px, a third larger than macOS's 13.
-#          setPixelSize(13)  -> "Inter,-1,13,..."  -> 13 logical px. THAT is macOS's scale, because
-#                               the HIG's styles are drawn at 1 pt = 1 px (and macOS has no
-#                               Dynamic Type: the scale is fixed, which a pixel size also is).
-#      `fromString` round-trips the pixel form (measured: pixelSize=13 back).
+#   2. THE SIZE IS macOS's, IN POINTS DERIVED FROM THE PIXEL TOKEN. macOS draws its styles at
+#      1 pt = 1 px, so 13 px is the size to reproduce; kdeglobals takes POINTS, and at this machine's
+#      font DPI -- 96, with no `forceFontDPI` key: measured -- a point is 96/72 px, so the factor is
+#      72/96 = 0.75 and 13 px becomes 9.75 pt. THE PIXEL FIELD WAS THE FIRST ATTEMPT AND IT IS WRONG
+#      in a way only a real application shows: `QFont` holds points OR pixels, never both, so
+#      `pointSize()` is -1 and any code that re-applies it prints
+#          QFont::setPointSize: Point size <= 0 (-1), must be greater than 0
+#      Measured in Dolphin, and measured WITH `QT_STYLE_OVERRIDE=Breeze` as well -- so it was the
+#      font and not the QStyle. tools/font-probe.cpp is the instrument that settles it, and it is
+#      run below: the emitted strings must give `pointSizeF() > 0` AND the same metrics as the
+#      pixel-sized reference, or the change moved the render.
 #   3. THE WEIGHT IS IN THE LEGACY 0..99 SCALE. This is the trap, and it was measured:
 #          fromString("...75...")  -> 700 (Bold)     <- what this repository writes
 #          fromString("...400...") -> 900 (Black)    <- what a modern Qt weight produces
@@ -67,6 +70,13 @@ print(d[sys.argv[3]])
 ' "$TOKENS" "$1" "$2" 2>/dev/null
 }
 
+# macOS's token is in PIXELS and kdeglobals takes POINTS. The factor is the measured font DPI:
+# 72/96 = 0.75 (96, no `forceFontDPI`). Derived here so the test cannot agree with a stale constant
+# in the generator: if one moves without the other, this fails.
+puntos_de() { # puntos_de <pixel size> -> the point size it must become
+  python3 -c 'import sys; print(f"{float(sys.argv[1])*0.75:g}")' "$1" 2>/dev/null
+}
+
 echo "  -- the generator runs with no argument (the trap M3 found: an empty dry run cannot fail) --"
 if python3 "$GEN" >/dev/null 2>&1; then
   ok "generate-global-theme.py exits 0 with no arguments"
@@ -85,16 +95,16 @@ for k in activeFont inactiveFont; do
   if [ -n "$v" ]; then ok "[kdeglobals][WM] $k is set (the window title)"; else fallo "[kdeglobals][WM] $k is MISSING"; fi
 done
 
-echo "  -- the SIZE is macOS's, in PIXELS (points would render a third larger at KDE's 96 DPI) --"
+echo "  -- the SIZE is macOS's, in POINTS: the pixel token times 72/96 (the measured font DPI) --"
 for par in "General:font:body" "General:menuFont:body" "General:toolBarFont:subheadline" \
            "General:smallestReadableFont:caption_2" "WM:activeFont:headline" "WM:inactiveFont:body"; do
   grp="${par%%:*}"; resto="${par#*:}"; key="${resto%%:*}"; estilo="${resto##*:}"
   v="$(ini_get "$DEF" kdeglobals "$grp" "$key")"
-  quiero="$(token_de "$estilo" tamano)"
+  quiero="$(puntos_de "$(token_de "$estilo" tamano)")"
   punto="$(campo_fuente "$v" 2)"
   pixel="$(campo_fuente "$v" 3)"
-  afirmar_igual "[$grp] $key: pixelSize = the token '$estilo' size" "$quiero" "$pixel"
-  afirmar_igual "[$grp] $key: pointSize must be UNSET (-1), or KDE renders points" "-1" "$punto"
+  afirmar_igual "[$grp] $key: pointSize = the token '$estilo' size in points (px*72/96)" "$quiero" "$punto"
+  afirmar_igual "[$grp] $key: pixelSize must be UNSET (-1), or the point size is not what is in use" "-1" "$pixel"
 done
 
 echo "  -- the WEIGHT is in the legacy 0..99 scale (400 in kdeglobals is BLACK, measured) --"
@@ -115,6 +125,57 @@ if grep -E '^(font|menuFont|toolBarFont|smallestReadableFont|fixed|activeFont|in
 else
   ok "no font carries a modern Qt weight: every weight is in the legacy 0..99 scale"
 fi
+
+echo "  -- the POINT SIZE is REAL, and the RENDER did not move: a Qt 6 probe builds each font --"
+# tools/font-probe.cpp prints a REFERENCE (the token's pixel size, same family: the yardstick) and
+# then what Qt sees in each emitted string. Three claims, and the third is what lets this file fail:
+#   1. pointSizeF() > 0  -- nothing can be handed a -1, which is the message the user saw.
+#   2. the metrics EQUAL the reference -- turning px into pt did not move the render.
+#   3. the OLD pixel form gives a -1, so the assertion above can actually fail.
+PROBE_DIR="$(mktemp -d)"
+PROBE="$PROBE_DIR/font-probe"
+if g++ -fPIC -std=c++17 $(pkg-config --cflags Qt6Gui) "$PROJECT/tools/font-probe.cpp" \
+       -o "$PROBE" $(pkg-config --libs Qt6Gui) 2>/dev/null; then
+  ok "font-probe.cpp compiles against this machine's Qt 6"
+  for par in "General:font:body" "General:menuFont:body" "General:toolBarFont:subheadline" \
+             "General:smallestReadableFont:caption_2" "WM:activeFont:headline" "WM:inactiveFont:body"; do
+    grp="${par%%:*}"; resto="${par#*:}"; key="${resto%%:*}"; estilo="${resto##*:}"
+    v="$(ini_get "$DEF" kdeglobals "$grp" "$key")"
+    # THE YARDSTICK, per role: the very same font with the size in the PIXEL field -- which is the
+    # token's unit and what M4 wrote before. Same family, same weight, ONLY the unit changes, so a
+    # bold title or an 11 px toolbar font is compared against itself and not against a 13 px body.
+    yardstick="$(campo_fuente "$v" 1),-1,$(token_de "$estilo" tamano),5,$(campo_fuente "$v" 5),0,0,0,0,0"
+    salida="$(QT_QPA_PLATFORM=offscreen "$PROBE" --reference "$yardstick" "$v" 2>/dev/null)"
+    ref_alto="$(printf '%s' "$salida" | sed -n 's/^REFERENCE .*height=\([0-9]*\).*/\1/p')"
+    ref_adv="$(printf '%s' "$salida" | sed -n 's/^REFERENCE .*advance=\([0-9]*\).*/\1/p')"
+    salida="$(printf '%s' "$salida" | grep '^FONT ')"
+    pf="$(printf '%s' "$salida" | sed -n 's/.*pointSizeF=\([-0-9.]*\).*/\1/p')"
+    alto="$(printf '%s' "$salida" | sed -n 's/.*height=\([0-9]*\).*/\1/p')"
+    adv="$(printf '%s' "$salida" | sed -n 's/.*advance=\([0-9]*\).*/\1/p')"
+    if python3 -c "import sys; sys.exit(0 if float('$pf') > 0 else 1)" 2>/dev/null; then
+      ok "[$grp] $key: Qt reads pointSizeF=$pf (> 0: it can never be handed a -1)"
+    else
+      fallo "[$grp] $key: Qt reads pointSizeF=$pf -- a -1 is what prints 'Point size <= 0'"
+    fi
+    afirmar_igual "[$grp] $key: the render's height equals the pixel-form yardstick's" "$ref_alto" "$alto"
+    afirmar_igual "[$grp] $key: the render's advance equals the pixel-form yardstick's" "$ref_adv" "$adv"
+  done
+  # BREAK-ON-PURPOSE, and it must not pass on an empty reading: the pixel form, parsed as a font,
+  # has to give a -1 -- that is what printed the message and it is what the assertions above catch.
+  VIEJO_STR="$(campo_fuente "$(ini_get "$DEF" kdeglobals General font)" 1),-1,13,5,50,0,0,0,0,0"
+  VIEJO="$(QT_QPA_PLATFORM=offscreen "$PROBE" --reference "$VIEJO_STR" "$VIEJO_STR" 2>/dev/null | grep '^FONT ')"
+  vpf="$(printf '%s' "$VIEJO" | sed -n 's/.*pointSizeF=\([-0-9.]*\).*/\1/p')"
+  if [ -z "$vpf" ]; then
+    fallo "the break-on-purpose probe printed nothing: a vacuous pass proves nothing"
+  elif python3 -c "import sys; sys.exit(0 if float('$vpf') > 0 else 1)" 2>/dev/null; then
+    fallo "the PIXEL form reads pointSizeF=$vpf: the assertion above cannot fail, so it proves nothing"
+  else
+    ok "break-on-purpose: the pixel form reads pointSizeF=$vpf -- exactly what printed the message"
+  fi
+else
+  fallo "font-probe.cpp does NOT compile: the point-size claim would be unproven"
+fi
+rm -rf "$PROBE_DIR"
 
 echo "  -- the declared LIMITS: what KDE cannot take, said out loud --"
 afirmar_contiene "the generator DECLARES that tracking has no destination" "$GEN" "TRACKING"

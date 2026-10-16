@@ -10,8 +10,11 @@ WHAT THIS IS FOR
 
 THE TWO SCALES, AND WHY THEY ARE THESE
     * macOS: the token sizes IN PIXELS (Body 13, Headline 13 bold). The HIG draws its styles at
-      1 pt = 1 px and macOS has no Dynamic Type, so the scale is fixed -- which is what the
-      generator writes into kdeglobals (`Inter,-1,13,5,50,...`, the pixel field).
+      1 pt = 1 px and macOS has no Dynamic Type, so the scale is fixed -- and the generator writes
+      that size into kdeglobals as POINTS (`Inter,9.75,-1,5,50,...`), because 13 px IS 9.75 pt at
+      this machine's 96 DPI. See HANDOFF.md section 10d-bis: the pixel field came first and left
+      `pointSize()` at -1, which real applications printed as "Point size <= 0". This script renders
+      the pixels the two scales DRAW, which is why it does not change when the unit does.
     * KDE's default: `Noto Sans,12` POINTS. KDE renders points at its font DPI, which is 96 on
       this machine (no `forceFontDPI` key, measured), so 12 pt = 12 * 96/72 = 16 px. That is what
       the user has today, and it is what the type scale has to replace.
