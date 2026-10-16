@@ -2059,6 +2059,73 @@ caught by looking at the OUTPUT rather than at the code:
   fifteen had 8-11 px residuals and were left out of the statistic, visibly, rather than quietly
   pulling the median.
 
+## 10g. M6, first slice: a QStyle that is selectable and draws NOTHING yet
+
+The ROADMAP calls M6 "the biggest step of the brief (1-3 months)", the only milestone not on top of
+anything already done, and its done criterion is "it exists, is installed, and is selectable
+**without breaking applications**". The first slice therefore ships a SKELETON and stops, and this
+section is about the half of that criterion that is not "it exists": a style plugin is loaded by
+every Qt application on the desktop, so the one way to be sure that selecting it breaks nothing --
+before a single primitive exists -- is for selecting it to change nothing at all.
+
+**WHAT SHIPS.** `style-kde-macos/`: a `QStylePlugin` whose `Keys` are `["KdeMacOS"]`, wrapping a
+`QProxyStyle` that chains to a base style and overrides **no** primitive; `install.sh` installs the
+plugin and the one environment variable Qt needs to see it, with its `rollback`; and
+`tests/test-style.sh` proves the three claims. The plan, the decisions and the slices that follow
+are [`M6-QSTYLE-PLAN.md`](M6-QSTYLE-PLAN.md).
+
+**THE PROOF IS A DIFFERENCE OF ZERO, and the first version of the probe could not have found a
+style that painted nothing.** That probe counted non-white pixels and reported `19800 of 19800` --
+the whole canvas -- because the WIDGET'S OWN BACKGROUND covers it. A green number for a no-op. What
+it does now is render the SAME widget twice, once under the base style and once under ours, and
+compare the images pixel by pixel: **`DIFF: 0`**. That is what "does not break applications" means
+while the skeleton is a skeleton, and the day a slice implements a primitive, that difference is the
+measurement the slice owes.
+
+**SEVEN MEASUREMENTS decided the shape of it**, all taken with a throwaway probe plugin before any of
+the component was written (Qt 6.12, Plasma 6, Wayland):
+1. `QStyleFactory` scans a **`styles/` SUBDIRECTORY** of the plugin path, not the path itself. A
+   plugin at `<path>/kdemacosstyle.so` is invisible; at `<path>/styles/...` it appears in
+   `QStyleFactory::keys()`. Hence `CMAKE_LIBRARY_OUTPUT_DIRECTORY`.
+2. The keys Qt reports here: `Breeze`, `kvantum-dark`, `kvantum`, `Windows`, `Fusion`.
+3. Qt does **NOT** search `$HOME/.local/lib/qt6/plugins` on its own -- the library paths are
+   `QT_PLUGIN_PATH`, then `/usr/lib/qt6/plugins`, then the application's directory. So installing
+   the plugin is not enough and the environment file is half the job.
+4. Qt 6.12's `qt_add_plugin` has **no `SOURCES` keyword**: `SOURCES src/x.cpp` is read as a source
+   file named `SOURCES` and the configure step dies with "Cannot find source file: <build>/SOURCES".
+   The sources are plain arguments.
+5. The metadata is the shape Breeze's is -- `QStyleFactoryInterface_iid` from Qt's own header plus a
+   `metadata.json` with `{"Keys":[...]}`, read back with `QPluginLoader::metaData()`. Breeze carries
+   `Keys` and nothing else, so neither do we.
+6. The **offscreen platform is enough** to test it: a real `QApplication` creates the style through
+   the factory and renders widgets into a pixmap, with no screen and no session.
+7. **systemd's `environment.d` is the mechanism this session has** (`/usr/lib/environment.d/` is
+   populated and `systemctl --user` responds; `~/.config/environment.d/` did not exist). The KDE
+   `~/.config/plasma-workspace/env/` exists here too, but was not measured to be read on a
+   systemd-managed Wayland session, so it is not the one used.
+
+**THREE DECISIONS, and the reasons are the interesting part.**
+- **The base style is RESOLVED, not written down**: Breeze if Qt offers it, else Fusion.
+  `QStyleFactory::keys()` is asked at construction. Breeze first because chaining to the style the
+  user already had is what makes "does not break" true; Fusion as the fallback because it is the one
+  style Qt always has, and an EMPTY base is not neutral -- `QProxyStyle` then falls back to the
+  application's style, which may be this very style, and that is recursion.
+- **The install is user-level plus an environment file**, rather than `/usr/lib/qt6/plugins/styles`
+  which would need no environment file at all: the system path needs `sudo`, and `install.sh`'s
+  golden rule (never escalate, never write outside `$HOME`) is exactly what makes `rollback` able to
+  undo everything.
+- **Installing is NOT selecting.** The installer writes the plugin and `QT_PLUGIN_PATH`; it does not
+  touch `widgetStyle`, because changing how every application on the desktop is drawn is the user's
+  decision and not an installer's side effect. Selecting is
+  `kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle KdeMacOS` (then a relogin), or, for
+  ONE application with no config and no relogin, `QT_PLUGIN_PATH=... QT_STYLE_OVERRIDE=KdeMacOS`.
+
+**A TRAP IN THE TEST ITSELF, of the kind this repository collects.** The assertion that no primitive
+is overridden used a plain `grep`, and the header's own comment lists the primitives to explain why
+they are ABSENT -- so the test counted the explanation as the deed and reported two overrides that
+do not exist. It uses `codigo_contiene`, which ignores comments, exactly as the harness's `afirmar_-
+codigo` does. Same lesson as "verify the file, not the patch", pointing the other way.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).

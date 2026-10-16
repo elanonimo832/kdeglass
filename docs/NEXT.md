@@ -134,6 +134,32 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    four measurement mistakes that cost this section its first two attempts.
    NEXT: M6 QStyle. The folder question wants a capture of a Finder window with large icons.
 
+9. **M6 — the QStyle: the FIRST SLICE is built, and it wants the user's session.** This is the
+   biggest step of the brief (the ROADMAP says one to three months) and the only milestone NOT on top
+   of anything already done, so the first slice deliberately ships a **skeleton**: a Qt style plugin
+   whose key is `KdeMacOS`, a `QProxyStyle` that chains to the base style, and **no primitive
+   overridden at all**. That absence IS the feature -- M6's done criterion asks for a style that is
+   "selectable **without breaking applications**", and the only way to be sure of that before the
+   primitives exist is for selecting it to change nothing. The plan, the seven measurements that
+   decided its shape and the slices that follow are in
+   [`M6-QSTYLE-PLAN.md`](M6-QSTYLE-PLAN.md); what it cost is in `HANDOFF.md` §10g. Proven two ways:
+   `tests/test-style.sh` builds the plugin, validates its metadata and runs a real Qt application
+   under the **offscreen** platform, and that probe renders the same widget under the base style and
+   under ours and compares the images pixel by pixel -- **`DIFF: 0`**. The first version of that
+   probe counted non-white pixels and would have called a style that painted NOTHING a pass. TO TRY
+   IT (no install, no relogin, ONE application, nothing on disk changes):
+   ```
+   QT_PLUGIN_PATH="$PWD/style-kde-macos/build" QT_STYLE_OVERRIDE=KdeMacOS dolphin
+   ```
+   and what you should see is **exactly the same window as before**, because the skeleton draws
+   nothing of its own. To install it for the session, and to go back:
+   ```
+   ./install.sh aplicar --si
+   # then LOG OUT and back in -- the environment file is read at login
+   kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle KdeMacOS   # select (your step)
+   ./install.sh rollback                                                    # undo
+   ```
+
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.
 

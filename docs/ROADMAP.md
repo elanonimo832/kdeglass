@@ -232,6 +232,14 @@ Qt applications are drawn like macOS, without depending on Kvantum.
 **Note:** it is the only milestone that is **not** on top of anything already done: it
 is independent, large work. Milestones M1-M5 provide value without it.
 
+**FIRST SLICE (2026-10-15): the skeleton.** A plugin Qt can select by the key `KdeMacOS`, wrapping a
+`QProxyStyle` that chains to the base style and overrides **no primitive at all** — which is what
+makes "selectable without breaking applications" true before the primitives exist, and is proven by
+rendering the same widget under both styles and comparing the images (`DIFF: 0`,
+[`../tests/test-style.sh`](../tests/test-style.sh)). The plan, the seven measurements that decided
+its shape, the decisions and the slices that follow are in
+[`M6-QSTYLE-PLAN.md`](M6-QSTYLE-PLAN.md); what it cost is `HANDOFF.md` §10g.
+
 ---
 
 ## What remains to be verified (open risks)
