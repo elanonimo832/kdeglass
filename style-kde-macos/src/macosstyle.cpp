@@ -2,6 +2,7 @@
 
 #include <QPainter>
 #include <QPalette>
+#include <QPolygonF>
 #include <QStyleFactory>
 #include <QStyleOptionButton>
 #include <QStringList>
@@ -137,4 +138,92 @@ void MacosStyle::drawControl(ControlElement element, const QStyleOption *opt, QP
     if (opt->state & State_HasFocus) {
         QProxyStyle::drawPrimitive(PE_FrameFocusRect, opt, p, w);
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// SLICE 3 -- THE CHECKBOX AND THE RADIO BUTTON, with the reference and its line, the way slice 2
+// did it, because a number without its provenance is a number the next slice will "correct":
+//   tokens/tokens-sizes.toml:35   [checkboxes] width                  = 16
+//   tokens/tokens-sizes.toml:33   [checkboxes] radius.medium          = 5.5
+//   tokens/tokens-sizes.toml:124  [radio] width.medium                = 16
+//   tokens/tokens-sizes.toml:128  [radio] width_dot.medium            = 4.8
+//   tokens/tokens-sizes.toml:38   [checkboxes] width_checkmark.medium = 9.31
+//   tokens/tokens-sizes.toml:31   [checkboxes] height_checkmark.medium = 8.93
+namespace {
+constexpr int kCheckBoxSize = 16;        // [checkboxes] width
+constexpr qreal kCheckBoxRadius = 5.5;   // [checkboxes] radius.medium
+constexpr int kRadioSize = 16;           // [radio] width.medium
+constexpr qreal kRadioDot = 4.8;         // [radio] width_dot.medium
+constexpr qreal kTickWidth = 9.31;       // [checkboxes] width_checkmark.medium
+constexpr qreal kTickHeight = 8.93;      // [checkboxes] height_checkmark.medium
+} // namespace
+
+int MacosStyle::pixelMetric(PixelMetric metric, const QStyleOption *opt, const QWidget *w) const
+{
+    switch (metric) {
+    case PM_IndicatorWidth:
+    case PM_IndicatorHeight:
+        return kCheckBoxSize;
+    case PM_ExclusiveIndicatorWidth:
+    case PM_ExclusiveIndicatorHeight:
+        return kRadioSize;
+    default:
+        // EVERY OTHER METRIC IS STILL THE BASE'S, and the gallery asserts it: a control this slice
+        // did not touch has to answer the same metrics AND draw the same pixels.
+        return QProxyStyle::pixelMetric(metric, opt, w);
+    }
+}
+
+void MacosStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *opt, QPainter *p,
+                               const QWidget *w) const
+{
+    if (element != PE_IndicatorCheckBox && element != PE_IndicatorRadioButton) {
+        QProxyStyle::drawPrimitive(element, opt, p, w);
+        return;
+    }
+    const bool enabled = opt->state & State_Enabled;
+    const bool on = opt->state & State_On;
+    const QPalette pal = opt->palette;
+    // THE ACCENT COMES FROM THE PALETTE, and the plan makes that a requirement, not a preference:
+    // `KdeMacosDark` is already generated and every slice has to honour it. `Highlight` is the role
+    // Qt itself spends on "the accent", so the dark scheme's accent arrives by itself; a light
+    // constant written here would be a second palette, and a second palette is how the two drift.
+    const QColor accent = pal.highlight().color();
+    const QColor inside = enabled ? pal.base().color() : pal.window().color();
+    const QColor edge = pal.mid().color().darker(115);
+    const QRectF r = QRectF(opt->rect).adjusted(0.5, 0.5, -0.5, -0.5);
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, true);
+    p->setPen(QPen(on ? accent : edge, 1));
+    p->setBrush(on ? accent : inside);
+    if (element == PE_IndicatorRadioButton) {
+        p->drawEllipse(r);
+        if (on) {
+            // THE DOT, at the kit's 4.8 px, centred, in the highlight's own text colour so it keeps
+            // its contrast on whatever accent the active scheme ships.
+            p->setPen(Qt::NoPen);
+            p->setBrush(pal.highlightedText().color());
+            p->drawEllipse(r.center(), kRadioDot / 2.0, kRadioDot / 2.0);
+        }
+    } else {
+        p->drawRoundedRect(r, kCheckBoxRadius, kCheckBoxRadius);
+        if (on) {
+            // THE TICK, inside the kit's own checkmark box (9.31 x 8.93) taken as FRACTIONS of the
+            // indicator, so it scales with the control instead of being a glyph drawn at whatever
+            // size it happened to be measured at. THE STROKE WIDTH IS THE ONE NUMBER IN THIS SLICE
+            // THE KIT DOES NOT ANSWER -- `[checkboxes]` has the glyph's box and no pen -- so it is
+            // named here as chosen rather than passed off as measured.
+            const QPointF c = r.center();
+            const qreal hw = kTickWidth / 2.0, hh = kTickHeight / 2.0;
+            QPen tick(pal.highlightedText().color(), 2.0);
+            tick.setCapStyle(Qt::RoundCap);
+            tick.setJoinStyle(Qt::RoundJoin);
+            p->setPen(tick);
+            p->setBrush(Qt::NoBrush);
+            p->drawPolyline(QPolygonF({QPointF(c.x() - hw, c.y() - hh * 0.05),
+                                       QPointF(c.x() - hw * 0.25, c.y() + hh),
+                                       QPointF(c.x() + hw, c.y() - hh)}));
+        }
+    }
+    p->restore();
 }

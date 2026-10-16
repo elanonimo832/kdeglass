@@ -28,9 +28,10 @@
 #include <QString>
 #include <QStylePlugin>
 
-// The style itself. `drawPrimitive`, `drawComplexControl`, `pixelMetric`, `subElementRect`,
-// `standardIcon` and `styleHint` are still NOT overridden: each needs its own slice and its own
-// measurement, and `tests/test-style.sh` still expects those to be absent.
+// The style itself. `drawComplexControl`, `subElementRect`, `standardIcon` and `styleHint` are
+// still NOT overridden: each needs its own slice and its own measurement, and `tests/test-style.sh`
+// still expects those to be absent -- it names the landed ones AND the absent ones, so an override
+// nobody measured cannot appear quietly.
 class MacosStyle : public QProxyStyle
 {
     Q_OBJECT
@@ -46,6 +47,15 @@ public:
                            const QWidget *w) const override;
     void drawControl(ControlElement element, const QStyleOption *opt, QPainter *p,
                      const QWidget *w) const override;
+
+    // SLICE 3 -- the checkbox and the radio button. `pixelMetric` answers the indicator's size (the
+    // kit says 16 where the base answered 20, the +25% the instrument measured) and `drawPrimitive`
+    // draws the two indicators, so the accent of the "on" state is READ FROM THE PALETTE and the
+    // dark scheme arrives by itself instead of a light constant being copied here.
+    int pixelMetric(PixelMetric metric, const QStyleOption *opt = nullptr,
+                    const QWidget *w = nullptr) const override;
+    void drawPrimitive(PrimitiveElement element, const QStyleOption *opt, QPainter *p,
+                       const QWidget *w) const override;
 };
 
 // The plugin Qt's QStyleFactory finds and calls. The IID must be the one Qt itself declares --

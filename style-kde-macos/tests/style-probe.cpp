@@ -18,7 +18,7 @@
 // It runs under the OFFSCREEN platform: no screen, no session, no user. `tests/test-style.sh`
 // drives it.
 #include <QApplication>
-#include <QCheckBox>
+#include <QProgressBar>
 #include <QColor>
 #include <QImage>
 #include <QPixmap>
@@ -39,14 +39,17 @@ QImage renderUnder(QStyle *style)
 
     QWidget window;
     window.resize(220, 90);
-    // THE WIDGET IN THIS WINDOW IS ONE *NO* SLICE HAS TOUCHED, and that is what makes the probe's
+    // THE WIDGET IN THIS WINDOW IS ONE *NO DECLARED SLICE OWNS*, and that is what makes the probe's
     // claim still testable: it asserts that delegating every primitive is a no-op, and a control a
-    // slice has already redrawn cannot test that. Slice 2 changed the push button, so the button
-    // MOVED to `primitive-gallery.cpp` -- where it is measured per widget and against its token --
-    // and this probe is left on the checkbox, where "identical to the base" is still exactly true.
-    // The button did not simply disappear: where it went is this comment.
-    QCheckBox check(QStringLiteral("Check"), &window);
-    check.setGeometry(10, 50, 130, 25);
+    // slice has already redrawn cannot test that. Slice 2 took the push button, so the button MOVED
+    // to `primitive-gallery.cpp`; slice 3 took the checkbox and the radio button, so the checkbox
+    // moved too. The probe is left on the PROGRESS BAR, which no declared slice owns -- the plan's
+    // remaining slices are the sliders/scrollbars, the combos/tabs/menus, the states and the
+    // tracking, and `[progressbar]` has no reference in the kit's Sizes collection at that. The
+    // controls that left did not simply disappear: where they went is this comment.
+    QProgressBar bar(&window);
+    bar.setGeometry(10, 50, 200, 24);
+    bar.setValue(60);
 
     // The canvas is white and the widget does NOT fill its background, so the pixels that differ
     // from white are the CONTROLS: a render that silently skipped them would leave the canvas white

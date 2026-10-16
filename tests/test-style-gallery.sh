@@ -35,11 +35,12 @@ lineedit-focused progressbar listview-selected tableheader"
 # must add it and say so.
 SIN_REFERENCIA="scrollbar tabbar menubar progressbar listview-selected tableheader"
 
-# THE PRIMITIVES THIS SLICE MOVED, and the list is the contract exactly like the one above: slice 2
-# is the push button, so these three rows -- and ONLY these three -- are allowed to differ from the
-# base. A fourth row moving means the slice touched a control nobody measured, which is the failure
-# this whole instrument exists to make visible.
-CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled"
+# THE PRIMITIVES THE LANDED SLICES MOVED, and the list is the contract exactly like the one above:
+# slice 2 moved the push button and slice 3 the checkbox and the radio button, so these eight rows --
+# and ONLY these eight -- are allowed to differ from the base. A ninth row moving means a slice
+# touched a control nobody measured, which is the failure this whole instrument exists to make
+# visible.
+CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled checkbox checkbox-checked checkbox-disabled radio radio-checked"
 
 es_cambiado() { # es_cambiado <primitivo>
   case " $CAMBIADOS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
@@ -71,10 +72,12 @@ if [ -x "$GALERIA" ]; then
   rc=$?
 fi
 # The tool ASSERTS the delegation property and exits 5 the moment a primitive stops being a no-op.
-# Slice 2 is that moment, so "5 with exactly the declared set" is the EXPECTED answer now -- not a
-# reason to weaken the check: the tool still reports which and how many, and the rows below pin them.
+# Slices 2 and 3 are that moment, so "5 with exactly the declared set" is the EXPECTED answer now --
+# not a reason to weaken the check: the tool still reports which and how many, and the rows below pin
+# them. The count is the DECLARED set's arithmetic, so it moves with `CAMBIADOS` and not by hand.
 afirmar_igual "the gallery reports that a primitive moved (exit 5)" "5" "$rc"
-afirmar_contiene "and it counts exactly the declared ones" <(printf '%s\n' "$salida") "^CHANGED: 3\$"
+afirmar_igual "and it counts exactly the declared ones" "$(wc -w <<<"$CAMBIADOS")" \
+  "$(sed -n 's/^CHANGED: \([0-9]*\)$/\1/p' <<<"$salida")"
 
 echo "  -- every declared primitive is rendered, and each one is a real render --"
 for w in $WIDGETS; do
@@ -145,9 +148,29 @@ afirmar_contiene "our push button's height IS that token" \
   <(printf '%s\n' "$salida") "^OURS pushbutton sizeHint=[0-9]+x${altura_medio}\$"
 afirmar_contiene "and its sizeFromContents answers the same height" \
   <(printf '%s\n' "$salida") "^OURS pushbutton sizeFromContents\(CT_PushButton\)=[0-9]+x${altura_medio}\$"
-# ONLY the declared primitives report a moved value. The OURS lines ARE the moved metrics, so their
-# count is the contract's arithmetic (3 buttons x 2 metrics), not a number to keep in step by hand.
-afirmar_igual "only the declared primitives report a moved value" "6" "$(grep -cE '^OURS ' <<<"$salida")"
+# SLICE 3's reference, read the same way and from the SAME file: the indicator's size, which the kit
+# gives as a plain `[checkboxes] width` and as `[radio] width.medium`. Written against the token and
+# not against 16, so a slice that "corrects" the indicator to a number it liked fails here with the
+# kit's own number in the message.
+indicador_casilla="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-sizes.toml','rb'))['checkboxes']['width'])" 2>/dev/null)"
+indicador_radio="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-sizes.toml','rb'))['radio']['width']['medium'])" 2>/dev/null)"
+afirmar_contiene "the token [checkboxes] width is a number (the assertion needs a reference, not a hole)" \
+  <(printf '%s\n' "$indicador_casilla") '^[0-9][0-9]*$'
+afirmar_contiene "the token [radio] width.medium is a number" \
+  <(printf '%s\n' "$indicador_radio") '^[0-9][0-9]*$'
+afirmar_contiene "our checkbox's indicator IS that token" \
+  <(printf '%s\n' "$salida") "^OURS checkbox pixelMetric\(PM_IndicatorWidth\)=${indicador_casilla}\$"
+afirmar_contiene "and the radio's indicator is ITS token" \
+  <(printf '%s\n' "$salida") "^OURS radio pixelMetric\(PM_ExclusiveIndicatorWidth\)=${indicador_radio}\$"
+# ONLY the declared primitives report a moved value. The OURS lines ARE the moved metrics, so the
+# check is that every one of them BELONGS to a declared primitive -- a property, not a number that
+# has to be kept in step by hand every time a slice lands.
+no_declarados=""
+while read -r w; do
+  [ -z "$w" ] && continue
+  es_cambiado "$w" || no_declarados="$no_declarados $w"
+done < <(grep -E '^OURS ' <<<"$salida" | awk '{print $2}' | sort -u)
+afirmar_igual "only the declared primitives report a moved value" "" "$no_declarados"
 for w in $WIDGETS; do
   if es_cambiado "$w"; then
     afirmar_contiene "'$w' reports the value it moved to" <(printf '%s\n' "$salida") "^OURS ${w} "
