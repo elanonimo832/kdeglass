@@ -2126,6 +2126,33 @@ they are ABSENT -- so the test counted the explanation as the deed and reported 
 do not exist. It uses `codigo_contiene`, which ignores comments, exactly as the harness's `afirmar_-
 codigo` does. Same lesson as "verify the file, not the patch", pointing the other way.
 
+## 10h. The suite opened a dialog in the user's session, because a test isolated every variable except HOME
+
+MEASURED on 2026-10-15, and it is the kind of thing this section exists for: the user reported a KDE
+dialog reading **"Configuration file `//.config/kreadconfig6rc` not writable. Please contact your
+system administrator."** while the suite was running. The suite had been started with `env -u HOME`,
+to see whether anything needed it, and `tests/test-lookandfeel-apply.sh` isolated `XDG_CONFIG_HOME`
+and `XDG_DATA_HOME` -- but **`kreadconfig6`/`kwriteconfig6` fall back to HOME** for their own
+bookkeeping. With HOME empty they resolved `//.config/kreadconfig6rc`: a path at the root of the
+filesystem, which is why the complaint was about permissions.
+
+Three things worth keeping:
+
+1. **Nothing was written.** `/.config` does not exist, and the write failed for that reason. The
+   user's `kdeglobals` was checked afterwards and still carried `ColorScheme=KdeMacosLight`,
+   `activeFont=Inter,-1,13,5,75,...` and `widgetStyle=Breeze`.
+2. **The fix is one line and it closes the class, not the instance**: the test now points **HOME**
+   inside its temp directory as well. It passes with HOME unset, which is the way the failure was
+   reproduced in the first place.
+3. **A test that is supposed to touch nothing must not be able to open a window**, and the detector
+   for that class is not "did it write": it is "which variables does the tool I am calling fall back
+   to, and have I isolated ALL of them". XDG_CONFIG_HOME is not HOME, and a tool is free to use both.
+
+The same HOME-less run produced a failure that looked like a real one -- `test-style.sh`'s probe
+reported nothing usable -- and was not: with no HOME the probe cannot do its bookkeeping either. A
+suite run outside a normal environment reports the environment, which is why the incident is written
+here instead of being debugged into the plugin.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
