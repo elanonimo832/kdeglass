@@ -1,0 +1,64 @@
+# tokens-icon-geometry.toml — MEASURED, not exported from the kit.
+#
+# WHY THIS FILE EXISTS (M5)
+#   docs/ROADMAP.md: "The squircle radii of the folder icons are missing. There are iOS values in
+#   the kit, but the macOS ones could not be confirmed." This is the confirmation attempt, and it
+#   is made from the PRIMARY source: the user's own macOS screenshots, which live in `muestras/`
+#   (gitignored -- what is versioned is the MEASUREMENT, never the pixels it came from).
+#
+#   The kit was searched as well, and it does NOT contain an iOS icon radius: it has
+#   `Global/Radius`, `Button/Radius`, `Checkboxes/Radius`, `Disclosure/Radius` and `Stepper/Radius`
+#   (CONTROL radii, not icons) and the `[squircle] smoothing = 0.6` CONSTRUCTION parameter of
+#   `tokens-shape-effects.toml`. So there is no iOS icon figure in the kit to compare against, and
+#   the figure below is not a comparison with one -- it is a measurement.
+#
+# WHAT WAS MEASURED, AND WHAT WAS NOT. Read this before using the number.
+#   * MEASURED: the corner profile of the macOS APP icons drawn in the screenshots. Twelve of them
+#     fitted within 2 px (six in `muestras/Untitled3.png`, six in `muestras/Untitled2.png`), all of
+#     them Launchpad icons 96 px on a side.
+#   * NOT MEASURED, and it is the literal subject of M5: no FOLDER icon appears in any of the nine
+#     captures in `muestras/`. The macOS folder icon is a folder shape with its own tab, and its
+#     body does not have to carry the same radius as an app icon's squircle. What is measured is
+#     the app icon, which is the same Apple icon geometry the folder's body is drawn on -- and the
+#     difference has NOT been checked, because there is nothing to check it against.
+#   * NOT MEASURABLE AT THIS SIZE, and this is the honest half: the corner FAMILY. Drawing the
+#     kit's own corner at `smoothing = 0.6` and fitting the profile that comes back gives a CIRCLE
+#     fit with a 0.29 px residual (`--self-test` prints it), because the two constructions differ
+#     only in the first two rows of the corner and everything from row 2 down is identical to
+#     0.01 px. At the 96 px an icon is drawn at on a 4K screenshot, the row that carries the
+#     difference is sub-pixel. So the RADIUS is measurable here and the SMOOTHING is not; anyone
+#     who reports a smoothing from these captures is reporting noise.
+
+[measure]
+# R / S, where S is the icon's side and R the corner radius of its squircle.
+# 12 valid measurements, two screenshots: medians 0.2161 (+-0.0026) and 0.2135 (+-0.0067).
+radius_ratio = 0.215
+# The spread of the measurement is ~0.006; the figure is 0.01 because the EDGE DETECTION adds a
+# systematic term the spread cannot see: the 0.5 crossing on an antialiased edge moves with the
+# background/body contrast, worth up to half a pixel, which is ~0.005 of the ratio. Rounding up
+# rather than down: a token that claims more precision than its method has is a token that lies.
+uncertainty = 0.01
+radius_px = 20.6          # the median radius measured, on a 96 px icon
+side_px = 96.0            # the icon side the screenshots draw (Launchpad, 4K, scale 1)
+date = "2026-10-15"
+method = "tools/measure-icon-geometry.py --image <capture> --grid 40,210"
+icons = "Launchpad app icons (ServiceNow, Office, Outlook, Facebook, WhatsApp, YouTube, Add)"
+captures = ["muestras/Untitled3.png", "muestras/Untitled2.png"]
+
+[measure.rejected]
+# Reported, not hidden: a measurement whose fit does not hold must not move the number and must not
+# vanish either. One icon in each capture gave an 8-11 px residual -- its corner was mis-detected,
+# most likely because its body is not uniform -- and it was left OUT of the statistic above.
+count = 3
+reason = "corner profile did not fit any family within 2 px: the icon's body is not uniform there"
+
+[not_verifiable]
+folder_icon = """No folder icon is drawn in any of the captures in `muestras/`, so the radius of
+the FOLDER icon specifically is NOT confirmed by this measurement. What is confirmed is the radius
+of the app icons, which are drawn on the same Apple icon geometry."""
+smoothing = """The corner FAMILY cannot be resolved from these captures. The kit's construction at
+smoothing = 0.6 and a plain circular arc differ by less than the sub-pixel row at a 96 px icon: the
+circle fit of the kit's OWN corner leaves a 0.29 px residual. The radius above is a radius, NOT a
+statement that the corner is a continuous one."""
+folder_retry = """To close the folder question: a capture with a Finder window showing large icons
+would settle it. It is recorded here so the gap is a task and not a doubt."""
