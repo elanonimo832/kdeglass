@@ -31,7 +31,7 @@ EXPANDED = (1453, 664, 933, 762)       # the frame plus the decoration's shadow 
 BAR = 38
 
 
-def region_for(kind, reach):
+def region_for(kind, reach=44):
     fx, fy, fw, fh = FRAME
     if kind == "band":
         return (fx - reach, fy - reach, fw + 2 * reach, BAR + 2 * reach)
@@ -43,7 +43,7 @@ def band_v_range():
     return (1.0 - BAR / FRAME[3], 1.0)
 
 
-def sample(kind, origin, reach):
+def sample(kind, origin, reach=44):
     """The uv the SHADER computes for the band's top and bottom rows, with `origin` as written.
 
     `origin="top"`    is `(frame.y - region.y) / region.height`     -- the v axis read downwards.
@@ -96,10 +96,88 @@ def self_test():
     return problems
 
 
+def _text_region(rows, cols, seed=5):
+    """A 'screen region' with high-contrast text -- the thing a broken mapping turns into lines."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    img = np.full((rows, cols, 3), 0.80)
+    y = 0
+    while y < rows - 8:
+        rh = int(rng.integers(6, 10))
+        x = 8
+        while x < cols - 8:
+            w = int(rng.integers(1, 3))
+            if rng.random() < 0.62:
+                img[y:y + rh, x:x + w] = 0.12
+            x += w + int(rng.integers(2, 5))
+        y += rh + int(rng.integers(4, 10))
+    return img
+
+
+def render(path):
+    """What the band SHOWS, row by row, under the two offsets -- the defect made visible.
+
+    This isolates the MAPPING, not the whole material: for each row of the band it takes the row of
+    the region that `offset + v * scale` asks for, clamps it the way a texture does, and averages it
+    horizontally -- which is what the frost's taps do along one row. With the top-origin offset every
+    band row lands on the same clamped row, so one row is repeated down the band: vertical lines,
+    which is what the user photographed. With the bottom-origin offset each row takes the row of the
+    backdrop it belongs to, and the band shows the backdrop that is behind it.
+    """
+    import numpy as np
+    from PIL import Image
+    rows, cols = 126, 400
+    region = _text_region(rows, cols)
+    scale = FRAME[3] / rows
+
+    def band_rows(origin):
+        offset = sample("band", origin)[0]
+        v0, v1 = band_v_range()
+        out = []
+        for r in range(BAR):
+            v = v1 + (v0 - v1) * (r + 0.5) / BAR        # row 0 is the band's TOP, which is v1
+            uv = min(1.0, max(0.0, offset + v * scale))  # the texture clamps
+            out.append(int(round((1.0 - uv) * (rows - 1))))
+        return out
+
+    bug, fix = band_rows("top"), band_rows("bottom")
+    print("  the region's row each band row samples (top-origin -> bottom-origin):")
+    for r in (0, BAR // 2, BAR - 1):
+        print("    band row %2d -> %3d  ->  %3d" % (r, bug[r], fix[r]))
+
+    def band_image(rows_used):
+        out = np.zeros((BAR, cols, 3))
+        k = 8                                            # the frost's footprint, in region pixels
+        for r, src in enumerate(rows_used):
+            acc = np.zeros((cols, 3))
+            n = 0
+            for dy in range(-k, k + 1):
+                row = region[min(rows - 1, max(0, src + dy))]    # the texture clamps in BOTH axes
+                for dx in range(-k, k + 1):
+                    acc += row[np.clip(np.arange(cols) + dx, 0, cols - 1)]
+                    n += 1
+            out[r] = acc / n
+        return out
+
+    panels = np.full((rows + BAR + 8, cols * 2 + 10, 3), 1.0)
+    panels[0:rows, 0:cols] = region
+    panels[rows + 4:rows + 4 + BAR, 0:cols] = band_image(bug)
+    panels[0:rows, cols + 10:] = region
+    panels[rows + 4:rows + 4 + BAR, cols + 10:] = band_image(fix)
+    img = (np.clip(panels, 0, 1) * 255).astype("uint8")
+    Image.fromarray(img).resize(((cols * 2 + 10) * 2, (rows + BAR + 8) * 2), Image.NEAREST).save(path)
+    print("  left  panel: the band under the TOP-origin offset -- one clamped row, repeated")
+    print("  right panel: the band under the BOTTOM-origin offset -- the backdrop behind it")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--self-test", action="store_true", help="check the known-geometry cases")
+    parser.add_argument("--render", metavar="OUT.png", help="draw what each offset makes the band show")
     args = parser.parse_args()
+    if args.render:
+        return render(args.render)
     if args.self_test:
         problems = self_test()
         for p in problems:
