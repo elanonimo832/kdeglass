@@ -46,8 +46,11 @@ dirty_of() { # a photo of a dirty tree cannot be returned to by commit alone, so
     if [ -n "$(git -C "$HERE/.." status --porcelain 2>/dev/null)" ]; then echo dirty; else echo clean; fi
 }
 
-valores() { # the live settings, read-only: tune.sh --show is the one place that formats them
-    "$HERE/tune.sh" --show 2>/dev/null | sed -n '/what the effect last reported/,$p'
+valores() { # the live settings. kwinrc is the SOURCE OF TRUTH and is always there; the journal line
+            # (what the effect last reported reading) is a bonus, and it is EMPTY when the effect has
+            # not reconfigured recently -- which is how the first real snapshot recorded no values.
+    awk '/^\[Effect-macosglass2\]/{f=1;next} /^\[/{f=0} f' "$HOME/.config/kwinrc" | sed 's/^/  /'
+    "$HERE/tune.sh" --show 2>/dev/null | sed -n '/what the effect last reported/,$p' | sed 's/^/  /'
 }
 
 geometria() { # best effort: the active window, from KWin's own scripting, not the stale journal
@@ -145,7 +148,7 @@ fi
 
 mkdir -p "$EVIDENCE"
 base="$EVIDENCE/$(nombre_base)"
-tmp="$base.png.part"
+tmp="$base.part.png"   # spectacle infers the FORMAT from the extension: `.png.part` fails to write
 if ! timeout 30 $CAPTURE "$tmp" >/dev/null 2>&1 || [ ! -s "$tmp" ]; then
     rm -f "$tmp"
     echo "refused: the capture failed (spectacle could not write the image)" >&2

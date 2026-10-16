@@ -57,3 +57,13 @@ id_rsa*
 # into a commit once already. Ignored, not deleted: the files stay on disk.
 # ---------------------------------------------------------------------------
 muestras/
+
+# ---------------------------------------------------------------------------
+# Las fotos de snapshot.sh (unos 6 MB cada una): se quedan EN DISCO junto a su
+# .txt, que las ata al commit y al md5 instalado. Versionar una por avance
+# engordaria el repo igual que aquella vez. El patron solo pilla el nombre
+# compacto que genera el guion (20261015-210427-<commit>-<md5>.png), no las
+# evidencias dibujadas a mano (2026-10-15-...), que SI se versionan.
+# ---------------------------------------------------------------------------
+evidence/20??????-??????-*.png
+evidence/20??????-??????-*.txt
