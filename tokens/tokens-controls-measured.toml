@@ -36,31 +36,33 @@
 #   * A HAIRLINE BORDER and a DROP SHADOW. Both are in these pixels (the slider's knob casts one)
 #     and neither survives a coverage measurement: this tool says so instead of guessing.
 #
-# THE INSTRUMENT, AND THE ONE THING IT FOUND ABOUT ITSELF
+# THE INSTRUMENT, AND THE PHASE BIAS IT INHERITED AND THEN LOST
 #   `tools/measure-controls.py` reads a bar's thickness, a box's edges and corner radius, a text
 #   cap height and a list's row pitch, and its `--self-test` draws each of them with a KNOWN value
 #   first: the bar 6.000 px, the box 16.00 x 16.00 with R = 5.00, the knob 20.00 x 16.00, the stem
 #   9.30 px, the row pitch 25.00. It imports the corner reader and fitter from
-#   `tools/measure-icon-geometry.py` rather than copying them, and it reports BOTH fits because
-#   the imported one is only accurate at one subpixel phase:
+#   `tools/measure-icon-geometry.py` rather than copying them.
 #
-#     drawn R, box 16 px        imported fit (M5's)      exact fit (this tool)
-#     R = 3.0, edge at .0            0.50                    3.10
-#     R = 5.0, edge at .0            2.30                    5.35
-#     R = 8.0, edge at .0            5.30                    8.25
-#     R = 5.0, edge at .5            5.10                    5.30
-#     R = 8.0, edge at .5            8.00                    8.35
-#     R = 5.85 on a 120 px box, .0   3.40                    6.50
-#     R = 20.0 on a 96 px box,  .0  16.40                   20.50
-#     R = 20.0 on a 96 px box,  .5  20.00                   19.65
+#   THE FIGURES BELOW WERE FIRST MEASURED WITH A PHASE-BIASED READER, and re-derived in
+#   `docs/HANDOFF.md` section 10q. The old reader put a corner's edge at an interpolation between
+#   two neighbouring pixels and evaluated the fitted circle at `dy = row index`: exact at a
+#   HALF-pixel edge (the phase its own `--self-test` drew) and wrong by up to 3.6 px at an integer
+#   one. The self-test still PRINTS that contrast, because it is the reason this file records a
+#   bound at all; the measured figures no longer use it. On a synthetic box of a KNOWN radius,
+#   `python3 tools/measure-controls.py self-test` prints the OLD reader answering 8.00 for a drawn
+#   8.0 at its own half-pixel phase and 5.30 for the same box at an integer one, while the CORRECTED
+#   reader answers 7.75 and 7.65. `docs/HANDOFF.md` 10p carries the full sweep of both, including
+#   the 20.0 -> 16.40 case and the R = 3/5 rows.
 #
-#   `tools/measure-icon-geometry.py`'s `--self-test` draws its corner at a HALF-pixel offset, which
-#   is the phase where the imported fitter is exact -- so its own test cannot see this. On an
-#   integer-phase edge (a control can land on one, and a 16 px checkbox does) it reads LOW, by up
-#   to 3.5 px at an 8 px radius. M5's published figures are NOT changed here (they are pinned by
-#   `tests/test-icon-geometry.sh`); what this file records is the size of the phase term, so that
-#   a future small-radius measurement is not made with the wrong reader. The exact fit's own bound
-#   is the one its `--self-test` asserts across four phases and three radii: 0.70 px worst case.
+#   FOUR OF THE FIGURES BELOW MOVED, and section 10q names each one and the direction it moved: the
+#   UNCHECKED checkbox's radius (5.85 -> 5.00), the selection pill's radius (5.7 -> 5.10), the pill's
+#   own HEIGHT (16.4 -> 17.0) and the popup chevron's box radius (never measured -> 9.5). Everything
+#   else was RE-MEASURED AND DID NOT MOVE, which is a result and not an omission: a straight edge or
+#   a bar is read by the same crossing on both readers, and the phase term moves a right or bottom
+#   edge by at most half a pixel, which none of those figures can show at the precision they are
+#   written to. The corrected reader's own bound is the one its `--self-test` asserts across four
+#   phases x radii 3, 5, 8 and 20 x both corners: `radius_bound_px` below, ROUNDED UP from the
+#   0.50 px it measures.
 #
 # NOT IMPLEMENTED HERE. This file MEASURES. Slices 5 and 6 are still to be drawn, and the figures
 # that unblock them are named in the sections below.
@@ -71,9 +73,12 @@ capture_selection = "muestras/Untitled8.png"
 date = "2026-10-16"
 method = "tools/measure-controls.py"
 self_test = "python3 tools/measure-controls.py self-test"
-# The instrument's demonstrated bound on a corner radius: four subpixel phases x three radii, and
-# the worst error of the exact fit over them. A measured radius is reported with an uncertainty
-# rounded UP from this, never down to it.
+# The instrument's demonstrated bound on a corner radius: four subpixel phases x radii 3, 5, 8 and
+# 20 x BOTH the top-left and the top-right corner, and the worst error of the corrected reader over
+# them (it measures 0.50 px; this is that ROUNDED UP). It is `PHASE_TOL` in
+# `tools/measure-icon-geometry.py`, and `tools/measure-controls.py` IMPORTS it rather than keeping a
+# second copy of the number. A measured radius is reported with an uncertainty rounded UP from this,
+# never down to it.
 radius_bound_px = 0.75
 
 [measure.scale]
@@ -136,22 +141,27 @@ knob_shape_family = "not resolvable: a 20 x 16 stadium and a 20 x 16 ellipse fit
 # slice 3 shipped from the kit; this is the capture's own answer, and it CONFIRMS the kit's size.
 box_px = [15.99, 16.00]               # checked (accent fill), unchecked (grey fill)
 box_uncertainty_px = 0.25             # two crisp edges, and the corners do not enter the box's sides
-# THE RADIUS, and the honest half: the two STATES measure differently on the SAME 16 px box.
-# The exact fit agrees with itself to 0.00 px across all four corners of each box.
-radius_checked_px = 4.6
-radius_unchecked_px = 5.85
+# THE RADIUS, RE-DERIVED WITH THE CORRECTED READER (HANDOFF 10q). The checked box's figure barely
+# moved (4.60 -> 4.65, the row-start term); the UNCHECKED box's old 5.85 was the phase bias, and the
+# corrected reader answers 5.00. Both states now agree across all four corners to 0.00 px.
+radius_checked_px = 4.65
+radius_unchecked_px = 5.00
 radius_uncertainty_px = 0.8           # the instrument's 0.75 px phase bound, rounded up
 # The kit's [checkboxes] radius.medium = 5.5 sits INSIDE that window; the older reference figure
 # ("square ~14, radius ~3.5", DESIGN-REFERENCES.md) sits BELOW both and is not supported.
 radius_kit_medium = 5.5
-# The two states disagreeing by 1.25 px is MORE than the instrument's bound, and a capture cannot
-# say why (a hairline inside the checked box, two different drawings, or a term the synthetic
-# tests do not reproduce). Declared, not averaged away.
-state_discrepancy = "unresolved: the checked box's corner is 1.25 px tighter than the unchecked one's"
+# THE TWO STATES NOW AGREE WITHIN THE INSTRUMENT'S OWN BOUND, and that REVERSES a published finding:
+# the old reader put 1.25 px between them and this file had to declare the gap "unresolved". The
+# corrected reader puts 0.35 px between them, which is INSIDE its 0.75 px bound -- so the gap was the
+# READER's, not the pixels'. Declared, because a later edit must not restore a disagreement the
+# instrument cannot see.
+state_discrepancy = "CLOSED by HANDOFF 10q: the old reader's 1.25 px gap between the checked (4.65) and unchecked (5.00) corners was its own phase bias; the corrected reader puts 0.35 px between them, inside its 0.75 px bound"
 fill_checked = "#0077F9"              # the accent, as this capture renders it
 fill_unchecked = "#DFDFDF"            # a SOLID grey fill: there is no 1 px border and no hollow
 # THE TICK: white, 8 x 8 px of bounding box inside the 16 px box, 4 px in from its left edge and
-# 4 px down from its top edge, with a stroke of 2 px.
+# 4 px down from its top edge, with a stroke of 2 px. RE-MEASURED AND UNCHANGED in 10q: it is read
+# from the white pixels' own bounding box, not through the coverage crossing, so the phase term
+# cannot move it -- the corrected reader finds the same 8 x 8 at the same 4 px offset.
 tick_bbox_px = [8, 8]
 tick_offset_px = [4, 4]
 tick_stroke_px = 2.0
@@ -179,11 +189,19 @@ fill_off = "not measurable: a white pill on a 247 background (8 levels of contra
 
 [measure.popup]
 # slice 5's control: the chevron of a popup button sits in its own small rounded square, which is
-# what the kit's [combo_button] width_button.medium = 24 describes.
+# what the kit's [combo_button] width_button.medium = 24 describes. RE-MEASURED in 10q: the four
+# boxes in the capture (y 243..262, 282..301, 320..339 and 645..664 at x 729..748) all read 20 x 20
+# px UNCHANGED -- a straight edge, and the phase term cannot show in it. THE CORNER IS NEW here: the
+# corrected reader fits it, which the old reader could not do reliably on a 20 px box.
 chevron_box_px = [20, 20]
 chevron_box_uncertainty_px = 0.5      # 20 rows at x=738 and 20 columns at y=252, off a luminance scan:
 # the grey (#E4E4E4) box against its #F7F7F7 row is a 20 x 20 px rounded square, which is the kit's
 # [combo_button] width_button.medium = 24 minus its own inset.
+# THE CORNER, measured in 10q and NOT in the first pass: three of the four boxes give 9.45, 9.50 and
+# 9.56 px across all four corners (spread 0.25 px); the first box's top corners read 8.10 and 7.80.
+# The figure is their median and the uncertainty covers the spread AND the reader's 0.75 px bound.
+chevron_box_radius_px = 9.5
+chevron_box_radius_uncertainty_px = 0.9
 chevron_box_fill = "#E4E4E4"
 chevron_glyph_px = [6, 9]             # the two chevrons, ~6 px wide and ~9 px tall together
 kit_width_button_medium = 24
@@ -193,14 +211,27 @@ kit_width_button_medium = 24
 # repository. The Finder's ICON VIEW draws TWO layers, and the SIDEBAR draws ONE.
 #   icon view: a grey cell rectangle AND an accent pill behind the label, whose text turns WHITE.
 #   sidebar:   one grey row highlight, and the label's colour does NOT change.
-cell_px = [144.0, 145.0]              # L 255.0, R ~399, T ~185.7, B ~331
+# RE-DERIVED WITH THE CORRECTED READER (HANDOFF 10q). The WIDTH moved by 0.2 px (the corrected
+# crossing reads the edge's own pixel); the HEIGHT is the figure that moved: the old crop's bottom
+# probe landed on an edge the old reader put at 335.0, while the cell's own fill stops at 329.9, so
+# 145.0 was a crop artefact and the flat-edge read is 143.9. The cell is square, as a Finder icon
+# cell is, and the width is the figure to trust.
+cell_px = [144.2, 143.9]              # L 254.765, R 398.926, T 186.074, B 329.926 (flat edges)
 cell_uncertainty_px = 1.0
 cell_radius_px = 14.0
-cell_radius_uncertainty_px = 1.5      # the top edge's own 0.5 px moves the fit between 13.3 and 14.5
+cell_radius_uncertainty_px = 0.75     # the reader's own bound, rounded up: the corners fit 13.45..14.80
 cell_fill = "#E2E3E4"
-label_pill_px = [79.0, 16.4]          # spans exactly the label's text width, and it sits BELOW the cell
-label_pill_radius_px = 5.7
-label_pill_radius_note = "16.4 px tall and NOT a stadium (R would be 8.2): the fit found 5.70 with a 0.16 px residual"
+label_pill_px = [79.0, 17.0]          # spans exactly the label's text width, and it sits BELOW the cell
+label_pill_uncertainty_px = 0.5
+# THE HEIGHT MOVED 16.4 -> 17.0 (10q). The pill's fill covers the 17 rows 332..348 and the corrected
+# crossing agrees: its edges are 332.000 and 349.000, which is 17.000 px. The old reader reported
+# 16.399 because its crossing put those two edges 0.3 px inside the run. 17.0 is also the figure a
+# simple pixel count gives, which is the check that says the corrected one is right.
+# THE PILL'S RADIUS MOVED (10q): 5.7 -> 5.10. The old reader's 5.70 was its phase bias again (it
+# answers 5.75 on this pill's crop); the corrected reader fits 5.20 (top corners) and 5.00 (bottom),
+# 0.09-0.12 px residual. It is STILL not a stadium: a stadium's ends would be 8.5.
+label_pill_radius_px = 5.10
+label_pill_radius_note = "17.0 px tall and NOT a stadium (R would be 8.5): the corrected reader found 5.20/5.00 with a 0.12 px residual (the old reader said 5.70)"
 label_pill_fill = "#0064E1"           # 22 levels from the accent the System Settings capture renders
 label_text_selected = "#FFFFFF"
 label_text_unselected = "#272727"     # the darkest pixel of a non-selected label: near-black, not black
@@ -217,7 +248,10 @@ focus_ring = "not observed: the accent pill IS the selected item's indicator in 
 [measure.rows]
 # THE KIT SAYS 24 FOR A MENU ROW AND THE BASE STYLE DRAWS 29. That question is NOT answered here:
 # no menu is open in either capture. What IS measured is a LIST row's pitch, which is what slice 5
-# needs for the padding of a combobox's popup and for a tab bar.
+# needs for the padding of a combobox's popup and for a tab bar. RE-MEASURED in 10q and UNCHANGED:
+# the separator reader takes a column's own row runs and never crosses an antialiased edge, so the
+# phase term cannot reach it. The separators still land on 272, 311, 349, 432, 469 and 506, and the
+# pitches are still 38.0 and 37.0.
 list_row_pitch_px = 38.0              # System Settings: separators at 272, 311, 349 and 432, 469, 506
 list_row_pitch_range_px = [37.0, 39.0]
 list_row_uncertainty_px = 1.0

@@ -8,10 +8,13 @@
 #
 #   1. THE INSTRUMENT CAN MEASURE. `tools/measure-controls.py --self-test` draws a bar, a box, a
 #      knob, a text stem and a list, each with a KNOWN value, and reads every one of them back.
-#   2. THE INSTRUMENT'S OWN BLIND SPOT IS PINNED, because it is what made this measurement
-#      necessary: the corner reader imported from `tools/measure-icon-geometry.py` answers
-#      R = 2.50 for a drawn R = 5.0 when the box's edge sits on an integer pixel and 5.00 when it
-#      sits on a half pixel. A test that only checked "a radius came back" would not see that.
+#   2. THE READER'S HISTORY AND ITS BOUND ARE BOTH PINNED. The OLD corner reader answered R = 2.50
+#      for a drawn R = 5.0 when the box's edge sat on an integer pixel and 5.00 when it sat on a
+#      half pixel, which is the phase bias `HANDOFF.md` sections 10o -> 10p measured and fixed; the
+#      self-test still PRINTS that contrast, and it asserts the corrected reader's own 0.75 px
+#      bound over a sweep of four phases x radii 3, 5, 8 and 20. The figures below were re-derived
+#      with the CORRECTED reader (section 10q), and the radius assertions read the token and fail
+#      if an edit restores a figure the old phase-biased reader produced.
 #   3. THE VALUES HAVE A PROVENANCE: which capture, which method, which date, which uncertainty.
 #   4. WHAT COULD **NOT** BE MEASURED IS DECLARED: no radio button and no open menu are in any
 #      capture, the focus ring cannot appear in a mouse-driven capture, and a hairline border and a
@@ -38,6 +41,56 @@ afirmar "the self-test prints the exact fit per subpixel phase" \
     bash -c "python3 '$TOOL' self-test 2>&1 | grep -q 'worst phase error'"
 afirmar "the self-test prints the IMPORTED fitter's answer too, so the contrast is visible" \
     bash -c "python3 '$TOOL' self-test 2>&1 | grep -q 'imported fitter'"
+
+# 1c. THE CORRECTED READER'S BOUND IS THE INSTRUMENT'S OWN, imported from the one module that
+# defines it, and the token's radius uncertainty is rounded UP from it. A token that declared a
+# TIGHTER radius uncertainty than the reader can hold would be claiming a precision its method
+# does not have -- and this is the number the phase fix moved into place.
+afirmar "the instrument imports the reader's phase bound instead of keeping a copy" \
+    bash -c "grep -qE 'PHASE_TOL = _ICON.PHASE_TOL' '$TOOL'"
+afirmar "the token's radius uncertainty is not smaller than the reader's own bound" \
+    python3 -c '
+import sys, tomllib, importlib.util
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+spec = importlib.util.spec_from_file_location("mc", "'"$TOOL"'")
+mc = importlib.util.module_from_spec(spec); spec.loader.exec_module(mc)
+bound = float(mc.PHASE_TOL)
+declared = float(t["measure"]["radius_bound_px"])
+sys.exit(0 if declared >= bound else 1)'
+
+# 1d. THE FIGURES THAT DID **NOT** MOVE, PINNED SO "RE-MEASURED AND UNCHANGED" CANNOT BE RE-READ AS
+# "NOT CHECKED" (HANDOFF 10q). Every one of these is a straight edge or a bar, read by the SAME
+# crossing on both readers: the phase fix moves a right/bottom edge by up to half a pixel, which a
+# 6 px bar and a 16 px box cannot show at the precision their figures are written to. The values are
+# compared against the token READ FROM THE FILE, so a slice that "corrects" one of them fails here.
+afirmar "the track, the knob, the box, the tick and the row pitch are re-measured and UNCHANGED" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))["measure"]
+s, c, p, r, lay = t["slider"], t["checkbox"], t["popup"], t["rows"], t["layout"]
+ok = (
+    abs(float(s["track_thickness_px"]) - 6.0) <= 0.01
+    and abs(float(s["track_thickness_pt"]) - 5.9) <= 0.01
+    and abs(float(s["knob_width_px"]) - 19.83) <= 0.01
+    and abs(float(s["knob_height_px"]) - 15.8) <= 0.01
+    and abs(float(s["knob_ratio"]) - 0.797) <= 0.001
+    and abs(float(c["box_px"][0]) - 15.99) <= 0.01
+    and abs(float(c["box_px"][1]) - 16.00) <= 0.01
+    and [int(v) for v in c["tick_bbox_px"]] == [8, 8]
+    and [int(v) for v in c["tick_offset_px"]] == [4, 4]
+    and abs(float(c["tick_stroke_px"]) - 2.0) <= 0.01
+    and [float(v) for v in p["chevron_box_px"]] == [20.0, 20.0]
+    and abs(float(r["list_row_pitch_px"]) - 38.0) <= 0.01
+    and abs(float(r["group_gap_px"]) - 10.0) <= 0.01
+    and abs(float(lay["control_height_px"]) - 16.0) <= 0.01
+)
+sys.exit(0 if ok else 1)'
+# AND THE BAR READER IS STILL EXACT ON A KNOWN BAR: the corrected crossing must recover a drawn
+# 6.000 px bar to the pixel, which is the reader the unchanged 6.0 px track rests on. This uses the
+# SELF-TEST's own bar and NOT `muestras/`: the captures are gitignored, and this file deliberately
+# never reads them (the suite has to pass on a clone without the user's screenshots).
+afirmar "the corrected bar reader still recovers a drawn 6.000 px track to the pixel" \
+    bash -c "python3 '$TOOL' self-test 2>&1 | grep -qE 'bar_thickness +-> +6\.000'"
 
 # 2. The token, with its provenance and its two captures.
 afirmar_existe "the measured controls token exists" "$TOKEN"
@@ -88,22 +141,53 @@ s = t["measure"]["slider"]
 sys.exit(0 if float(s["knob_width_px"]) > float(s["knob_height_px"]) + 2.0 else 1)'
 
 # 4. THE CHECKBOX, which slice 3 already drew from the kit. The measurement CONFIRMS the kit's size,
-# so the assertion pins the agreement instead of the number alone; and it pins the two states'
-# DISAGREEMENT about the radius, because that is the honest half and an edit could quietly average
-# it into one comfortable figure.
+# so the assertion pins the agreement instead of the number alone.
 afirmar "the measured checkbox agrees with the kit's 16 pt box" \
     python3 -c '
 import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 w, h = (float(v) for v in t["measure"]["checkbox"]["box_px"])
 sys.exit(0 if abs(w - 16.0) <= 0.5 and abs(h - 16.0) <= 0.5 else 1)'
-afirmar "the two checkbox states still measure different corner radii, and it is declared" \
+
+# 4b. THE TWO RADII, RE-DERIVED WITH THE CORRECTED READER (HANDOFF 10q). The old reader reported
+# 4.60 and 5.85; the corrected one reports 4.65 and 5.00. The published 5.85 for the UNCHECKED box
+# is the one figure the old crossing inflated, and it is exactly what the old code answers on the
+# same crop (`git show 6d694bb^:tools/measure-controls.py`), so the assertion below pins the new
+# value and refuses the old one BY NAME. A test that only checked "a radius came back" would have
+# passed on both.
+afirmar "the unchecked checkbox radius is the CORRECTED reader's, not the old reader's 5.85" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+c = t["measure"]["checkbox"]
+u = float(c["radius_unchecked_px"])
+sys.exit(0 if abs(u - 5.00) <= 0.25 and abs(u - 5.85) > 0.5 else 1)'
+afirmar "the checked checkbox radius is the corrected reader's 4.65" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+c = t["measure"]["checkbox"]
+sys.exit(0 if abs(float(c["radius_checked_px"]) - 4.65) <= 0.25 else 1)'
+
+# 4c. THE TWO STATES NO LONGER DISAGREE BY MORE THAN THE INSTRUMENT CAN SEE. The old reader put
+# 1.25 px between them and the token had to declare that gap "unresolved"; the corrected reader puts
+# 0.35 px between them, INSIDE the 0.75 px phase bound. That is a reversal of a published finding
+# (the READER made the gap, not the pixels), so the token must say so and must NOT keep calling a
+# difference smaller than its own bound "unresolved".
+afirmar "the checkbox states now agree within the instrument's own bound" \
     python3 -c '
 import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 c = t["measure"]["checkbox"]
 d = abs(float(c["radius_checked_px"]) - float(c["radius_unchecked_px"]))
-sys.exit(0 if d > float(c["radius_uncertainty_px"]) and "unresolved" in c["state_discrepancy"] else 1)'
+sys.exit(0 if d <= float(c["radius_uncertainty_px"]) else 1)'
+afirmar "and the token records that the old 1.25 px disagreement was the reader's" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+c = t["measure"]["checkbox"]
+d = c["state_discrepancy"]
+sys.exit(0 if "reader" in d and "1.25" in d else 1)'
 afirmar "the measured checkbox radius WINDOW still contains the kit's 5.5" \
     python3 -c '
 import sys, tomllib
@@ -136,6 +220,26 @@ t = tomllib.load(open("'"$TOKEN"'", "rb"))
 s = t["measure"]["selection"]
 sys.exit(0 if "unchanged" in s["sidebar_text_selected"] else 1)'
 
+# 5b. THE TWO SELECTION RADII, RE-DERIVED WITH THE CORRECTED READER (HANDOFF 10q). The cell's 14 px
+# SURVIVED the phase fix (it was the cell's WIDTH that made the old crop clip); the label pill's 5.7
+# did not: the corrected reader answers 5.10, which is still NOT a stadium (a stadium's ends would
+# be 8.5) but is no longer the old reader's number.
+afirmar "the selection cell radius is still the corrected reader's ~14 px" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+s = t["measure"]["selection"]
+sys.exit(0 if abs(float(s["cell_radius_px"]) - 14.0) <= 0.75 else 1)'
+afirmar "the label pill radius is the corrected 5.1, and the token says it is NOT a stadium" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+s = t["measure"]["selection"]
+r = float(s["label_pill_radius_px"])
+stadium = float(s["label_pill_px"][1]) / 2.0
+sys.exit(0 if abs(r - 5.10) <= 0.25 and r < stadium - 1.0
+         and "stadium" in s["label_pill_radius_note"] else 1)'
+
 # 6. THE HONEST HALF. Each of these is a thing a reader would expect this measurement to answer and
 # that the captures cannot: they are declared, so a later edit cannot turn "not measurable" into a
 # silent number.
@@ -149,6 +253,21 @@ sys.exit(0 if r["measurable"] is False and len(r["reason"]) > 20 else 1)'
 afirmar_contiene "the menu item height is declared unmeasurable, not guessed" "$TOKEN" 'menu_item_height'
 afirmar_contiene "the focus ring is declared unobserved, with its reason" "$TOKEN" 'focus_ring'
 afirmar_contiene "a hairline border and a shadow are declared out of reach" "$TOKEN" 'HAIRLINE'
+
+# 6b. THE COMBO CHEVRON'S BOX, which slice 5 consumes. Its 20 x 20 px SIZE did not move (a straight
+# edge, read by the same crossing on both readers), but the corrected reader now also gives its
+# CORNER, and section 10q writes it down because a rounded square drawn with the wrong corner is the
+# kind of difference a 20 px control shows. The assertion is a window, not a digit: the four boxes
+# in the capture read 9.45..9.56 and one of them a low 8.70, so the token's uncertainty must cover
+# that and must not claim more than the reader can hold.
+afirmar "the chevron box's measured corner is recorded with the reader's own bound" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+p = t["measure"]["popup"]
+r = float(p["chevron_box_radius_px"])
+u = float(p["chevron_box_radius_uncertainty_px"])
+sys.exit(0 if 8.0 <= r <= 10.5 and u >= 0.75 else 1)'
 
 # 7. The evidence is OUR OWN drawing of the measured geometry, never a crop of Apple's pixels.
 afirmar_existe "the evidence drawing exists" "$EVID"
