@@ -90,6 +90,11 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    plasma-apply-lookandfeel -a KdeMacOS     # or System Settings > Global Theme > KdeMacOS
    ./install.sh rollback                    # to undo
    ```
+   MEASURED LATER, and it was a real miss (`HANDOFF.md` §10e): that tool does NOT carry the
+   theme's SEVEN font keys and `macosglass2Enabled` -- the effect switch -- anywhere, so a theme
+   that promised a type scale and an effect applied neither. `install.sh aplicar` now READS the
+   generated `defaults` and writes the missing keys itself with `kwriteconfig6`, so the installer
+   is the one that applies them and a relogin is what makes Plasma re-read the fonts.
    NEXT was M4 typography -- DONE, and it is point 7.
 7. **M4 -- the macOS type scale: BUILT, and it wants the user's session.**
    `tools/generate-global-theme.py` writes the font keys into the SAME `contents/defaults` M3 ships

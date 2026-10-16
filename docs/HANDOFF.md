@@ -1961,6 +1961,49 @@ surprise later is a finding and not a forgotten doubt.
 a modern one by name. (The counted size of the suite is deliberately NOT written here: a doc that
 quotes the count breaks the run that verifies it -- section 11.)
 
+## 10e. The global theme carried a type scale and an effect switch, and NOTHING applied them
+
+M4 wrote the macOS fonts into the global theme's `contents/defaults`, `install.sh aplicar` copied the
+package correctly, the user ran the documented `plasma-apply-lookandfeel -a KdeMacOS` -- and the text
+did not change. The cause was MEASURED, not guessed, and it is not only about fonts.
+
+`plasma-apply-lookandfeel` does not write the defaults into the user's configuration. It writes them
+into `$XDG_CONFIG_HOME/kdedefaults/<file>`, which is the layer KDE reads as a **fallback**, and it
+silently DROPS the keys that do not fit there. Measured by applying into an isolated
+`XDG_CONFIG_HOME` and grepping the result file by file:
+
+| `defaults` entry | where it lands |
+|---|---|
+| `[kdeglobals][KDE] widgetStyle`, `[kdeglobals][General] ColorScheme`, `[kdeglobals][Icons] Theme` | `kdedefaults/kdeglobals` |
+| `[plasmarc][Theme] name` | `kdedefaults/plasmarc` |
+| `[kcminputrc][Mouse] cursorTheme` | `kdedefaults/kcminputrc` |
+| `[kwinrc][org.kde.kdecoration2] library`, `theme` | `kdedefaults/kwinrc` |
+| `[ksplashrc][KSplash] Theme` | `kdedefaults/ksplashrc` |
+| **`[kdeglobals][General]`** `font`, `menuFont`, `toolBarFont`, `smallestReadableFont`, `fixed` | **NOWHERE** |
+| **`[kdeglobals][WM]`** `activeFont`, `inactiveFont` | **NOWHERE** |
+| **`[kwinrc][Plugins]`** `macosglass2Enabled` | **NOWHERE** |
+
+So it was not the fonts alone: the theme also promised to switch the effect on, and that key went
+missing with them. And a fallback would not have been enough even if the font keys HAD landed,
+because the user's own `[WM] activeFont=Noto Sans,12` wins over a default -- which is why the fix
+writes into the user's file and not into the defaults layer.
+
+The fix lives in `install.sh aplicar`: it READS the installed `defaults` -- the one source of truth,
+the same file the map copies, never a copy of its values that could drift apart -- and writes with
+`kwriteconfig6` ONLY the keys the tool did not carry, which is exactly what the Fonts KCM does when a
+font is changed by hand. Each file is backed up once and recorded in the manifest, so `rollback`
+undoes it, and with no `kdedefaults` layer at all (the tool has never run) every key is written,
+which is what applying a theme means.
+
+`tests/test-lookandfeel-apply.sh` runs the whole cycle with an isolated `XDG_CONFIG_HOME` and
+`XDG_DATA_HOME`: it compares EVERY font key against the file -- never against a string remembered in
+the test, or it would pass the day the defaults change and the installer does not -- and asserts that
+the effect switch lands and that a key which is NOT the theme's survives untouched. Two traps, both
+mine and both caught by the runner: an `EXIT` trap of its own REPLACES the one `tests/run-one.sh`
+uses to report the counter (the file reports "died without reporting a counter" while every
+assertion passed), and `kreadconfig6` MERGES the `kdedefaults` fallback, so a key the tool dropped
+looks present until the test reads the file directly.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).
