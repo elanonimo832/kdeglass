@@ -389,7 +389,7 @@ void main()
     // few pixels tall and the nearest sample is nineteen away, so up, down and further out are
     // all bar. The clamp keeps them inside the band, which is also what stops the strip at the
     // bar's bottom from coming back.
-    vec4 c0 = window;   // the texel the band already fetched: re-reading it was one fetch too many
+    vec4 c0 = texture(sampler, vTexCoord);
     vec4 c1 = texture(sampler, vec2(vTexCoord.x,
                                     clamp(vTexCoord.y - toneRadius * uTexelSize.y, vBandBottom, vBandTop)));
     vec4 c2 = texture(sampler, vec2(vTexCoord.x,
@@ -432,8 +432,9 @@ void main()
     // needs to measure against: a glyph deviates from it (chrome), a bar pixel beside the
     // glyph does not (no halo), and a traffic light deviates from it (solid).
     //
-    // The old `deviation`/`byDeviation` mask lived here. It was superseded by the COVERAGE below,
-    // which measures against the same median tone and is the one knob a screen turns.
+    // `high` is derived from `low` (3x) so there is ONE knob to turn on a screen.
+    float deviation = abs(dot(window.rgb - baseline, vec3(0.2126, 0.7152, 0.0722)));
+    float byDeviation = smoothstep(uChromeLow, uChromeLow * 3.0, deviation);
 
     // COLOUR IS CHROME TOO, and it is the term that keeps the traffic lights SOLID.
     // A tight baseline sees the same colour in the middle of a 12 px disc as around it,
@@ -895,9 +896,11 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     // `tune.sh` call pay a compile and a link on the compositor thread. loadShader()
     // already returns early when the shader exists; the uniforms are re-read per paint.
     loadShader();
-    const auto windows = effects->stackingOrder();
-    for (EffectWindow *w : windows) {
-        redirect(w);
+    if (m_active) {
+        const auto windows = effects->stackingOrder();
+        for (EffectWindow *w : windows) {
+            redirect(w);
+        }
     }
 
     // ASK FOR A FULL REPAINT, or the new values arrive only where a window happens to
@@ -923,25 +926,7 @@ bool MacosGlassEffect::loadShader()
         qCritical() << "[macos-glass] the diffusion shader failed to load";
         return false;
     }
-    // A new shader means new locations: the cache is per-program, and this is the only place that
-    // builds one.
-    m_uniformLocations.clear();
     return true;
-}
-
-int MacosGlassEffect::uniformLocation(const char *name)
-{
-    // AUDIT 8. The lookup is cached because it is a GL call (glGetUniformLocation) and the answer
-    // cannot change while the shader lives. A miss is cached too: a name the GLSL does not declare
-    // stays missing, and asking the driver again on every paint would not find it either.
-    const QString key = QString::fromLatin1(name);
-    const auto it = m_uniformLocations.constFind(key);
-    if (it != m_uniformLocations.constEnd()) {
-        return it.value();
-    }
-    const int location = m_shader ? m_shader->uniformLocation(name) : -1;
-    m_uniformLocations.insert(key, location);
-    return location;
 }
 
 void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
@@ -952,11 +937,11 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
     static int logged = 0;
     const bool normal = w->isNormalWindow();
 
-    if (!normal) {
+    if (!m_active || !normal) {
         if (logged < 8) {
             ++logged;
             qInfo() << "[macos-glass] DIAGNOSE skip" << w->caption()
-                    << "normal=" << normal;
+                    << "active=" << m_active << "normal=" << normal;
         }
         return;
     }
@@ -1045,21 +1030,6 @@ void MacosGlassEffect::slotWindowAdded(EffectWindow *w)
 void MacosGlassEffect::slotWindowDeleted(EffectWindow *w)
 {
     qInfo() << "[macos-glass] UNREDIRECT (window deleted)" << w->caption().left(20);
-    // AUDIT 4: DROP THIS WINDOW'S SLOTS. The cache key holds the pointer, and a new window can be
-    // allocated at the same address -- the size in the key would then match and a stale entry would
-    // be reused. It is re-blitted before use, so that was harmless, but a key that can outlive its
-    // window is a question nobody should have to answer twice.
-    for (auto it = m_captures.begin(); it != m_captures.end();) {
-        if (it->first.window == w) {
-            if (m_currentCapture == it->second.get()) {
-                m_currentCapture = nullptr;
-            }
-            m_lastUse.erase(it->first);
-            it = m_captures.erase(it);
-        } else {
-            ++it;
-        }
-    }
     unredirect(w);
 }
 
@@ -1072,7 +1042,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // that the comment and the test claimed "at the start of every capture" and the code
     // did not deliver it; now it does.
     m_currentCapture = nullptr;
-    if (!w->isNormalWindow() || !w->hasDecoration()) {
+    if (!m_active || !w->isNormalWindow() || !w->hasDecoration()) {
         return false;
     }
     // No shader means apply() returns before drawing the band, so a capture would be
@@ -1176,7 +1146,7 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
 
     // Looked up, not rebuilt: two windows of different sizes used to allocate and free a
     // texture and a framebuffer twice per frame for as long as both kept repainting.
-    const CaptureKey key{w, reducedSize.width(), reducedSize.height()};
+    const auto key = std::make_pair(reducedSize.width(), reducedSize.height());
     auto slot = m_captures.find(key);
     if (slot == m_captures.end()) {
         auto newSlot = std::make_unique<CaptureSlot>();
@@ -1338,13 +1308,13 @@ void MacosGlassEffect::prePaintWindow(RenderView *view, EffectWindow *w, WindowP
     // second (seen in the real journal, 2026-10-14). A counter that stops incrementing
     // cannot be used as a gate, and a diagnostic that floods the log destroys the thing
     // it exists for: the journal stopped being readable exactly when it was needed.
-    const bool shouldLog = w->isNormalWindow() && pre < 6;
+    const bool shouldLog = m_active && w->isNormalWindow() && pre < 6;
     if (shouldLog) {
         ++pre;
         qInfo() << "[macos-glass] prePaintWindow" << w->caption().left(20)
-                << "normal=" << w->isNormalWindow();
+                << "normal=" << w->isNormalWindow() << "active=" << m_active;
     }
-    if (w->isNormalWindow()) {
+    if (m_active && w->isNormalWindow()) {
         // The scene blends a window only if it is told the window is translucent.
         // The shader writing an alpha is not enough on its own.
         data.setTranslucent();
@@ -1419,14 +1389,14 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     }
 
     ShaderManager::instance()->pushShader(m_shader.get());
-    m_shader->setUniform(uniformLocation("uRadius"), float(m_frostRadius));
-    m_shader->setUniform(uniformLocation("uTexelSize"),
+    m_shader->setUniform("uRadius", float(m_frostRadius));
+    m_shader->setUniform("uTexelSize",
                          QVector2D(1.0f / size.width(), 1.0f / size.height()));
-    m_shader->setUniform(uniformLocation("uTextureSize"),
+    m_shader->setUniform("uTextureSize",
                          QVector2D(float(size.width()), float(size.height())));
-    m_shader->setUniform(uniformLocation("uTitleBarHeight"), float(barHeight));
-    m_shader->setUniform(uniformLocation("uGlassAlpha"), m_glassAlpha);
-    m_shader->setUniform(uniformLocation("uChromeLow"), m_chromeLow);
+    m_shader->setUniform("uTitleBarHeight", float(barHeight));
+    m_shader->setUniform("uGlassAlpha", m_glassAlpha);
+    m_shader->setUniform("uChromeLow", m_chromeLow);
     // WHICH WINDOWS GET ROUNDED CORNERS, and it is not all of them. A fullscreen window
     // IS the screen: rounding its corners would carve arcs out of the screen itself and
     // show the desktop behind them. A window with client-side decoration is the one case
@@ -1435,22 +1405,22 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     // windows the material covers: normal, decorated, not fullscreen.
     const bool shouldRound = m_cornerRadius > 0
         && w->isNormalWindow() && w->hasDecoration() && !w->isFullScreen() && !m_touchesEdge;
-    m_shader->setUniform(uniformLocation("uCornerRadius"), shouldRound ? float(m_cornerRadius) : 0.0f);
+    m_shader->setUniform("uCornerRadius", shouldRound ? float(m_cornerRadius) : 0.0f);
     // smoothing 0 when the corners are not rounded, or the shader would compute a superellipse for a
     // shape nobody draws: `shouldRound` is the same gate as the radius.
-    m_shader->setUniform(uniformLocation("uCornerSmoothing"),
+    m_shader->setUniform("uCornerSmoothing",
                          shouldRound ? m_cornerSmoothing : 0.0f);
-    m_shader->setUniform(uniformLocation("uVibrancy"), m_vibrancy);
-    m_shader->setUniform(uniformLocation("uRim"), m_rim);
-    m_shader->setUniform(uniformLocation("uMaterialBoost"), m_materialBoost);
-    m_shader->setUniform(uniformLocation("uMaterialGain"), m_materialGain);
-    m_shader->setUniform(uniformLocation("uRefraction"), m_refraction);
-    m_shader->setUniform(uniformLocation("uRimWidth"), m_rimWidth);
-    m_shader->setUniform(uniformLocation("uRimColour"), m_rimColour);
-    m_shader->setUniform(uniformLocation("uSpecular"), m_specular);
-    m_shader->setUniform(uniformLocation("uSpecularWidth"), m_specularWidth);
-    m_shader->setUniform(uniformLocation("uBackgroundFlipV"), m_backgroundFlipV ? 1.0f : 0.0f);
-    m_shader->setUniform(uniformLocation("uBackgroundRadius"), float(m_backgroundRadius));
+    m_shader->setUniform("uVibrancy", m_vibrancy);
+    m_shader->setUniform("uRim", m_rim);
+    m_shader->setUniform("uMaterialBoost", m_materialBoost);
+    m_shader->setUniform("uMaterialGain", m_materialGain);
+    m_shader->setUniform("uRefraction", m_refraction);
+    m_shader->setUniform("uRimWidth", m_rimWidth);
+    m_shader->setUniform("uRimColour", m_rimColour);
+    m_shader->setUniform("uSpecular", m_specular);
+    m_shader->setUniform("uSpecularWidth", m_specularWidth);
+    m_shader->setUniform("uBackgroundFlipV", m_backgroundFlipV ? 1.0f : 0.0f);
+    m_shader->setUniform("uBackgroundRadius", float(m_backgroundRadius));
 
     // The captured desktop goes on texture unit 1: unit 0 is the window's own
     // texture, bound by KWin. The texture is NOT unbound afterwards on purpose --
@@ -1461,7 +1431,7 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     if (hasCapture) {
         glActiveTexture(GL_TEXTURE0 + 1);
         m_currentCapture->texture->bind();
-        m_shader->setUniform(uniformLocation("background"), 1);
+        m_shader->setUniform("background", 1);
         glActiveTexture(GL_TEXTURE0);
         // The kernel's spacing is expressed in SCREEN pixels, so this is the texel of
         // the full-size region -- not of the reduced texture, which is factor times
@@ -1471,15 +1441,15 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
         // THE SUB-RECTANGLE MAPPING IS MANDATORY, in BOTH capture modes: the capture is the band or
         // the whole expanded geometry, and the frame is a sub-rectangle of it either way. This used
         // to be gated on `CaptureSubRect`, whose OFF sent the identity -- the KNOWN 14 px offset.
-        m_shader->setUniform(uniformLocation("uBackgroundOffset"), m_sampleOffset);
-        m_shader->setUniform(uniformLocation("uBackgroundScale"), m_sampleScale);
+        m_shader->setUniform("uBackgroundOffset", m_sampleOffset);
+        m_shader->setUniform("uBackgroundScale", m_sampleScale);
         if (m_captureRegion.width() > 0 && m_captureRegion.height() > 0) {
-            m_shader->setUniform(uniformLocation("uBackgroundTexel"),
+            m_shader->setUniform("uBackgroundTexel",
                                  QVector2D(1.0f / m_captureRegion.width(),
                                            1.0f / m_captureRegion.height()));
         }
     }
-    m_shader->setUniform(uniformLocation("uHasBackground"), hasCapture ? 1.0f : 0.0f);
+    m_shader->setUniform("uHasBackground", hasCapture ? 1.0f : 0.0f);
     ShaderManager::instance()->popShader();
 }
 

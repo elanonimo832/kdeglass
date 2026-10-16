@@ -175,7 +175,7 @@ And three instruments that measure the material rather than the loading:
 |---|---|
 | `measure-glass.py` | does the bar take colour from what is behind it |
 | `measure-alignment.py` | is the backdrop sampled where it belongs (step 3d) |
-| `measure-corner.py` | the SHAPE of a corner, read from pixels, and its CURVATURE: `--self-test` runs the synthetic known-value cases and `--curvature circle\|figma\|clothoid\|superellipse:N\|g2bezier` reports kappa(s), whether it overshoots the arc's 1/R (the "angle" the eye sees) and how many times |
+| `measure-corner.py` | the SHAPE of a corner, read from pixels; `--self-test` runs the synthetic known-value cases |
 
 These three answer «why does KWin not load my effect?» in seconds, which is what
 would have saved me half the incident.

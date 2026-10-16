@@ -170,35 +170,3 @@ echo "  -- the harness tells finishing from dying halfway --"
 # run.sh requires it.
 afirmar_codigo "the runner marks a file that reached its end" "$HERE/run-one.sh" 'COUNT_FILE[.]done'
 afirmar_codigo "and the suite requires that mark" "$HERE/run.sh" '! -s "\$countFile[.]done"'
-
-echo "  -- a GLSL assertion survives reformatting and still catches a changed operator --"
-# AUDIT FINDING 6. The assertions on the shader pinned SPACES and ORDER, so a correct cleanup broke
-# them while a real drift could pass. The comparator below removes whitespace from BOTH the code and
-# the pattern and then does a LITERAL substring search, so the pattern stays one contiguous
-# expression: reordering it or changing an operand still fails. That is the difference between
-# "insensitive to formatting" and "a list of words that appear somewhere", which is what would
-# weaken the net instead of fixing it.
-GLSLF="$(mktemp)"
-cat > "$GLSLF" <<'GLSL'
-float vBandBottom = 1.0 - uTitleBarHeight * uTexelSize.y;
-// a comment that also says vBandBottom = 1.0 - uTitleBarHeight * uTexelSize.y
-GLSL
-if ! declare -F codigo_glsl_contiene >/dev/null; then
-  fallo "the whitespace-insensitive predicate codigo_glsl_contiene does not exist (lib.sh)"
-else
-  # (a) THE SAME EXPRESSION, REFORMATTED, STILL PASSES.
-  afirmar "a reformatted expression is still found" \
-    codigo_glsl_contiene "$GLSLF" 'vBandBottom=1.0-uTitleBarHeight*uTexelSize.y'
-  afirmar "a wrapped expression is still found" \
-    codigo_glsl_contiene "$GLSLF" $'vBandBottom = 1.0\n        - uTitleBarHeight * uTexelSize.y'
-  # (b) THE SAME EXPRESSION WITH A CHANGED OPERATOR FAILS.
-  negar "a changed operator is rejected" \
-    codigo_glsl_contiene "$GLSLF" 'vBandBottom = 1.0 + uTitleBarHeight * uTexelSize.y'
-  # (c) THE SAME TOKENS REORDERED FAIL: an order-sensitive pattern is not a bag of words.
-  negar "a reordered expression is rejected" \
-    codigo_glsl_contiene "$GLSLF" 'uTitleBarHeight * uTexelSize.y - 1.0 = vBandBottom'
-  # (d) AND A PATTERN THAT ONLY LIVES IN A COMMENT IS STILL REJECTED.
-  negar "a pattern only in a comment is rejected by the GLSL comparator too" \
-    codigo_glsl_contiene "$GLSLF" 'a comment that also says vBandBottom'
-fi
-rm -f "$GLSLF"

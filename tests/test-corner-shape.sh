@@ -26,7 +26,7 @@ fi
 # EVERY failure mode needs a named case, or the self-test can pass while checking nothing. That is
 # exactly the M2 mistake: two anchors were pinned, both true by construction, and the SHAPE was not
 # checked at all. A case that stops running must be a failure, not a smaller number of passes.
-for name_ in circle flat spike apple curvature frame image_png realistic refuse_empty; do
+for name_ in circle flat spike apple frame image_png realistic refuse_empty; do
   afirmar "the self-test exercises '$name_' and it passes" \
     grep -qE "^case=$name_( |$).*verdict=ok" /tmp/corner-selftest.txt
 done
@@ -64,27 +64,3 @@ afirmar "and is fuller at y=1 (14.1x against the circle's 13.76)" \
   grep -qE '^case=apple .*x_at_y_1=14\.1[0-9] .*circle_x_at_y_1=13\.7[0-9]' /tmp/corner-selftest.txt
 afirmar "and reaches the straight edges at p=32, not at r*s and not at r" \
   grep -qE '^case=apple .*p=32\.00' /tmp/corner-selftest.txt
-
-echo "  -- M2.5: the curvature instrument, and which construction is G2 --"
-# The user sees the Figma curve's curvature SPIKE as an angle in the highlight, and the instrument
-# has to agree with their eye before it can judge a replacement: the arc is continuous, and the
-# curve ON SCREEN is flagged. Then the same instrument picks the clothoid -- kappa never exceeds
-# 1/R -- and rejects the two families that looked plausible and overshoot.
-python3 "$EF/measure-corner.py" --curvature circle    >/tmp/curv-circle.txt  2>&1
-python3 "$EF/measure-corner.py" --curvature figma     >/tmp/curv-figma.txt   2>&1
-python3 "$EF/measure-corner.py" --curvature clothoid  >/tmp/curv-clothoid.txt 2>&1
-python3 "$EF/measure-corner.py" --curvature superellipse:3 >/tmp/curv-sq.txt 2>&1
-python3 "$EF/measure-corner.py" --curvature g2bezier  >/tmp/curv-g2.txt      2>&1
-afirmar "the circular arc is curvature-continuous (kappa constant 1/R)" \
-  grep -qE '^curve=circle .*spike=False .*maxima=0' /tmp/curv-circle.txt
-afirmar "the Figma curve ON SCREEN is flagged: +47% over the arc" \
-  grep -qE '^curve=figma .*overshoot_pct=[+](4[0-9]|5[0-9])' /tmp/curv-figma.txt
-afirmar "the clothoid is G2: kappa never exceeds the arc's" \
-  grep -qE '^curve=clothoid .*kappa_max=0[.]05000 .*spike=False .*maxima=0' /tmp/curv-clothoid.txt
-# AND THE TWO REJECTED FAMILIES, so a rewrite cannot quietly reach for one of them: the superellipse
-# CENTRED ON THE ARC CENTRE overshoots by +78% at n=3 (it is the family 10c's vertex-centred one was
-# mistaken for), and a naive curvature-matched Bezier by +29%.
-negar "the arc-centred superellipse is REJECTED by measurement (+78%)" \
-  grep -qE '^curve=superellipse:3 .*spike=False' /tmp/curv-sq.txt
-negar "and so is the naive G2 Bezier (+29%)" \
-  grep -qE '^curve=g2bezier .*spike=False' /tmp/curv-g2.txt

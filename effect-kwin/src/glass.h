@@ -8,10 +8,6 @@
 #include <opengl/glframebuffer.h>
 #include <opengl/gltexture.h>
 
-#include <QHash>
-#include <QString>
-
-#include <functional>
 #include <map>
 #include <memory>
 #include <utility>
@@ -93,14 +89,6 @@ private:
 
     std::unique_ptr<GLShader> m_shader;
 
-    // AUDIT 8: THE UNIFORM LOCATIONS, RESOLVED ONCE. `setUniform(name, ...)` asks the program for
-    // the location -- glGetUniformLocation -- on every call: 24 of them, per window, per repaint.
-    // The location cannot change while the shader lives, and the shader is created once and never
-    // reset (reconfigure stopped resetting it), so the lookup is pure overhead. loadShader()
-    // clears this if a new shader is ever built.
-    QHash<QString, int> m_uniformLocations;
-    int uniformLocation(const char *name);
-
     // ---------------------------------------------------------------------
     // M1.3a -- the captured desktop.
     //
@@ -137,40 +125,14 @@ private:
         std::unique_ptr<GLTexture> texture;   // declared first, so the FBO dies first
         std::unique_ptr<GLFramebuffer> fbo;
     };
-    // AUDIT 4: THE KEY CARRIES THE WINDOW AS WELL AS THE SIZE. Keyed by size alone, a cyclic set of
-    // windows with distinct sizes evicts the entry the next repaint needs -- an LRU of 4 against five
-    // windows rebuilt a texture and a framebuffer on every frame. The window is part of the key so a
-    // repainting window keeps ITS slot, and the SIZE stays in it so a resize can never be served the
-    // old texture: a new size is a new key and the stale one ages out. A destroyed window's entries
-    // are dropped in slotWindowDeleted, so its pointer cannot alias a later window.
-    struct CaptureKey {
-        EffectWindow *window;
-        int width;
-        int height;
-        bool operator<(const CaptureKey &other) const
-        {
-            if (window != other.window) {
-                // std::less, not `<`: comparing two UNRELATED pointers with `<` is unspecified, and
-                // a std::map comparator has to be a total order. std::less gives one for pointers.
-                return std::less<EffectWindow *>()(window, other.window);
-            }
-            if (width != other.width) {
-                return width < other.width;
-            }
-            return height < other.height;
-        }
-    };
-    std::map<CaptureKey, std::unique_ptr<CaptureSlot>> m_captures;
+    std::map<std::pair<int, int>, std::unique_ptr<CaptureSlot>> m_captures;
     // When each entry was last used, so the cap evicts the LEAST RECENTLY USED rather than
     // whatever `std::map` happens to put first -- which is the smallest size, and a small
     // terminal is the window this cache exists for.
-    std::map<CaptureKey, quint64> m_lastUse;
+    std::map<std::pair<int, int>, quint64> m_lastUse;
     quint64 m_useClock = 0;
     CaptureSlot *m_currentCapture = nullptr;   // the one this paint uses; apply() binds it
-    // EIGHT, not four. Audit 1 shrank a slot from the window's expanded geometry (up to 8 MiB) to
-    // the band (~0.5 MiB for a maximised 4K window), so a desktop's windows fit without thrashing
-    // and eight band slots still cost a fraction of what four full-window slots did.
-    static constexpr int kMaxCaptureSlots = 8;
+    static constexpr int kMaxCaptureSlots = 4;   // enough for a desktop, bounded on purpose
 
     QSize m_captureRegion;    // the region the CURRENT capture covers, in screen px
 
@@ -440,6 +402,15 @@ private:
     // control rather than the experiment.
     static constexpr float kCornerSmoothing = 0.0f;
     float m_cornerSmoothing = kCornerSmoothing;
+
+
+    // Opacity of the frost layer, from the kit. Not used by the blur itself yet:
+    // it belongs with the veil work in M1.5.
+    static constexpr float kFrostOpacity = 0.25f;   // kit: opacity 25
+
+    // Whether the material is applied at all. Turning it off leaves the windows
+    // untouched, which is what makes the measurement possible.
+    bool m_active = true;
 };
 
 } // namespace KWin
