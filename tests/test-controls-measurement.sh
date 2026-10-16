@@ -33,6 +33,33 @@ afirmar "the instrument is executable" test -x "$TOOL"
 # 1. The instrument can measure: known values, drawn and read back -- including the four subpixel
 # edge phases, which is where the imported fitter fails and this one does not.
 afirmar "the instrument recovers KNOWN values from a drawn scene" "$TOOL" self-test
+# AND THE READER IT IMPORTS IS THE CORRECTED ONE. The check is a PROPERTY of the imported formula and
+# not a sentence, and it is derived from the crossing's own definition. Pixel i covers [i, i+1) and
+# coverage is the fraction of it that is INK, so a boundary at x = 3.4 leaves pixel 3 exactly 60%
+# covered. The pixel value that projects to coverage c is P*(1-c) for ink at 0: c = 0.6 gives a value
+# of 98.8 and puts the boundary at 3.4 (the LEFT half of pixel 3); c = 0.4 gives 148.2 and puts it at
+# 3.6 (the RIGHT half). BOTH are checked because past the pixel's midpoint the edge's own pixel reads
+# BELOW 0.5, and the old `i + 1 - cov[i]` snapped back to the FULL pixel before it: for the c = 0.4
+# ramp it answered 4.0 where the boundary is 3.6. The FALLING-edge mirror is pinned on the same
+# boundary, because 10p got that mirror wrong once. Every figure 10q moved rests on this property,
+# and an edit that restores the old crossing -- in the geometry tool, where the ONE definition lives
+# -- fails HERE, in the test of the tool that consumes it.
+afirmar "the imported crossing recovers an edge in either half of its pixel, and its mirror" \
+    python3 -c '
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location("mc", "'"$TOOL"'")
+mc = importlib.util.module_from_spec(spec); spec.loader.exec_module(mc)
+ic = mc.load_icon_tool()
+import numpy as np
+# the colours in the SAME FORM the tool passes them: 1-element arrays for a luminance profile
+bg, ink = np.array([247.0]), np.array([0.0])
+P = 247.0
+left = ic.first_crossing(ic.coverage(np.array([P, P, P, P * 0.4, 0.0, 0.0]), bg, ink))   # c = 0.6 -> 3.4
+right = ic.first_crossing(ic.coverage(np.array([P, P, P, P * 0.6, 0.0, 0.0]), bg, ink))  # c = 0.4 -> 3.6
+falling = ic.last_crossing(ic.coverage(np.array([0.0, 0.0, P * 0.4, P, P, P]), bg, ink))  # -> 2.6
+sys.exit(0 if left is not None and right is not None and falling is not None
+         and abs(left - 3.4) < 0.01 and abs(right - 3.6) < 0.01 and abs(falling - 2.6) < 0.01
+         else 1)'
 
 # 1b. THE CLAIM IS CHECKED BY THE OUTPUT, NOT BY AN EXIT CODE. The phase sweep prints one line per
 # case; if it stopped printing the imported fitter's contrast, the numbers would still be there and

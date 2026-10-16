@@ -115,18 +115,34 @@ def coverage(pixels, bg, ink):
     uses -- so a BAR and a CORNER are read by one definition of "edge", not two.
 
     It handles a 1-D luminance profile (a scalar bg/ink) and an (N, 3) colour profile, because the
-    two tools that share it read a corner out of a luminance image and out of an RGB one.
+    two tools that share it read a corner out of a luminance image and out of an RGB one. THE 1-D
+    FORM WAS A LATENT BUG until 10q's test called the primitive directly; the branch below is the
+    fix, and the comment there carries what went wrong.
     """
     p = np.asarray(pixels, dtype=float)
-    v = np.asarray(ink, dtype=float) - np.asarray(bg, dtype=float)
+    # THE COLOURS ARE ONE VECTOR PER PIXEL, whatever shape they arrived in: the corner profile on a
+    # LUMINANCE image passes a scalar, the rest pass an RGB triple.
+    base = np.asarray(bg, dtype=float).reshape(-1)[:1]
+    channels = int(p.shape[-1]) if p.ndim > 1 else 1
+    tinta = np.asarray(ink, dtype=float).reshape(-1)
+    v = (np.full((channels,), float(tinta[0])) if tinta.size == 1 else tinta[:channels]) - base
     denom = float(np.sum(v * v))
-    vacio = np.zeros(p.shape[:-1] if p.ndim > 1 else p.shape, dtype=float)
     if denom == 0.0:
-        return vacio
-    d = p - np.asarray(bg, dtype=float)
-    if v.ndim == 0:
-        return np.clip(d * float(v) / denom, 0.0, 1.0)
-    return np.clip(np.sum(d * v, axis=-1) / denom, 0.0, 1.0)
+        return np.zeros(p.shape, dtype=float)
+    # ONE PROJECTION PER PIXEL, and the shape rule is the whole difficulty of this function:
+    #
+    #   * a 1-D profile has ONE axis and it is the PIXEL axis, so the projection is scalar-vector and
+    #     the result is already one number per pixel;
+    #   * an (N, 3) profile has the CHANNEL axis last, so the projection has to be reduced over it.
+    #
+    # Doing it with one expression is what broke the 1-D form: `np.sum((p - base) * v, axis=-1)` on a
+    # bare ramp collapses the PIXELS to a single number, so the function returned a 0-d array and
+    # `first_crossing` died on `np.where` ("Calling nonzero on 0d arrays"). Two tool call sites always
+    # pass an (N, 1) or (N, 3) profile, which is why the latent bug needed a test of the PRIMITIVE to
+    # surface -- and the docstring above has always promised the 1-D form.
+    if p.ndim == 1:
+        return np.clip((p - base[0]) * float(v[0]) / denom, 0.0, 1.0)
+    return np.clip(np.sum((p - base) * v, axis=-1) / denom, 0.0, 1.0)
 
 
 def first_crossing(cov):
@@ -137,7 +153,7 @@ def first_crossing(cov):
     using its partial coverage is what makes the answer phase-independent. The old `i + 1 - cov[i]`
     could not represent that case and answered a whole pixel's fraction too early.
     """
-    cov = np.asarray(cov, dtype=float)
+    cov = np.asarray(cov, dtype=float).reshape(-1)
     idx = np.where(cov >= 0.5)[0]
     if len(idx) == 0:
         return None
@@ -156,7 +172,7 @@ def last_crossing(cov):
     a top-left corner is read with `first_crossing` alone -- and turned the folder's top-RIGHT corner
     (9 px read for a 6 px drawn) into a rejected fit.
     """
-    cov = np.asarray(cov, dtype=float)
+    cov = np.asarray(cov, dtype=float).reshape(-1)
     idx = np.where(cov >= 0.5)[0]
     if len(idx) == 0:
         return None
