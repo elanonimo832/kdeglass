@@ -56,6 +56,19 @@ SMOOTHINGS = tuple(np.arange(0.0, 1.001, 0.05))
 EXPONENTES = (2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 4.0, 4.5, 5.0, 6.0)
 
 
+def radius_grid(lo=12.0, hi=32.0, step=0.25):
+    """The radii a fit is allowed to choose from.
+
+    THE DEFAULT IS THE APP ICON'S OWN RANGE, and that is on purpose: the published M5 figure was
+    measured with it, so widening the default would move a number that is already written down in
+    order to flatter a new one. A macOS FOLDER's body corner turns out to be about 5 px, well BELOW
+    12, so the folder has to ask for its own range on the command line (`--radius-min/--radius-max`)
+    -- and the first run without it reported `R = 12.00, error 6.92 px`, which is a grid edge and not
+    a measurement.
+    """
+    return tuple(np.arange(float(lo), float(hi) + 1e-9, float(step)))
+
+
 def load_measure_corner():
     """The kit's corner construction lives in ONE place; this tool imports it."""
     spec = importlib.util.spec_from_file_location("measure_corner", MEASURE_CORNER)
@@ -88,54 +101,104 @@ def inset_figma(dy, radius, smoothing, mc):
 # ------------------------------------------------------------------------------------------------
 # READING THE CORNER OUT OF PIXELS
 # ------------------------------------------------------------------------------------------------
-def corner_profile(lum, x_edge, y_edge, rows=22, background=None, body=None):
-    """Subpixel inset per row for the TOP-LEFT corner.
+def corner_profile(lum, x_edge, y_edge, rows=22, background=None, body=None, corner="tl"):
+    """Subpixel inset per row for ONE corner of the body.
 
     The edge is found as the 0.5 crossing of a linear ramp between the background and the icon's
     body, which is what antialiasing gives you: a hard threshold would quantise the measurement to
     whole pixels and a 96 px icon's radius would come out in 1 px steps. The background and the body
     are sampled LOCALLY (a few px either side of the edge), because a screenshot's wallpaper has a
     gradient across it and a global colour would drift.
+
+    There is NO `polarity` here on purpose. The coverage interpolates from the background to the body
+    whatever their order, so a LIGHT icon on a dark wallpaper (the Launchpad) and a DARK blue folder
+    on a white one (the Finder) go through the same crossing. The polarity only decides which pixels
+    a capture calls "body", and that is `find_icons`'s job, not this reader's.
+
+    `corner` matters for a FOLDER: its TAB occupies the top-left of the icon, so the body's corner
+    has to be read on the RIGHT, where nothing covers it.
+
+    The search is WINDOWED, and that is not a detail. Reading the first light pixel of the WHOLE row
+    finds whatever is brightest elsewhere in the screenshot: on the first real run that produced
+    insets of 180, 360, 540 px -- the icon grid's own spacing -- with residuals that grew by one
+    grid step per icon. The corner lives within a radius of the icon's edge, so the crossing is
+    looked for there and nowhere else.
     """
+    if corner not in ("tl", "tr", "bl", "br"):
+        raise ValueError(f"unknown corner {corner!r}")
+    # `out_x`/`out_y` point from the body's edge OUTWARD, towards the background.
+    out_x = -1 if corner in ("tl", "bl") else +1
+    out_y = -1 if corner in ("tl", "tr") else +1
+
+    def box(yc, xc, hy=2, hx=3):
+        ys = np.clip(np.arange(int(round(yc)) - hy, int(round(yc)) + hy + 1), 0, lum.shape[0] - 1)
+        xs = np.clip(np.arange(int(round(xc)) - hx, int(round(xc)) + hx + 1), 0, lum.shape[1] - 1)
+        return float(np.median(lum[np.ix_(ys, xs)]))
+
     if background is None:
-        background = float(np.median(lum[y_edge - 6:y_edge - 2, max(x_edge - 6, 0):x_edge - 2]))
+        background = box(y_edge + out_y * 4, x_edge + out_x * 4)
     if body is None:
-        body = float(np.median(lum[y_edge + 12:y_edge + 20, x_edge + 3:x_edge + 9]))
+        body = box(y_edge - out_y * 16, x_edge - out_x * 6)
     profiles = []
     for k in range(rows):
-        y = y_edge + k
-        if y >= lum.shape[0]:
+        # `out_y` points towards the BACKGROUND, and the profile walks the other way: into the body.
+        # (Getting this backwards reads the rows above a top edge, where the body does not exist yet,
+        # and every profile comes back NaN -- which is how it was caught.)
+        y = y_edge - out_y * k
+        if y < 0 or y >= lum.shape[0]:
             break
         row = lum[y]
-        # THE SEARCH IS WINDOWED, and that is not a detail. Reading the first light pixel of the
-        # WHOLE row finds whatever is brightest elsewhere in the screenshot: on the first real run
-        # that produced insets of 180, 360, 540 px -- the icon grid's own spacing -- with residuals
-        # that grew by one grid step per icon. The corner lives within a radius of the icon's left
-        # edge, so the crossing is looked for there and nowhere else.
-        xa = max(x_edge - 6, 0)
-        xb = min(x_edge + 80, row.shape[0])
+        # The window is NARROW on the edge's side and wide on the body's: the crossing is within a
+        # few px of the edge, and a wide window on the background side is where the neighbouring
+        # icon's body sits.
+        if out_x < 0:
+            xa, xb = max(x_edge - 6, 0), min(x_edge + 80, row.shape[0])
+        else:
+            xa, xb = max(x_edge - 80, 0), min(x_edge + 6, row.shape[0])
         window_ = row[xa:xb]
         cov = (window_ - background) / (body - background) if body != background else window_ * 0.0
         idx = np.where(cov > 0.5)[0]
         if len(idx) == 0:
             profiles.append(np.nan)
             continue
-        jw = int(idx.min())          # the crossing, in the WINDOW's own coordinates
-        j = jw + xa                  # ... and in the row's
-        if j <= 0:
-            profiles.append(float(j - x_edge))
-            continue
-        lo, hi = cov[jw - 1], cov[jw]
-        t = (0.5 - lo) / (hi - lo) if hi > lo else 0.0
-        profiles.append((j - 1) + t - x_edge)
+        if out_x < 0:
+            # the body is on the INWARD side of the edge: to the RIGHT of a left edge, so the first
+            # covered pixel going right is the crossing.
+            jw = int(idx.min())
+            if jw <= 0:
+                profiles.append(abs(float(xa + jw) - x_edge))
+                continue
+            lo, hi = cov[jw - 1], cov[jw]
+            t = (0.5 - lo) / (hi - lo) if hi > lo else 0.0
+            edge = (xa + jw - 1) + t
+        else:
+            # ... and to the LEFT of a right edge, so the crossing is the LAST covered pixel.
+            jw = int(idx.max())
+            if jw >= len(cov) - 1:
+                profiles.append(abs(float(xa + jw) - x_edge))
+                continue
+            hi, lo = cov[jw], cov[jw + 1]
+            t = (hi - 0.5) / (hi - lo) if hi > lo else 0.0
+            edge = (xa + jw) + t
+        profiles.append(abs(edge - x_edge))
     return np.array(profiles, dtype=float)
 
 
-def fit_all(profile, mc):
-    """Best fit of each family, with its residual. The residual is what says how much to believe."""
+def fit_all(profile, mc, radios=None):
+    """Best fit of each family, with its residual. The residual is what says how much to believe.
+
+    `radios` defaults to the app icons' own range; a caller measuring a smaller corner (a folder's
+    body) passes its own, and the fit says which range it used by returning it.
+    """
+    radios = RADIOS if radios is None else tuple(radios)
     dy = np.arange(len(profile), dtype=float)
     ok = ~np.isnan(profile)
-    if ok.sum() < 8:
+    # FIVE rows, not eight. The guard exists so a profile that is mostly NaN is not "fitted", and for
+    # the app icons (22 rows) any threshold in this range does the same job. But a macOS FOLDER's body
+    # corner is over in SIX rows -- its body tapers below that -- so a guard of eight refused to
+    # measure the very case M5 asked about: the command printed "no icons measured" with the corner
+    # sitting right there in the profile.
+    if ok.sum() < 5:
         return None
     medido = profile[ok]
     d = dy[ok]
@@ -143,23 +206,37 @@ def fit_all(profile, mc):
     def error(model):
         return float(np.max(np.abs(model - medido)))
 
-    best_c = min((error(inset_circle(d, R)), R) for R in RADIOS)
+    best_c = min((error(inset_circle(d, R)), R) for R in radios)
     best_f = min((error(inset_figma(d, R, s, mc)), R, s)
-                  for R in RADIOS for s in SMOOTHINGS)
+                  for R in radios for s in SMOOTHINGS)
     best_s = min((error(inset_superellipse(d, R, n)), R, n)
-                  for R in RADIOS for n in EXPONENTES)
+                  for R in radios for n in EXPONENTES)
     return {
         "circle": {"radius": best_c[1], "error": best_c[0]},
         "figma": {"radius": best_f[1], "smoothing": best_f[2], "error": best_f[0]},
         "superellipse": {"radius": best_s[1], "exponent": best_s[2], "error": best_s[0]},
+        "radios": (radios[0], radios[-1]),
         "rows": int(ok.sum()),
     }
 
 
-def find_icons(lum, y0, y1, threshold=180.0, minimum=40):
-    """The x runs of the icons inside the band [y0, y1): light bodies on a darker wallpaper."""
+def find_icons(lum, y0, y1, threshold=180.0, minimum=40, polarity="light", x_range=None):
+    """The x runs of the icons inside the band [y0, y1).
+
+    `polarity` is which way the body differs from the background: the Launchpad draws LIGHT icons on
+    a dark wallpaper and the Finder draws DARK blue folders on a white one. The default threshold
+    (180 of 255) separates them in both captures, but a caller can move it.
+
+    `x_range` (x0, x1) restricts the search to a column band, which a Finder capture needs: its
+    SIDEBAR is a tall grey-blue panel that a dark polarity reads as one more icon.
+    """
     banda = lum[y0:y1]
-    mass = (banda > threshold).sum(axis=0)
+    mass = ((banda > threshold) if polarity == "light" else (banda < threshold)).sum(axis=0)
+    if x_range is not None:
+        x0, x1 = int(x_range[0]), int(x_range[1])
+        keep = np.zeros_like(mass, dtype=bool)
+        keep[max(x0, 0):x1] = True
+        mass = np.where(keep, mass, 0)
     cut = max(4, int(0.25 * (y1 - y0)))
     runs, s = [], None
     for x, v in enumerate(mass > cut):
@@ -174,52 +251,81 @@ def find_icons(lum, y0, y1, threshold=180.0, minimum=40):
     return runs
 
 
-def measure_icon(lum, x_edge, y_edge, side, mc, rows=22):
-    profile = corner_profile(lum, x_edge, y_edge, rows=rows)
-    ajuste = fit_all(profile, mc)
+def measure_icon(lum, x_edge, y_edge, side, mc, rows=22, corner="tl", radios=None):
+    profile = corner_profile(lum, x_edge, y_edge, rows=rows, corner=corner)
+    ajuste = fit_all(profile, mc, radios=radios)
     if ajuste is None:
         return None
     ajuste["profile"] = profile
     ajuste["side"] = float(side)
     ajuste["x"] = int(x_edge)
     ajuste["y"] = int(y_edge)
+    ajuste["corner"] = corner
+    ajuste["rows"] = int(rows)
     return ajuste
 
 
-def measure_band(path, y0, y1, mc=None):
-    """Measure every icon found in the band. Returns the list of measurements."""
+def measure_band(path, y0, y1, mc=None, polarity="light", corner="tl", threshold=180.0,
+                 radios=None, x_range=None, rows=22):
+    """Measure every icon found in the band. Returns the list of measurements.
+
+    `corner` picks which corner of each icon is read, and that decides BOTH the edge that is used as
+    the corner's x and the probe window that finds the icon's top edge. For a folder it has to be a
+    RIGHT corner: the tab sits on the top-left, so a probe on the left finds the TAB and would put
+    the icon's top edge three rows above the body's -- and then the top-right profile would be read
+    in rows where the body does not exist yet.
+    """
     mc = mc or load_measure_corner()
     im = Image.open(path).convert("RGB")
     lum = np.asarray(im, dtype=float).mean(axis=2)
     results = []
-    for (xa, xb) in find_icons(lum, y0, y1):
-        # the icon's true left edge and its side, measured on a row well inside the body
+
+    def is_body(v):
+        return (v > threshold) if polarity == "light" else (v < threshold)
+
+    for (xa, xb) in find_icons(lum, y0, y1, threshold=threshold, polarity=polarity,
+                               x_range=x_range):
+        # the icon's true edges and its side, measured on a row well inside the body
         row = lum[y0 + int(0.6 * (y1 - y0))]
-        body = np.where(row > 180.0)[0]
+        body = np.where(is_body(row))[0]
         body = body[(body >= xa - 4) & (body <= xb + 4)]
         if len(body) < 20:
             continue
-        left = int(body.min())
-        # the top edge: the first row of the icon
-        top_edge = None
-        for y in range(max(y0 - 20, 0), min(y0 + 60, lum.shape[0])):
-            fila_y = lum[y]
-            c = np.where(fila_y[left:left + 60] > 180.0)[0]
-            if len(c) >= 20:
-                top_edge = y
-                break
-        if top_edge is None:
+        left, right = int(body.min()), int(body.max())
+        # the probe window: on the side of the corner being measured, so a folder's TAB is not what
+        # the top edge is found from.
+        if corner in ("tl", "bl"):
+            pa, pb = left, min(left + 60, lum.shape[1])
+        else:
+            pa, pb = max(right - 60, 0), right
+        edge_row = None
+        if corner in ("tl", "tr"):
+            for y in range(max(y0 - 20, 0), min(y0 + 60, lum.shape[0])):
+                if is_body(lum[y, pa:pb]).sum() >= 20:
+                    edge_row = y
+                    break
+        else:
+            for y in range(min(y1 + 20, lum.shape[0] - 1), max(y0 - 20, -1), -1):
+                if is_body(lum[y, pa:pb]).sum() >= 20:
+                    edge_row = y
+                    break
+        if edge_row is None:
             continue
         # THE SIDE IS MEASURED ON A ROW INSIDE THE BODY, and not as "the widest row". Under every
         # Launchpad icon there is a LIGHT LABEL with the app's name, so the widest light row in the
         # icon's column is the LABEL, not the icon: the first version took 112 px and 150 px for a
         # 96 px icon. A row 30 px into the body is inside the icon whatever the label does.
-        fila_cuerpo = lum[min(top_edge + 30, lum.shape[0] - 1)]
-        c = np.where(fila_cuerpo[max(left - 4, 0):left + 160] > 180.0)[0]
+        # ... and the window is the icon's OWN run, not a fixed 160 px: a Finder grid puts the next
+        # folder ~154 px away, so a fixed window read `side = 160` for a 118 px folder and then fed
+        # that inflated side into `R/S`.
+        probe = int(np.clip(edge_row + (30 if corner in ("tl", "tr") else -30),
+                            max(y0 - 20, 0), lum.shape[0] - 1))
+        c = np.where(is_body(lum[probe, max(xa - 4, 0):xb + 5]))[0]
         side = int(c.max() - c.min() + 1) if len(c) >= 20 else 0
         if side < 40:
             continue
-        m = measure_icon(lum, left, top_edge, side, mc)
+        x_edge = left if corner in ("tl", "bl") else right
+        m = measure_icon(lum, x_edge, edge_row, side, mc, rows=rows, corner=corner, radios=radios)
         if m is not None:
             results.append(m)
     return results
@@ -292,6 +398,44 @@ def self_test():
         print(f"  self-test kit corner s=0.6 -> circle fit R={ajuste['circle']['radius']} "
               f"(err {ajuste['circle']['error']:.2f}), figma fit R={ajuste['figma']['radius']} "
               f"s={ajuste['figma']['smoothing']} (err {ajuste['figma']['error']:.2f})")
+
+    # A SECOND GEOMETRY AND A SECOND READ PATH. The app icons are ~20 px of radius on 96 and are read
+    # on the TOP-LEFT; a macOS folder's body corner is ~5 px and has to be read on the TOP-RIGHT,
+    # because its TAB occupies the top-left. Both are new code -- the small radius is BELOW the
+    # default grid's 12 px floor -- and a path the self-test does not walk is a path nobody has shown
+    # to work: the first version of the rewritten reader returned NaN on every row because it walked
+    # the profile OUTWARDS, and only these cases caught it.
+    for radius in (5.0, 8.0):
+        img = draw_icon(radius, side=96, smoothing=0.0, mc=mc)
+        ancho = img.shape[0]
+        # `draw_icon` rounds the top-left corner; mirroring the canvas moves that corner to the
+        # top-RIGHT, which is where a folder has to be read. The icon spans (15, 15) to (15+96, ...),
+        # so after the mirror its right edge is at `ancho - 1 - 15`.
+        mir = img[:, ::-1]
+        profile = corner_profile(mir, ancho - 1 - 15, 15, rows=14, corner="tr")
+        ajuste = fit_all(profile, mc, radios=radius_grid(2.0, 18.0))
+        if ajuste is None:
+            fallos.append(f"R={radius} top-right: the reader produced no profile")
+            continue
+        r = ajuste["circle"]["radius"]
+        e = abs(r - radius)
+        print(f"  self-test top-right R={radius:<5} -> recovered {r:<6} error {e:.2f} px")
+        if e > 1.0:
+            fallos.append(f"R={radius} top-right: recovered {r}, off by {e:.2f} px")
+
+    # AND THE POLARITY: a light body on a dark background and its INVERSE must give the same runs.
+    # That is the whole of what "polarity" means here, and the Finder's dark folders on a white
+    # desktop are the case that needs it.
+    bg, cuerpo = 0.20, 0.90
+    claro = np.full((60, 200), bg)
+    claro[:, 40:120] = cuerpo
+    runs_l = find_icons(claro, 0, 60, threshold=0.5, polarity="light")
+    runs_d = find_icons(1.0 - claro, 0, 60, threshold=0.5, polarity="dark")
+    if runs_l != runs_d:
+        fallos.append(f"find_icons polarity: light gives {runs_l}, dark gives {runs_d}")
+    else:
+        print(f"  self-test polarity      -> light and dark both find {runs_l}")
+
     if fallos:
         for f in fallos:
             print(f"  FAIL {f}", file=sys.stderr)
@@ -303,13 +447,18 @@ def self_test():
 # ------------------------------------------------------------------------------------------------
 # RENDER: our own drawing of the measured geometry (never a crop of Apple's pixels)
 # ------------------------------------------------------------------------------------------------
-def render(out_path, path=None, y0=40, y1=210):
+def render(out_path, path=None, y0=40, y1=210, **band_opts):
     """Our OWN drawing of the measured geometry -- never a crop of Apple's pixels. The repository
-    does not redistribute them, and what has to be read here is the PROFILE, not the artwork."""
-    mc = load_measure_corner()
+    does not redistribute them, and what has to be read here is the PROFILE, not the artwork.
+
+    `band_opts` goes straight to `measure_band`, so the same drawing serves the app icons and the
+    folder (a right-hand corner, a dark polarity, a few rows) instead of a second renderer that
+    would drift from this one.
+    """
+    mc = band_opts.pop("mc", None) or load_measure_corner()
     if path is None:
         path = os.path.join(ROOT, "muestras", "Untitled3.png")
-    measurements = measure_band(path, y0, y1, mc=mc)
+    measurements = measure_band(path, y0, y1, mc=mc, **band_opts)
     if not measurements:
         print("render: no icons measured", file=sys.stderr)
         return 1
@@ -368,6 +517,28 @@ def main(argv=None):
     p.add_argument("--self-test", action="store_true")
     p.add_argument("--image")
     p.add_argument("--grid", help="the band that holds the icons, 'y0,y1'")
+    p.add_argument("--corner", default="tl", choices=("tl", "tr", "bl", "br"),
+                   help="which corner of each icon to read; a FOLDER needs a right one (its tab "
+                        "covers the top-left)")
+    p.add_argument("--polarity", default="light", choices=("light", "dark"),
+                   help="whether the icons are LIGHTER (Launchpad) or DARKER (Finder folders) than "
+                        "the background")
+    p.add_argument("--threshold", type=float, default=180.0,
+                   help="the value that separates body from background in the capture (0..255)")
+    p.add_argument("--radius-min", type=float, default=12.0,
+                   help="the smallest radius the fit may choose; the default is the app icons' own "
+                        "floor, and a folder's body is well below it")
+    p.add_argument("--radius-max", type=float, default=32.0)
+    p.add_argument("--radius-step", type=float, default=0.25,
+                   help="the fit's radius resolution; asking for finer than the default only makes "
+                        "sense when the radius itself is small")
+    p.add_argument("--rows", type=int, default=22,
+                   help="how many rows of the corner profile to fit. A SMALL corner is over in a few "
+                        "rows, and the rows past it carry the icon's own taper or its shadow: a "
+                        "folder's body narrows by ~1.2 px below its corner, and fitting that in moved "
+                        "R from 5.9 to 5.1 px. 6 rows is the corner itself, up to its first minimum")
+    p.add_argument("--x-range", help="restrict the search to a column band, 'x0,x1'; a Finder "
+                                     "capture needs it, because its sidebar reads as one more icon")
     p.add_argument("--render")
     p.add_argument("--tol", type=float, default=2.0,
                    help="a fit with a bigger residual than this is reported but NOT averaged in")
@@ -375,15 +546,25 @@ def main(argv=None):
     if a.self_test:
         return self_test()
     if a.render:
-        return render(a.render)
+        y0, y1 = (int(v) for v in (a.grid or "40,210").split(","))
+        x_range = tuple(int(v) for v in a.x_range.split(",")) if a.x_range else None
+        return render(a.render, path=a.image, y0=y0, y1=y1,
+                      polarity=a.polarity, corner=a.corner, threshold=a.threshold,
+                      radios=radius_grid(a.radius_min, a.radius_max, a.radius_step),
+                      x_range=x_range, rows=a.rows)
     if a.image:
         y0, y1 = (int(v) for v in (a.grid or "40,210").split(","))
         mc = load_measure_corner()
-        measurements = measure_band(a.image, y0, y1, mc=mc)
+        radios = radius_grid(a.radius_min, a.radius_max, a.radius_step)
+        x_range = tuple(int(v) for v in a.x_range.split(",")) if a.x_range else None
+        measurements = measure_band(a.image, y0, y1, mc=mc, polarity=a.polarity, corner=a.corner,
+                                    threshold=a.threshold, radios=radios, x_range=x_range,
+                                    rows=a.rows)
         if not measurements:
             print("no icons measured", file=sys.stderr)
             return 1
-        print(f"{'x':>6} {'side':>5} {'R':>6} {'R/S':>6} {'err_circ':>9} {'err_figma':>9} {'s':>5}")
+        print(f"{'x':>6} {'side':>5} {'R':>6} {'R/S':>6} {'err_circ':>9} {'err_figma':>9} {'s':>5}"
+              f"   corner={a.corner} polarity={a.polarity} radii={a.radius_min:g}..{a.radius_max:g}")
         for m in measurements:
             mark = "" if m["circle"]["error"] <= a.tol else "   <- rejected"
             print(f"{m['x']:>6} {m['side']:>5.0f} {m['circle']['radius']:>6.2f} "

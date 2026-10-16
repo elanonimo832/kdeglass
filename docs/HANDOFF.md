@@ -2099,6 +2099,51 @@ caught by looking at the OUTPUT rather than at the code:
   fifteen had 8-11 px residuals and were left out of the statistic, visibly, rather than quietly
   pulling the median.
 
+## 10f-bis. AMENDMENT to 10f: the FOLDER is measured too, and it is NOT the app figure
+
+The user brought exactly the capture 10f asked for: `muestras/Untitled6.png`, a Finder window with
+four folders (Applications, Library, System, Users). The first of 10f's two "not confirmed" items is
+therefore **confirmed**, and the answer justifies having waited for it -- the folder's body corner is
+about **four times tighter** than the app icons'. Assuming the app figure, which was the only
+alternative available to 10f, would have been wrong.
+
+**THE MEASUREMENT.** Four of four folders, none rejected: **R/S = 0.049** (R = 5.85 px on an icon
+120 px wide; the body is 120 x 89). The four agree to the grid's resolution (spread 0.000) and the
+figure carries 0.01 because the 0.76 px fit residual and the edge detection add a systematic term the
+spread cannot see, exactly as 10f argued for the app figure. Against the app icons: 0.215 / 0.049 =
+**4.4x tighter**, so "a folder is drawn on the app icons' squircle" is now a measured falsehood and
+not an untested assumption -- which is what M5 existed to find out.
+
+**THE FOLDER NEEDED THREE THINGS THE INSTRUMENT DID NOT HAVE.** All three are in it now:
+- A **POLARITY**: `find_icons` looked for LIGHT bodies on a dark background, which is the Launchpad.
+  The Finder draws DARK blue folders on a WHITE desktop, and the first run read the SIDEBAR as one
+  more icon. Hence `--polarity dark`, and `--x-range` for the same reason.
+- A **CORNER**: a folder is a folder SHAPE and its TAB covers the top-left, the corner the reader had
+  always used. `--corner tr` reads the body's clean top-right one.
+- A **RADIUS RANGE AND A ROW COUNT**: the fitter's grid started at 12 px, far above the folder's ~6,
+  and the first run answered `R = 12.00, error 6.92 px` -- a grid edge, not a measurement. The probe
+  that finds the icon's top edge also had to move to the corner's side, or it found the TAB and put
+  the top edge three rows above the body's.
+
+**THE TAPER IS THE MEASUREMENT'S OWN WARNING.** The profile is 5.10, 3.28, 2.20, 1.15, 0.45, 0.04 --
+and then 0.29, 0.63, 0.86, 0.99, 1.13, 1.20, 1.22, 1.22: past the corner the body's right edge keeps
+moving INWARD. That is the icon's own taper (and its shadow), not a corner, and fitting it in moved
+the radius from 5.9 to 5.1 px. `--rows 6` is the corner up to its first minimum, and the command
+recorded in the token says so.
+
+**AND THE FAMILY IS STILL NOT RESOLVABLE**, for the reason 10f gave: at a 5.9 px radius the circle,
+the kit's construction at any smoothing and a superellipse fit identically (the fit returns `s = 0.00`
+and `n = 2.00`, which ARE the circle). The radius is a radius.
+
+**THREE MISTAKES OF MINE, each caught by looking at the output:**
+- The rewritten reader walked the profile **outwards** -- the direction it samples the background --
+  so every row came back NaN. It broke the app icons too, which is what caught it.
+- The "side" was taken from a fixed 160 px window, which in a Finder grid reaches the NEXT folder: it
+  read `side = 160` for a 118 px folder and fed that inflated number into `R/S`. It is the icon's own
+  run now.
+- `fit_all` refused profiles shorter than 8 rows, and a folder's corner is 6: the command printed
+  "no icons measured" with the corner sitting right there in the profile.
+
 ## 10g. M6, first slice: a QStyle that is selectable and draws NOTHING yet
 
 The ROADMAP calls M6 "the biggest step of the brief (1-3 months)", the only milestone not on top of

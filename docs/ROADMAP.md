@@ -220,6 +220,16 @@ but the macOS ones **could not be confirmed**.
 **Done when:** the folder icons carry the correct squircle, or it is documented that
 the value is not verifiable.
 
+**STATUS 2026-10-15 -- the radii are MEASURED, and the missing value is no longer missing.** The app
+icons: **R/S = 0.215 +- 0.01** (twelve Launchpad icons, two captures). The FOLDER's body, from the
+Finder capture this milestone was waiting for: **R/S = 0.049 +- 0.01**, about **4x tighter**, so the
+app figure would have been the wrong answer to the folder's question. Both figures live in
+`tokens/tokens-icon-geometry.toml` with the exact command that reproduces each, and the one thing
+that is NOT verifiable is declared there: the corner FAMILY, at either size. What is NOT done is
+drawing folder icons of our own with that geometry -- the theme still points at Breeze
+(`[kdeglobals][Icons] Theme=breeze`) and an icon theme is not a milestone of this ROADMAP.
+`HANDOFF.md` sections 10f and 10f-bis carry the measurements and their mistakes.
+
 ---
 
 ### M6 — Complete QStyle

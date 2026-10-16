@@ -127,17 +127,24 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    `--self-test` draws a corner of a KNOWN radius and reads it back (0.00 px error at R = 14, 20 and
    26) BEFORE it is allowed to report anything from a photo. Evidence:
    `evidence/2026-10-15-m5-icon-corner.png`, our own drawing of the profile, never a crop of Apple's
-   pixels. **Two things are NOT verifiable and the token declares both**: no FOLDER icon appears in
-   any of the nine captures (only app icons, which sit on the same Apple icon geometry, but the
-   folder's own body was not checked against anything), and the corner FAMILY cannot be resolved at
-   the 96 px an icon is drawn at -- the kit's own `smoothing = 0.6` corner and a plain circle differ
-   by less than the sub-pixel top row (fitting a circle to the kit's corner leaves 0.29 px), so a
-   smoothing reported from these captures would be noise. Also measured, and it corrects the
+   pixels. **THE FOLDER -- the question M5 literally asks -- is now MEASURED TOO**: the user brought
+   the capture it wanted (`muestras/Untitled6.png`, a Finder window with four folders), and the answer
+   is that a folder's body corner is **R/S = 0.049 +- 0.01**, about **4.4x tighter** than the app
+   icons', so assuming the app figure would have been wrong. It is a SEPARATE measurement and not a
+   reuse: a folder is a folder SHAPE whose TAB covers the top-left, so the body is read on the
+   top-right (`--corner tr`), with a DARK polarity (`--polarity dark`, and `--x-range` so the Finder's
+   sidebar is not read as an icon), its own radius range, and SIX fitted rows -- past the corner the
+   body TAPERS inward by 1.2 px, and fitting that in moved the radius from 5.9 to 5.1 px. Evidence:
+   `evidence/2026-10-15-m5-folder-corner.png`. **What is still NOT verifiable is the corner FAMILY**,
+   at either size: at the 96 px an icon is drawn at the kit's own `smoothing = 0.6` corner and a plain
+   circle differ by less than the sub-pixel top row (fitting a circle to the kit's corner leaves
+   0.29 px), and at the folder's 5.9 px all three families fit identically (`s = 0.00`, `n = 2.00`),
+   so a smoothing reported from these captures would be noise. Also measured, and it corrects the
    ROADMAP: **the kit has NO iOS icon radius** to compare against -- `Global/Radius`, `Button/Radius`,
    `Checkboxes/Radius`, `Disclosure/Radius` and `Stepper/Radius` are CONTROL radii, and
-   `[squircle] smoothing = 0.6` is a construction parameter, not a radius. `HANDOFF.md` §10f has the
-   four measurement mistakes that cost this section its first two attempts.
-   NEXT: M6 QStyle. The folder question wants a capture of a Finder window with large icons.
+   `[squircle] smoothing = 0.6` is a construction parameter, not a radius. `HANDOFF.md` §10f and
+   §10f-bis have the measurement mistakes that cost each half its first attempts.
+   NEXT: M6 QStyle. The folder question is CLOSED: the capture arrived and the value is recorded.
 
 9. **M6 — the QStyle: the FIRST SLICE is built, and it wants the user's session.** This is the
    biggest step of the brief (the ROADMAP says one to three months) and the only milestone NOT on top

@@ -39,8 +39,32 @@ afirmar_contiene "the token names the method" "$TOKEN" 'measure-icon-geometry'
 afirmar_contiene "the token carries a date" "$TOKEN" 'date'
 
 # 3. The honest half: what is NOT verifiable is declared, and it cannot quietly become a claim.
-afirmar_contiene "the token declares that no FOLDER icon is in the captures" "$TOKEN" 'carpeta|folder'
 afirmar_contiene "the token declares that the corner FAMILY is not resolvable" "$TOKEN" 'familia|smoothing|continua'
+
+# 3b. THE FOLDER -- which is the question M5 literally asks. It used to be declared NOT VERIFIABLE,
+# because none of the captures showed one. `muestras/Untitled6.png` does (a Finder window with four),
+# so now it is a MEASUREMENT, and the test demands the measurement instead of the excuse. These
+# assertions were written BEFORE the token had the section and were watched fail: with the excuse
+# still in place the numbers would be pinned nowhere.
+afirmar_contiene "the token carries the FOLDER measurement" "$TOKEN" '^\[measure\.folder\]'
+afirmar_contiene "the folder measurement names the capture it came from" "$TOKEN" 'Untitled6'
+afirmar_contiene "the folder measurement says WHICH corner it read, and why" "$TOKEN" 'top-right'
+afirmar_contiene "the folder measurement declares the rows it fitted" "$TOKEN" 'rows_fitted'
+afirmar "the folder ratio is inside the range its measurement supports" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+r = float(t["measure"]["folder"]["radius_ratio"])
+sys.exit(0 if 0.03 <= r <= 0.08 else 1)'
+# AND IT IS NOT THE APP ICON'S SQUIRCLE. The whole point of measuring the folder separately is that
+# assuming the app figure would have been wrong; this pins the difference so a later edit cannot
+# quietly collapse the two into one number.
+afirmar "the folder is NOT drawn on the app icons squircle (more than 3x tighter)" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+app = float(t["measure"]["radius_ratio"]); folder = float(t["measure"]["folder"]["radius_ratio"])
+sys.exit(0 if app / folder > 3.0 else 1)'
 
 # The value is in the range the measurement supports. This is a WINDOW on purpose: a token that
 # claimed a single confident number at 1 px resolution would be lying about its own precision.
@@ -57,4 +81,14 @@ afirmar "the evidence is our own drawing, not a screenshot" python3 -c '
 import sys
 from PIL import Image
 im = Image.open("'"$EVID"'")
+sys.exit(0 if im.size[0] > 200 and im.size[1] > 100 else 1)'
+
+# ... and the same for the FOLDER, which is a second measurement and needs its own drawing: an
+# evidence file for the app figure is not evidence for the folder.
+EVID_FOLDER="$PROJECT/evidence/2026-10-15-m5-folder-corner.png"
+afirmar_existe "the folder evidence drawing exists" "$EVID_FOLDER"
+afirmar "the folder evidence is our own drawing, not a screenshot" python3 -c '
+import sys
+from PIL import Image
+im = Image.open("'"$EVID_FOLDER"'")
 sys.exit(0 if im.size[0] > 200 and im.size[1] > 100 else 1)'

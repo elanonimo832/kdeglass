@@ -16,11 +16,11 @@
 #   * MEASURED: the corner profile of the macOS APP icons drawn in the screenshots. Twelve of them
 #     fitted within 2 px (six in `muestras/Untitled3.png`, six in `muestras/Untitled2.png`), all of
 #     them Launchpad icons 96 px on a side.
-#   * NOT MEASURED, and it is the literal subject of M5: no FOLDER icon appears in any of the nine
-#     captures in `muestras/`. The macOS folder icon is a folder shape with its own tab, and its
-#     body does not have to carry the same radius as an app icon's squircle. What is measured is
-#     the app icon, which is the same Apple icon geometry the folder's body is drawn on -- and the
-#     difference has NOT been checked, because there is nothing to check it against.
+#   * ALSO MEASURED, LATER AND SEPARATELY: the FOLDER's body corner, which is the literal subject of
+#     M5, in `muestras/Untitled6.png` (a Finder window with four folders). It is in `[measure.folder]`
+#     below, and it is NOT the app figure: it came out about FOUR times tighter. That is exactly why
+#     it had to be measured rather than assumed -- and the earlier version of this file declared it
+#     "not verifiable" precisely because assuming it was the only alternative it had.
 #   * NOT MEASURABLE AT THIS SIZE, and this is the honest half: the corner FAMILY. Drawing the
 #     kit's own corner at `smoothing = 0.6` and fitting the profile that comes back gives a CIRCLE
 #     fit with a 0.29 px residual (`--self-test` prints it), because the two constructions differ
@@ -52,13 +52,64 @@ captures = ["muestras/Untitled3.png", "muestras/Untitled2.png"]
 count = 3
 reason = "corner profile did not fit any family within 2 px: the icon's body is not uniform there"
 
+# ------------------------------------------------------------------------------------------------
+# THE FOLDER, WHICH IS WHAT M5 LITERALLY ASKS ABOUT. `[not_verifiable] folder_icon` used to say no
+# capture showed one; `muestras/Untitled6.png` does (Applications, Library, System, Users). Four of
+# four measured, none rejected.
+#
+# IT IS NOT THE APP FIGURE. 0.049 against 0.215 is more than FOUR times tighter, so "the folder is
+# drawn on the same squircle as an app icon" is now a measured falsehood and not a guess either way.
+# ------------------------------------------------------------------------------------------------
+[measure.folder]
+radius_ratio = 0.049
+# Same reasoning as the app figure: the spread across the four folders is 0.000 (they are identical
+# to the grid's resolution), and the figure is 0.01 because the EDGE DETECTION and the 0.76 px fit
+# residual add a systematic term the spread cannot see. Rounding up: a token that claims more
+# precision than its method has is a token that lies.
+uncertainty = 0.01
+radius_px = 5.9           # 5.85 px at the command's 0.05 px radius resolution
+side_px = 120.0           # the icon's WIDTH. The body is 120 x 89, so it is not square and the ratio
+body_px = "120 x 89"      # depends on the side: 0.049 on the width, 0.066 on the height. The width is
+                          # quoted because that is the side the app figure above uses (horizontal extent).
+corner = "top-right"      # the TAB occupies the top-left, so the body's corner cannot be read there
+rows_fitted = 6           # the corner is over in six rows; see the taper note below
+date = "2026-10-15"
+method = "tools/measure-icon-geometry.py --image muestras/Untitled6.png --grid 165,290 --corner tr --polarity dark --threshold 210 --radius-min 4 --radius-max 9 --radius-step 0.05 --rows 6 --x-range 300,1000"
+icons = "Finder folder bodies (Applications, Library, System, Users), 4 of 4 measured, 0 rejected"
+captures = ["muestras/Untitled6.png"]
+
+[measure.folder.notes]
+why_top_right = """A macOS folder icon is a folder SHAPE: its tab sits on the top-left, so the
+body's corner there is covered. The top-RIGHT corner of the body is clean, and that is the one this
+figure reads. Reading the top-left would have measured the TAB, whose corner is not the body's."""
+
+rows_fitted = """SIX rows, and the number is data and not taste. The profile is 5.10, 3.28, 2.20,
+1.15, 0.45, 0.04 -- the corner -- and then 0.29, 0.63, 0.86, 0.99, 1.13, 1.20, 1.22, 1.22: past the
+corner the body's right edge keeps moving INWARD by 1.2 px. That is the icon's own taper (and its
+shadow), not a corner, and fitting it in moved the radius from 5.9 to 5.1 px. Six rows is the corner
+up to its first minimum."""
+
+family = """The corner FAMILY is NOT resolved here either, and for the same reason as the app icons:
+at a 5.9 px radius a circular arc, the kit's construction at any smoothing, and a superellipse all
+fit identically (the fit returns smoothing = 0.00 and exponent = 2.00, which ARE the circle). The
+radius is a radius; it is not a statement that the corner is a continuous one."""
+
+comparison = """Against the app icons: 0.215 / 0.049 = 4.4x tighter. So a folder's body is NOT
+drawn on the app icon's squircle. This is the measurement M5 was missing, and it says the
+assumption would have been wrong."""
+
+bottom_corner = """The BOTTOM-right corner reads ~4.1 px against the top-right's 5.9, and the
+difference is the icon's shadow and taper rather than a second radius: they darken the body's lower
+edge, which moves the 0.5 crossing. The top-right is the clean read and the one this token uses."""
+
 [not_verifiable]
-folder_icon = """No folder icon is drawn in any of the captures in `muestras/`, so the radius of
-the FOLDER icon specifically is NOT confirmed by this measurement. What is confirmed is the radius
-of the app icons, which are drawn on the same Apple icon geometry."""
+folder_icon = """CLOSED on 2026-10-15 by `muestras/Untitled6.png`. The folder's body radius IS
+measured: see `[measure.folder]` above. What this key used to say -- that no capture showed a folder
+-- is no longer true, and the value is not the app icons' figure: it is about 4x tighter."""
 smoothing = """The corner FAMILY cannot be resolved from these captures. The kit's construction at
 smoothing = 0.6 and a plain circular arc differ by less than the sub-pixel row at a 96 px icon: the
 circle fit of the kit's OWN corner leaves a 0.29 px residual. The radius above is a radius, NOT a
 statement that the corner is a continuous one."""
-folder_retry = """To close the folder question: a capture with a Finder window showing large icons
-would settle it. It is recorded here so the gap is a task and not a doubt."""
+folder_retry = """DONE on 2026-10-15: the Finder capture arrived (`muestras/Untitled6.png`) and the
+folder was measured -- see `[measure.folder]`. It is kept here, empty of its original purpose, so the
+record shows the gap was a task and it got done instead of quietly disappearing."""
