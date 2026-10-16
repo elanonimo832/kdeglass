@@ -531,7 +531,7 @@ cmd_verificar() {
   if [ -f "$STYLE_SO" ]; then
     if [ -f "$STYLE_DEST" ] && cmp -s "$STYLE_SO" "$STYLE_DEST"; then ok "the style plugin is installed and matches this build"
     elif [ -f "$STYLE_DEST" ]; then fallo "the installed style plugin differs from this build: re-run aplicar"
-    else aviso "the style plugin is NOT installed (not built, or aplicar was not run)"; fi
+    else aviso "the style is built but NOT installed: ./install.sh aplicar --si (or rollback removed it)"; fi
   else
     gris "  (the style is not built here: nothing to compare)"
   fi
