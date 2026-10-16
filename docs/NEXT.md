@@ -301,8 +301,9 @@ behind the bar and the radius alone did nothing.
     reader's subpixel phase bias but did not re-measure `tokens/tokens-controls-measured.toml`, on the
     argument that the phase term moves a right or bottom edge by at most half a pixel, inside those
     figures' 0.8-1.5 px uncertainties. It was inside them, and it was still a real 0.85 px on the
-    checkbox. Four figures moved: the UNCHECKED checkbox's radius **5.85 -> 5.00**, the selection
-    pill's radius **5.7 -> 5.10** and height **16.4 -> 17.0**, and the popup chevron's box radius
+    checkbox. Five figures moved: the UNCHECKED checkbox's radius **5.85 -> 5.00**, the selection
+    pill's radius **5.7 -> 5.10** and height **16.4 -> 17.0**, the selection cell's height
+    **145.0 -> 144.0** (for the CROP's reason, not the reader's), and the popup chevron's box radius
     (**never measured -> 9.5 px +- 0.9**). Everything else was RE-MEASURED AND DID NOT MOVE -- the
     track's 6.0 px, the knob's 19.83 x 15.8, the checkbox's 16.00 x 16.00, the tick, the chevron box's
     20 x 20, the row pitch and the group gap -- and the test pins that as a result, not as an

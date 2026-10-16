@@ -2959,7 +2959,7 @@ landed on the grid edge, which is M5's own trap.
   16 px body sample are below a 1x icon's corner and INSIDE a 10x one's; both now scale with the
   side, which is what makes the 10x cross-check (0.0738 against the SVG's own 0.0747) reproducible.
 
-## 10q. M6's control figures re-derived with the corrected reader: four moved, everything else was re-measured and did not (2026-10-16)
+## 10q. M6's control figures re-derived with the corrected reader: five moved, everything else was re-measured and did not (2026-10-16)
 
 Section 10p fixed the shared corner reader's subpixel phase bias and re-measured M5's figures; it
 did **not** re-derive `tokens/tokens-controls-measured.toml`, because the corrected falling-edge
@@ -3003,7 +3003,7 @@ larger. Nothing here was re-measured with a different probe: the rectangles are 
 | switch pill, radius, knob | 35.96 x 15.98, R 7.8, 20.9 x 13.6 | **unchanged** | no | `[measure.switch]` |
 | **chevron box radius** | never measured | **9.5 px +- 0.9** | new | `[measure.popup]` |
 | chevron box | 20 x 20 px | **20 x 20 px** | no | same |
-| selection cell | 144.0 x 145.0 px | **144.2 x 143.9 px** | width +0.2, **height -1.1** | `[measure.selection]` |
+| selection cell | 144.0 x 145.0 px | **144.0 x 144.0 px** | width 0, **height -1.0** | `[measure.selection]` |
 | selection cell radius | 14.0 px | **14.0 px** (corners 13.45..14.80) | no | same |
 | **selection label pill radius** | **5.7 px** | **5.10 px** | **-0.6 px** | same |
 | **selection label pill height** | **16.4 px** | **17.0 px** | **+0.6 px** | same |
@@ -3012,7 +3012,7 @@ larger. Nothing here was re-measured with a different probe: the rectangles are 
 | group gap | 10.0 px | **10.0 px** | no | same |
 | control height, icon body, insets, traffic lights | 16.0, 118 x 93, 13/25/14/28, 14/23 | **unchanged** | no | `[measure.layout]` |
 
-**FOUR FIGURES MOVED, AND ONE OF THEM CLOSES A FINDING INSTEAD OF RESTATING IT.**
+**FIVE FIGURES MOVED, AND ONE OF THEM CLOSES A FINDING INSTEAD OF RESTATING IT.**
 1. **The unchecked checkbox's radius, 5.85 -> 5.00.** The old reader's answer is 0.85 px too round,
    which is its own bound and then some, and it is the crossing's doing (table above). The two states
    of one 16 px control measure 4.65 and 5.00 now.
@@ -3033,14 +3033,22 @@ larger. Nothing here was re-measured with a different probe: the rectangles are 
    `Untitled7` fit 9.45, 9.50, 9.56 and (one box, two corners) 8.10/7.80; the token carries their
    median and an uncertainty that covers the spread AND the reader's bound. The old reader was not
    asked for this in 10o because a 20 px box is exactly where its bias shows worst.
+5. **The selection cell's HEIGHT, 145.0 -> 144.0**, and this one is NOT the reader's doing: it is
+   10o's crop. The paragraph below says why in full, because a figure that moves for a bookkeeping
+   reason must not be read as a measurement that changed.
 
 **THE ONE FIGURE THAT MOVED FOR A REASON THAT IS NOT THE READER, SAID OUT LOUD.** The selection
-cell's HEIGHT reads 143.9 px where 10o published 145.0. That is not the phase term: it is 10o's own
+cell's HEIGHT reads 144.0 px where 10o published 145.0. That is not the phase term: it is 10o's own
 crop. Its `box` call passed a rectangle whose bottom edge (y = 335) is BELOW the cell's fill, so the
-published 145.0 was measured to the crop's boundary, and the cell's own fill stops at 329.9. The
-corrected read puts the cell's flat edges at L 254.765, R 398.926, T 186.074, B 329.926: **144.2 x
-143.9**, square to within the 1 px uncertainty, which is what a Finder icon cell is. The WIDTH moved
-0.2 px for the reader's reason and the HEIGHT moved for the crop's; both are recorded.
+published 145.0 was measured to the crop's boundary, and the cell's own fill stops at 330. Both of
+the cell's edges are CRISP -- the fill runs 246 -> 223 at x = 255 and 230 -> 255 at x = 399, with no
+antialiased pixel on either side, and the same at y = 186 and y = 330 -- so the flat-edge read is
+**144.0 x 144.0**: the WIDTH is the published figure, unmoved, and the HEIGHT is the one that moved,
+because a square is what a Finder icon cell is. (The token recorded an interim 144.2 x 143.9 in this
+step's first pass; that pair came from measuring the left and right edges against the window's own
+background GRADIENT rather than against the pixels next to each edge, and the crisp read above is the
+one that survives. The gradient is inside the cell's fill, 226-230, and it is why the corner fit
+spreads 13.45..14.80 -- the uncertainty covers it.)
 
 **WHAT DID NOT MOVE, WITH THE SAME CLARITY, BECAUSE "NOT CHECKED" IS THE WRONG READING.** The track's
 6.0 px (all three probes re-run: `bar` answers 6.000 at x = 350, 450 and 560), the knob's 19.83 x
@@ -3051,7 +3059,7 @@ by the SAME crossing on both readers, and the phase term's half-pixel ceiling ca
 precision those figures are written to. The suite pins them as VALUES read from the token and re-runs
 the self-test's bar, so an edit that "corrects" one of them fails.
 
-**WHAT THE TOKEN AND THE TEST NOW CARRY.** `tokens/tokens-controls-measured.toml`: the four moved
+**WHAT THE TOKEN AND THE TEST NOW CARRY.** `tokens/tokens-controls-measured.toml`: the five moved
 figures, the reader's history and the new `chevron_box_radius_px`/`_uncertainty_px`, a
 `radius_bound_px` comment that names the corrected sweep (four phases x radii 3, 5, 8 and 20 x BOTH
 corners, 0.50 px measured, imported as `PHASE_TOL`), and an explicit "re-measured and unchanged" note

@@ -54,15 +54,16 @@
 #   reader answers 7.75 and 7.65. `docs/HANDOFF.md` 10p carries the full sweep of both, including
 #   the 20.0 -> 16.40 case and the R = 3/5 rows.
 #
-#   FOUR OF THE FIGURES BELOW MOVED, and section 10q names each one and the direction it moved: the
+#   FIVE OF THE FIGURES BELOW MOVED, and section 10q names each one and the direction it moved: the
 #   UNCHECKED checkbox's radius (5.85 -> 5.00), the selection pill's radius (5.7 -> 5.10), the pill's
-#   own HEIGHT (16.4 -> 17.0) and the popup chevron's box radius (never measured -> 9.5). Everything
-#   else was RE-MEASURED AND DID NOT MOVE, which is a result and not an omission: a straight edge or
-#   a bar is read by the same crossing on both readers, and the phase term moves a right or bottom
-#   edge by at most half a pixel, which none of those figures can show at the precision they are
-#   written to. The corrected reader's own bound is the one its `--self-test` asserts across four
-#   phases x radii 3, 5, 8 and 20 x both corners: `radius_bound_px` below, ROUNDED UP from the
-#   0.50 px it measures.
+#   own HEIGHT (16.4 -> 17.0), the selection cell's HEIGHT (145.0 -> 144.0, and for a reason that is
+#   NOT the reader: 10o measured to a crop boundary) and the popup chevron's box radius (never
+#   measured -> 9.5). Everything else was RE-MEASURED AND DID NOT MOVE, which is a result and not an
+#   omission: a straight edge or a bar is read by the same crossing on both readers, and the phase
+#   term moves a right or bottom edge by at most half a pixel, which none of those figures can show
+#   at the precision they are written to. The corrected reader's own bound is the one its
+#   `--self-test` asserts across four phases x radii 3, 5, 8 and 20 x both corners: `radius_bound_px`
+#   below, ROUNDED UP from the 0.50 px it measures.
 #
 #   ONE MORE THING THE RE-DERIVATION FOUND, and it is not a figure: the shared `coverage` primitive
 #   had a latent 1-D shape bug (it returned a 0-d array for the LUMINANCE form its own docstring
@@ -219,12 +220,14 @@ kit_width_button_medium = 24
 # repository. The Finder's ICON VIEW draws TWO layers, and the SIDEBAR draws ONE.
 #   icon view: a grey cell rectangle AND an accent pill behind the label, whose text turns WHITE.
 #   sidebar:   one grey row highlight, and the label's colour does NOT change.
-# RE-DERIVED WITH THE CORRECTED READER (HANDOFF 10q). The WIDTH moved by 0.2 px (the corrected
-# crossing reads the edge's own pixel); the HEIGHT is the figure that moved: the old crop's bottom
-# probe landed on an edge the old reader put at 335.0, while the cell's own fill stops at 329.9, so
-# 145.0 was a crop artefact and the flat-edge read is 143.9. The cell is square, as a Finder icon
-# cell is, and the width is the figure to trust.
-cell_px = [144.2, 143.9]              # L 254.765, R 398.926, T 186.074, B 329.926 (flat edges)
+# RE-DERIVED WITH THE CORRECTED READER (HANDOFF 10q). The WIDTH is the published 144.0: the cell's
+# left and right edges are CRISP (246 -> 223 at x = 255 and 230 -> 255 at x = 399, no antialiased
+# pixel on either side), so both crossings land exactly on the integer and the figure does not move.
+# The HEIGHT moved 145.0 -> 144.0, and NOT because of the reader: 10o's `box` call passed a rectangle
+# whose bottom edge (y = 335) is BELOW the cell's fill, and the published 145.0 was measured to that
+# crop boundary. The cell's own fill stops at 330 (crisp, 230 -> 255) and the flat top at 186, so the
+# cell is 144 x 144 -- square, which is what a Finder icon cell is. The width is the figure to trust.
+cell_px = [144.0, 144.0]              # L 255.0, R 399.0, T 186.0, B 330.0 (crisp edges)
 cell_uncertainty_px = 1.0
 cell_radius_px = 14.0
 cell_radius_uncertainty_px = 0.75     # the reader's own bound, rounded up: the corners fit 13.45..14.80
