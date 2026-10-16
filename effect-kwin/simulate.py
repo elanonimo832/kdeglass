@@ -73,10 +73,6 @@ SPECULAR = DEFAULTS.get("Specular", 0.7)
 SPECULAR_WIDTH = DEFAULTS.get("SpecularWidth", 2.0)
 RIM = DEFAULTS.get("Rim", 0.20)
 RIM_WIDTH = DEFAULTS.get("RimWidth", 12.0)
-# How far the BEND reaches inward, in screen pixels. Separate from RimWidth, which sets the
-# rim's own width: the bend and the rim are different things, and sharing one number meant
-# widening the bend widened the rim.
-REFRACTION_REACH = DEFAULTS.get("RefractionReach", 24.0)
 CORNER_RADIUS = DEFAULTS.get("CornerRadius", 20.0)
 FROST_RADIUS = DEFAULTS.get("FrostRadius", 6.0)
 CHROME_LOW = DEFAULTS.get("ChromeLow", 0.06)
@@ -276,58 +272,48 @@ def corners_report(radius, smoothing):
     return 0
 
 
-def refraction_field(h, w, corner_radius, corner_smoothing, rim_width, refraction_reach, refraction):
-    """The backdrop's bend near the band's edges, and the distances every edge term shares.
-
-    Returns `(shift_x, shift_y, to_edge, falloff_rim, falloff_refract)`.
-
-    THE DIRECTION IS THE GRADIENT OF `to_edge`, WHICH IS THE DISTANCE TO THE NEAREST EDGE OF THE
-    BAND -- the window's rounded frame AND the band's own bottom, which is the top of the content and
-    is NOT a frame edge at all. Taking the direction from the frame's distance alone leaves the
-    bottom edge with no gradient (it is flat there) and therefore bending nothing, which is what the
-    user saw. The simulator always used the whole box and so always bent at the bottom; the two
-    implementations disagreed, and this is the quantity they now name together.
-
-    THE REACH IS ITS OWN NUMBER. Two falloffs read the same distance: the rim's (`rim_width`, the
-    look of the edge) and the bend's (`refraction_reach`, how far into the band the backdrop is
-    pulled). They used to be one, so the bend could not reach further without widening the rim.
-    """
-    yy0, xx0 = np.mgrid[0:h, 0:w].astype(float)
-    co = np.array([w, h], dtype=float) * 0.5
-    ppos = np.stack([xx0, yy0], axis=2)
-    q = np.abs(ppos - co) - (co - corner_radius)
-    if corner_smoothing > 0.001:
-        curve, edge_q = clothoid_corner_q(corner_radius, corner_smoothing)
-        sdf = corner_sdf(q[..., 0], q[..., 1], corner_radius, curve, edge_q)
-        gy_num, gx_num = np.gradient(-sdf)
-        grad_x, grad_y = -gx_num, -gy_num
-    else:
-        sdf = (np.sqrt((np.maximum(q, 0.0) ** 2).sum(axis=2))
-               + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
-        grad_x = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
-        grad_y = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
-    to_edge = -sdf
-    falloff_rim = 1.0 - smoothstep(0.0, rim_width, to_edge)
-    falloff_refract = 1.0 - smoothstep(0.0, refraction_reach, to_edge)
-    largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)
-    shift_y = (-grad_y / largo) * refraction * falloff_refract
-    shift_x = (-grad_x / largo) * refraction * falloff_refract
-    return shift_x, shift_y, to_edge, falloff_rim, falloff_refract
-
-
 def simulate(window, backdrop, glass_alpha=GLASS_ALPHA, radius=BACKGROUND_RADIUS,
              boost=MATERIAL_BOOST, rim_strength=RIM, chrome_low=CHROME_LOW, factor=0,
-             gain=MATERIAL_GAIN, refraction=REFRACTION, refraction_reach=REFRACTION_REACH,
-             rim_width=RIM_WIDTH, dispersion=0.0,
+             gain=MATERIAL_GAIN, refraction=REFRACTION, rim_width=RIM_WIDTH, dispersion=0.0,
              specular=SPECULAR, specular_width=SPECULAR_WIDTH, rim_colour_boost=RIM_COLOUR,
              corner_radius=CORNER_RADIUS, corner_smoothing=0.0):
     factor = min(2, max(1, factor or max(1, radius // 8)))
     # the edge geometry first, then ONE frost whose centre is bent: this is what makes the rim the
     # same material as the centre, blurred and displaced, instead of a sharp copy of the backdrop
     h0, w0 = backdrop.shape[:2]
-    yy0 = np.mgrid[0:h0, 0:w0].astype(float)[0]
-    shift_x, shift_y, to_edge, falloff, _falloff_refract = refraction_field(
-        h0, w0, corner_radius, corner_smoothing, rim_width, refraction_reach, refraction)
+    yy0, xx0 = np.mgrid[0:h0, 0:w0].astype(float)
+    # THE ROUNDED BOUNDARY, the same arithmetic as the shader, because two copies of it is how the
+    # corners broke there: a box distance is larger than the arc's at a corner, so the fillet thinned
+    # out exactly where the rounding begins.
+    co = np.array([w0, h0], dtype=float) * 0.5
+    ppos = np.stack([xx0, yy0], axis=2)
+    q = np.abs(ppos - co) - (co - corner_radius)
+    if corner_smoothing > 0.001:
+        # THE G2 CORNER, as a signed distance and not as a re-used circle trick. The old branch
+        # reused `largo = R - distance`, which only works when the boundary is a circle centred
+        # where the clamp lands; for a clothoid it does not, so this computes the distance directly.
+        # `smoothing = 0` does NOT come through here, which keeps the approved screen literal.
+        curve, edge_q = clothoid_corner_q(corner_radius, corner_smoothing)
+        sdf = corner_sdf(q[..., 0], q[..., 1], corner_radius, curve, edge_q)
+        # The OUTWARD normal is the gradient of the inside distance: `to_edge` grows inward, so its
+        # gradient points inward and the outward direction is its negative. That avoids needing the
+        # curve's own tangent, and it cannot disagree with the distance the way a second formula can.
+        gy_num, gx_num = np.gradient(-sdf)
+        grad_x, grad_y = -gx_num, -gy_num
+    else:
+        sdf = (np.sqrt((np.maximum(q, 0.0) ** 2).sum(axis=2))
+               + np.minimum(np.maximum(q[..., 0], q[..., 1]), 0.0) - corner_radius)
+        # NORMALISED, as the shader does with normalize(): bending per axis independently gave a corner
+        # sqrt(2) times the displacement, which is the fourth drift the audit found.
+        # The inward direction is the GRADIENT of the distance, as in the shader: the per-axis signs
+        # flip where the top and bottom distances cross and leave a horizontal seam mid-bar.
+        grad_x = np.maximum(q[..., 0], 0.0) * np.sign(ppos[..., 0] - co[0])
+        grad_y = np.maximum(q[..., 1], 0.0) * np.sign(ppos[..., 1] - co[1])
+    to_edge = -sdf
+    falloff = 1.0 - smoothstep(0.0, RIM_WIDTH, to_edge)
+    largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)
+    shift_y = (-grad_y / largo) * refraction * falloff
+    shift_x = (-grad_x / largo) * refraction * falloff
     if dispersion > 0.001:
         # DISPERSION: the bend moves each wavelength a little differently, which is why Apple's
         # glass shows colour fringing at its edges and the kit carries `refraction = 70` next to
@@ -469,8 +455,6 @@ def main():
     ap.add_argument("--MaterialBoost", type=float, default=MATERIAL_BOOST)
     ap.add_argument("--MaterialGain", type=float, default=MATERIAL_GAIN)
     ap.add_argument("--Refraction", type=float, default=REFRACTION)
-    ap.add_argument("--RefractionReach", type=float, default=REFRACTION_REACH,
-                    help="how far the bend reaches inward, in px (separate from RimWidth)")
     ap.add_argument("--RimWidth", type=float, default=RIM_WIDTH)
     ap.add_argument("--CornerRadius", type=float, default=CORNER_RADIUS)
     ap.add_argument("--CornerSmoothing", type=float, default=0.0,
@@ -511,7 +495,7 @@ def main():
         return 2
     out = simulate(w, b, args.GlassAlpha, args.BackgroundRadius, args.MaterialBoost,
                    args.Rim, args.ChromeLow, args.FrostDownsample, args.MaterialGain,
-                   args.Refraction, args.RefractionReach, args.RimWidth, args.Dispersion, args.Specular,
+                   args.Refraction, args.RimWidth, args.Dispersion, args.Specular,
                    args.SpecularWidth, args.RimColour, args.CornerRadius,
                    args.CornerSmoothing)
     Image.fromarray((out * 255).astype(np.uint8)).save(args.out)
