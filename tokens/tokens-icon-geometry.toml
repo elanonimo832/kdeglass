@@ -189,9 +189,16 @@ radius_ratio_at_10x = 0.0738   # 79.50 px on a 1077 px run, divided by 10
 date = "2026-10-16"
 source = "~/.local/share/icons/MacTahoe-light/places/scalable/folder.svg"
 theme = "MacTahoe-light (third-party; its places/ is a symlink into the sibling theme MacTahoe/)"
-method = "rsvg-convert -w 120 -h 120 (and -w 1200 for the 10x check), composed on white, then tools/measure-icon-geometry.py --image <canvas> --grid 70,180 --corner tr --polarity dark --threshold 220 --radius-min 2 --radius-max 20 --radius-step 0.05 --rows 12"
+method = "rsvg-convert -w 120 -h 120 (and -w 1200 for the 10x check), the RGBA raster alpha-composited on a WHITE canvas at (60,60) of 240x240 (at (600,600) of 2400x2400 for the 10x), then tools/measure-icon-geometry.py --image <canvas> --grid 70,180 --corner tr --polarity dark --threshold 220 --radius-min 2 --radius-max 20 --radius-step 0.05 --rows 12 (10x: --grid 800,1400 --radius-min 40 --radius-max 130 --radius-step 0.5 --rows 120)"
 
 [measure.installed_theme.notes]
+the_canvas = """The GRID above is only reproducible with the canvas, so the canvas is part of the
+method: the 120 px raster is pasted at (60,60) on a 240x240 white canvas and the 1200 px one at
+(600,600) on 2400x2400. The padding is not cosmetic -- the reader samples the background 6-7 px
+outside the corner and reads the top edge on a column 40% of the run in from the corner -- and a
+raster flush to its own border would have no background to sample on two sides. `rsvg-convert` emits
+RGBA, so the composition is an alpha-composite on white, which is the polarity the Finder capture
+gave macOS."""
 which_file = """`places/scalable/folder.svg`, and the choice is a measurement of its own: the theme's
 `places/16`, `places/22` and `places/24` carry a DIFFERENT folder -- a monochrome Breeze-style shape
 whose path is `ColorScheme-Text`, not the blue macOS one -- so the theme is not even consistent with
