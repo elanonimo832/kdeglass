@@ -2498,3 +2498,47 @@ Links: [Klassy](https://github.com/paulmcauley/klassy),
 [KDE bug 465621](https://bugs.kde.org/show_bug.cgi?id=465621),
 [KDE bug 514600](https://bugs.kde.org/show_bug.cgi?id=514600),
 [Qt 6 QMainWindow](https://doc.qt.io/qt-6/qmainwindow.html#unifiedTitleAndToolBarOnMac-prop).
+
+## 10l. M6, slice 3: the checkbox and the radio button, off the palette, and a test that could not fail
+
+**What the slice answers, and where each number comes from.** `pixelMetric` returns the kit's
+indicator size and `drawPrimitive` draws `PE_IndicatorCheckBox` and `PE_IndicatorRadioButton`:
+`[checkboxes] width = 16` (`tokens/tokens-sizes.toml:35`), `[checkboxes] radius.medium = 5.5` (:33),
+`[radio] width.medium = 16` (:124), `[radio] width_dot.medium = 4.8` (:128), and the tick inside
+`width_checkmark.medium = 9.31` / `height_checkmark.medium = 8.93` (:38, :31), taken as fractions of
+the indicator so the glyph scales with the control instead of being drawn at the size it happened to
+be measured at. The base answered `20x20` for both indicators, which is the +25% slice 1 measured.
+
+**The accent is the palette's, and that is a requirement rather than a preference.** `KdeMacosDark`
+is already generated and the plan makes every slice honour the active scheme; `Highlight` is the role
+Qt itself spends on the accent, so the scheme's accent arrives without this file knowing which scheme
+is active. A light constant here would be a second palette, and a second palette is how two palettes
+drift apart.
+
+**The one number the kit does not answer.** `[checkboxes]` gives the checkmark's BOX and no pen, so
+the tick's stroke width (2) is named in the code as chosen rather than passed off as measured. It is
+the only value in this slice without a token behind it.
+
+**Trap 1: the slice-0 probe was asserting the no-op property on a control this slice owns.** It used
+a `QCheckBox`, so it began exiting 5 the moment the checkbox moved. It now renders a `QProgressBar`,
+which no DECLARED slice owns (the remaining ones are sliders/scrollbars, combos/tabs/menus, the
+states and the tracking; `[progressbar]` has no reference in the kit at all). The controls that left
+the probe are named in its comment, so they did not simply disappear.
+
+**Trap 2, and the one worth remembering: `tests/test-style-gallery.sh` cannot be run on its own, and
+running it directly made it PASS while asserting NOTHING.** It needs the harness that defines
+`PROJECT` and the assertion functions; without them every `afirmar_*` is "command not found", the
+script's exit code is whatever the last command left, and the run looks green. A deliberately broken
+indicator size (20 instead of 16) therefore passed TWICE before the same break was run through
+`tests/run.sh`, where it failed with six assertions -- including "our checkbox's indicator IS that
+token", which is the one that names the token. The lesson is the repository's own, arriving from a new
+direction: a test that can be green while measuring nothing is exactly what every instrument here
+exists to catch, and this time the runner itself was the instrument that was lying. Run the suite,
+never a test file.
+
+**The instrument's numbers.** Five rows moved (`checkbox` 268 px, `checkbox-checked` 261,
+`checkbox-disabled` 269, `radio` 252, `radio-checked` 252) and the other eleven are still zero;
+`METRICDIFF` is non-zero for those five and zero for the rest. `CAMBIADOS` grew to eight rows, and the
+"only the declared primitives report a moved value" check stopped being a count (which had to be kept
+in step by hand) and became a property: every `OURS` line must belong to a declared row. The gallery's
+evidence was regenerated: `evidence/2026-10-15-m6-gallery.png` and the baseline table.

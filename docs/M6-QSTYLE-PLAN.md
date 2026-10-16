@@ -133,6 +133,18 @@ canvas sized from the very `sizeHint` the slice changed (which reported `DIFF -1
 where the question was "how different") and a baseline table that only stored the base's metrics
 (which would have shown the button as 34 px after it had been changed to 24).
 
+**Slice 3 is DONE.** The checkbox and the radio button answer the kit's indicator size -- `16`, where
+the base answered `20` -- and draw their own shapes: the checkbox's `5.5` radius, the radio's `4.8`
+dot and the tick placed inside the kit's own checkmark box (`9.31 x 8.93`), all read from
+`tokens/tokens-sizes.toml` with their line. **The accent comes from the palette's `Highlight`**, which
+the plan requires for every slice: the dark scheme needs no second palette here. The instrument moved
+those five rows and left the other eleven at zero; the `CAMBIADOS` contract grew to eight rows and the
+"only the declared primitives report a moved value" check became a PROPERTY instead of a count kept in
+step by hand. The slice-0 probe moved OFF the checkbox -- which this slice owns -- onto the progress
+bar, which no declared slice owns. `HANDOFF.md` §10l carries the two traps, and the second is the one
+to remember: a test file that cannot be run on its own reported SUCCESS while asserting nothing, so a
+deliberately broken value passed twice before the same break, run through `tests/run.sh`, failed.
+
 The dark scheme (`KdeMacosDark`, already generated) has to be honoured by every slice above, and
 the style must read its colours from the active palette rather than hard-coding the light ones.
 
