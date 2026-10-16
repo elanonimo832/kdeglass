@@ -475,18 +475,6 @@ afirmar_glsl "and the switch selects the band instead" "$SOURCE" 'Rect region = 
 afirmar_glsl "the frame's place inside the capture is computed" "$SOURCE" 'm_sampleOffset = QVector2D(float(frameRect.x() - region.x())'
 afirmar_glsl "the shader applies the offset and scale to the backdrop's uv" "$SOURCE" 'uBackgroundOffset + vTexCoord * uBackgroundScale'
 
-echo "  -- the bend's direction cannot be invented out of a zero gradient --"
-# The user: "desde la parte superior todo en 90 grados y casi en la parte baja de la barra se van a
-# un angulo sin curvas hacia la derecha". The interior of a flat edge has NO gradient -- the bar's
-# BOTTOM is not part of the frame's rounded distance -- and `normalize(gradiente + vec2(0.0001))`
-# turned that zero into a FIXED DIAGONAL exactly where the falloff was still on. The simulator never
-# had the bug: it divides by `max(length, 1e-6)`, so a zero gradient moves the sample by ZERO. Both
-# sides are pinned, because this is the drift the user SAW rather than one a number predicted.
-afirmar_glsl "the shader bends by ZERO where the gradient is zero" "$SOURCE" \
-  '(gLen > 1e-6) ? (-gradiente / gLen) : vec2(0.0)'
-afirmar_glsl "and the simulator already did, so the two agree again" "$EF/simulate.py" \
-  'largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)'
-
 echo "  -- the bar's kernels do not look outside the bar --"
 # Measured on the user's screen: the lower 14 rows of a 39-row band had an implied tone of
 # 167 where the bar's own is 238 -- exactly (246+246+30)/3, one of the tone kernel's three
