@@ -10,16 +10,17 @@ echo "  -- only the essential scripts --"
 #   test-glass.sh       live test: the band follows the background
 #   test-titlebar.sh    live test: the title bar only, read from KWin's geometry
 #   tune.sh             sets the live settings and applies them in ONE call
+#   snapshot.sh         a photo of a fixed scene, tied to the build that drew it
 # The four that were retired to tests/archive/ had stopped being able to say anything:
 # test-installed.sh looked for M1.1's flat marker, test-hot.sh and calibrate.sh waited
 # for CALIB lines the effect no longer emits, and test-diffusion.sh measured M1.2's band
 # diffusion, which the design no longer claims. A live script whose verdict is
 # meaningless is worse than no script: it teaches the reader to ignore verdicts.
-expected="build.sh capture-pair.sh install.sh test-titlebar.sh test-glass.sh tune.sh verify-chain.sh"
+expected="build.sh capture-pair.sh install.sh snapshot.sh test-titlebar.sh test-glass.sh tune.sh verify-chain.sh"
 for s in $expected; do afirmar_existe "existe $s" "$EF/$s"; done
 
 n=$(ls "$EF"/*.sh 2>/dev/null | wc -l)
-afirmar_igual "number of scripts (no scaffolding)" "7" "$n"
+afirmar_igual "number of scripts (no scaffolding)" "8" "$n"
 extra=""
 for x in "$EF"/*.sh; do
   [ -f "$x" ] || continue
@@ -161,6 +162,26 @@ afirmar_codigo "with a fallback that KWin does honour" "$EF/capture-pair.sh" '--
 afirmar_codigo "and it refuses to capture if the effect is still loaded" "$EF/capture-pair.sh" 'a capture with the effect on is its OUTPUT'
 afirmar_codigo "the geometry comes from the ACTIVE window, fresh" "$EF/capture-pair.sh" 'w[.]normalWindow && w[.]active'
 afirmar_codigo "the trap puts the plugin key back too" "$EF/capture-pair.sh" 'PLUGIN_TOCADO'
+
+echo "  -- snapshot.sh ties a photo to the build that drew it --"
+# The lesson of 2026-10-15: an evening went into bisecting a visual regression -- "the text behind
+# the bar is vertical lines" -- by rebuilding and relogging commit by commit, because nothing tied a
+# SCREENSHOT to the BUILD that produced it. This script writes the image with the commit, the
+# INSTALLED md5 and the live values in its name and beside it, and it REFUSES when the build and the
+# installed plugin differ, because then the photo would be of a library the source does not describe.
+afirmar_existe "snapshot.sh exists" "$EF/snapshot.sh"
+[ -x "$EF/snapshot.sh" ] && ok "snapshot.sh has the execute bit" || fallo "snapshot.sh is not executable"
+afirmar_codigo "it records the INSTALLED library, not the build" "$EF/snapshot.sh" 'INSTALLED_SO'
+afirmar_codigo "and refuses when the two differ" "$EF/snapshot.sh" \
+  'the built plugin and the INSTALLED one differ'
+afirmar_codigo "the photo is named with the commit and the md5" "$EF/snapshot.sh" 'nombre_base'
+afirmar_codigo "the sidecar carries the live values" "$EF/snapshot.sh" 'tune[.]sh" --show'
+# The self-test uses fake plugins and no screen: it checks the refusal, the naming and the sidecar.
+if timeout 120 "$EF/snapshot.sh" --self-test >/dev/null 2>&1; then
+  ok "its self-test refuses a mismatch, names the pair, and records the installed library"
+else
+  fallo "snapshot.sh's self-test failed: $(timeout 120 "$EF/snapshot.sh" --self-test 2>&1 | tr '\n' ' ')"
+fi
 
 echo "  -- tune.sh refuses a value that would break the material --"
 # On 2026-10-14 the settings read GlassAlpha=40 BackgroundRadius=50 MaterialGain=15 Refraction=80
