@@ -207,6 +207,30 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
     - **NOT verified: a real session.** A button that is 24 px tall inside EVERY dialog is a layout
       change that only a session shows, and `sizeHint` is the layout of every dialog.
 
+12. **M7 — the unified window chrome: NOT STARTED, and it opens with a research question, not with
+    code.** The user put a real macOS Finder capture beside this desktop and four differences are real:
+    the traffic lights, the title and the controls share ONE band in macOS where ours is two stacked
+    (the decoration reserves the strip and the application draws from there down), the sidebar runs the
+    full height behind that band and takes the colour of what is behind the window, the shadow is the
+    kit's wide two-layer one, and the margins and padding are the kit's. The milestone is in
+    [`ROADMAP.md`](ROADMAP.md) with the layer that OWNS each observation -- the decoration plus the
+    application for the band, the effect or the application for the sidebar, KWin's own shadow (the
+    decoration's, never the effect) for the shadow, and M6 for the padding -- and its measurable half
+    is written down. The shadow is the exception, and it is honest: no tool here measures a shadow, so
+    its criterion is an OPEN DECISION instead of a threshold with a number on it. What is NOT known is
+    what decides whether M7 can be built at all: which KDE decorations already reserve no strip (Breeze
+    forks and macOS-style decorations exist; what a first search found, and what it did NOT establish,
+    is in [`HANDOFF.md`](HANDOFF.md) §10k) and how far a Qt application that was never designed for a
+    unified chrome cooperates. Qt's unified API is `setUnifiedTitleAndToolBarOnMac`, and Qt documents
+    it as the look **on macOS**: it is the application's call, not a style's.
+13. **A TASK M5 left, and NOT a milestone: applying the measured folder radius needs an icon theme of
+    our own.** The value is not missing: `tokens/tokens-icon-geometry.toml` `[measure.folder]` carries
+    `R/S = 0.049 +- 0.01`, measured from the Finder capture and about 4x tighter than the app icons'
+    `0.215`, and what is missing is a destination -- the global theme still points at Breeze
+    (`output/look-and-feel/KdeMacOS/contents/defaults:23`, `Theme=breeze`), and an icon theme is not a
+    milestone of this ROADMAP. So it stays here as an errand: draw the folder icons with that geometry
+    and ship a theme that carries them.
+
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.
 
