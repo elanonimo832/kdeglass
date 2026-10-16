@@ -2670,3 +2670,156 @@ MEASURED. `slider` differs by 1052 pixels; the scrollbar and the other ten untou
 zero. Break-on-purpose: with the thickness forced to 22 the suite fails twice and BOTH messages carry
 the kit's own `16` -- the assertion compares what the style ANSWERS against the token READ FROM THE
 FILE, so a slice that "corrects" the value to one it liked fails with the kit's number in the message.
+
+## 10o. M6's remaining slices, measured from the two new captures (2026-10-16)
+
+The user left two captures in `muestras/` and the question with them: fill the reference gaps the
+kit does not carry, because those are what block the slices M6 has left. Slice 4 shipped with the
+track's thickness as a NAMED GAP (10n); slices 5 and 6 were not started at all. This is the
+measurement, and it is a measurement: no primitive was drawn in this step.
+
+`muestras/Untitled7.png` is the System Settings window (sliders, checkboxes, switches, popup
+buttons, a search field, list rows). `muestras/Untitled8.png` is a Finder window with an item
+SELECTED -- the only selection in the repository. Both are native-pixel captures: the slider's
+groove changes from `#F7F7F7` to `#0077F9` between two rows with no intermediate row at all, so
+neither file was resampled, and nothing here is reading an interpolated edge.
+
+**THE INSTRUMENT, AND THE BUG IN THE ONE IT IMPORTS.** `tools/measure-controls.py` measures a bar's
+thickness, a box's edges and corner radius, a text cap height, a list's row pitch and a patch's
+colour. Its `--self-test` draws each with a KNOWN value and reads it back -- the bar 6.000 px, the
+box 16.00 x 16.00 with R = 5.00, the knob 20.00 x 16.00, the stem 9.30 px, the row pitch 25.00 --
+all within 0.06 px. It IMPORTS the corner reader and fitter from `tools/measure-icon-geometry.py`
+(the repository does not keep two copies of one formula) and reports both its answer and an exact
+one, because the imported fitter has a blind spot nobody had measured:
+
+| drawn corner | imported fit | exact fit |
+|---|---|---|
+| R = 3.0, edge on `.0` | 0.50 | 3.10 |
+| R = 5.0, edge on `.0` | 2.30 | 5.35 |
+| R = 8.0, edge on `.0` | 5.30 | 8.25 |
+| R = 5.0, edge on `.5` | 5.10 | 5.30 |
+| R = 8.0, edge on `.5` | 8.00 | 8.35 |
+| R = 5.85 on a 120 px box, `.0` | 3.40 | 6.50 |
+| R = 20.0 on a 96 px box, `.0` | 16.40 | 20.50 |
+| R = 20.0 on a 96 px box, `.5` | 20.00 | 19.65 |
+
+Its crossing interpolates between two neighbouring pixels, which sits ~0.5 px outside the true
+edge, and `fit_all` evaluates the circle at `dy = row index`: at a HALF-pixel edge the two errors
+cancel exactly, and at an integer edge nothing cancels. `measure-icon-geometry.py --self-test`
+draws its corner at the half-pixel phase, which is why it has always recovered R = 14, 20 and 26
+with 0.00 px of error and never saw this. **M5's published figures are not changed here** -- they
+are pinned by `tests/test-icon-geometry.sh`, and the folder's 5.85 px was cross-checked against the
+SVG's own geometry -- but the phase term is worth ~3.5 px at an 8 px radius, which on the folder's
+120 px body is 0.03 of its ratio: three times the 0.01 that token carries. It is now written down
+where the next small-radius measurement will look. The exact fit, whose self-test sweeps four phases x three radii, holds
+0.70 px worst case; every radius below is reported with 0.75 px rounded UP from that.
+
+**THE SCALE, WITHOUT WHICH NO PIXEL FIGURE IS A TOKEN.** The kit's values are points and a capture
+is pixels, and the ruler cannot be the kit itself. It is the system font: the HIG fixes 13 pt for
+control text and 10 pt for captions, `DESIGN-REFERENCES.md` records both as confirmed, and SF
+Pro's cap height is a fixed fraction of the point size (capHeight/em = 0.7046). Three 13 pt runs
+('D' of "Dock", 'M' of "Magnification", 'I' of "In Stage Manager") measure **9.315, 9.332 and
+9.311 px** of cap height -- a spread of 0.021 px -- and the 10 pt 'L' of "Large" measures **7.160**.
+The ratio of the two is **1.302 against the HIG's 13/10 = 1.300**, so the pair of sizes is
+confirmed by the pixels before any scale is assumed. That gives **1.02 px/pt**, and the uncertainty
+is 0.05 because the dominant term is the font's assumed cap ratio, not the pixels. The
+cross-check is independent: at that scale the kit's OWN control figures land on the capture's
+integers -- a 16 pt checkbox measures 16.00 px, a 20 x 16 pt knob 19.83 x 15.8 px.
+
+**THE TRAFFIC LIGHTS ARE NOT A RULER ANY MORE, and that is why the text is.** This capture's
+window buttons are 14 px across with a 23 px centre-to-centre pitch, against the ~12 px
+`DESIGN-REFERENCES.md` records for the classic ones. Using them as a ruler would have produced a
+scale of 1.15 and every figure below would be 13% off. They are recorded as a measurement instead.
+
+### The measurements
+
+| what | figure | uncertainty | how | for what |
+|---|---|---|---|---|
+| **slider track thickness** | **6.0 px = 5.9 pt** | 0.5 px (the pixel grid; the edges are crisp) | `measure-controls.py bar`, three probes: filled at x=350, empty at x=450, second slider at x=560 | **slice 4's gap**, the key `[slider.track]` does not have |
+| slider knob width | 19.83 px | 0.3 px | the accent->white and white->grey crossings at the knob's centre row | confirms the kit's `width.medium = 20` |
+| slider knob height | 15.8 px | 0.5 px | white against a stated background: 15.75 at 247, 15.82 at 244 | confirms `height.medium = 16`; the LOW-contrast figure of the three |
+| knob shape | 19.83 x 15.8, h/w = 0.797 | -- | the two figures above against the kit's 16/20 = 0.800 | the knob is a 20 x 16 STADIUM, not a circle (a circle would be 16 px wide) |
+| knob position | 50.0% and 62.0% of the track | 0.5% | the knob's centre against the track's measured ends | a default value, not a metric |
+| track length | 196.0 and 216.0 px | 0.3 px | the track's two subpixel ends | the two sliders' tracks are NOT the same length |
+| tick marks | 2 x 2 px, inset 10.0 px from each track end | 0.5 px | rows 198-199 under a groove whose bottom edge is 195.0 | the kit's `tick_spacing = 2` describes a step these end-ticks do not have |
+| tick count | 2 (Size), 3 (Magnification, one at its centre) | -- | the same scan on both sliders | a macOS detail the kit does not describe |
+| **checkbox box** | **16.00 x 16.00 px** | 0.25 px | `measure-controls.py box`, both states | confirms the kit's `width = 16` |
+| checkbox radius, checked | 4.6 px | 0.8 px | the exact fit, agreeing to 0.00 px across all four corners | see the discrepancy below |
+| checkbox radius, unchecked | 5.85 px | 0.8 px | the same reader on the grey box | the kit's 5.5 sits between the two; `DESIGN-REFERENCES.md`'s "~3.5" is below both |
+| checkbox fill, unchecked | `#DFDFDF`, SOLID | -- | a patch median inside the box | there is no 1 px border and no hollow: the opposite of Breeze's empty box |
+| checkbox tick | 8 x 8 px bbox, 4 px in from the top-left, 2 px stroke, white | 0.5 px | the white pixels inside the accent box | slice 3's tick geometry, from the capture |
+| **switch pill** | **35.96 x 15.98 px** | 0.5 px | the ON switch, whose accent fill gives the edges contrast | slice 3/6: a control the kit describes only by colour |
+| switch radius | 7.8 px = H/2 | 0.75 px | the exact fit, ON 7.70 and OFF 7.90 | the pill is FULLY rounded |
+| switch knob | 20.9 x 13.6 px | 1.0 px | the blue->white crossing, and the same column against 247 | as wide as the slider's knob and not a circle |
+| popup chevron box | 20 x 20 px, `#E4E4E4` | 0.5 px | a luminance dump: a light grey box on a light grey row | **slice 5**, against the kit's `[combo_button] width_button = 24` |
+| **selection cell** | **144 x 145 px**, R = 14 px, `#E2E3E4` | 1.0 px, R 1.5 px | `box` with the colours stated; the fit's residual is 0.16 px | **slice 6**, which had NO source before this capture |
+| selection label pill | 79.0 x 16.4 px, R = 5.7 px, `#0064E1` | 0.5 px, R 0.8 px | the same reader on the pill, residual 0.16 px | the SECOND layer of a Finder selection, and it is NOT a stadium (R would be 8.2) |
+| selected label text | `#FFFFFF` | -- | the pill's interior against its glyphs | it is the only text in either capture that changes colour on selection |
+| unselected label text | `#272727` | 0.5 px | the darkest pixel of "Library"'s glyphs | the label is near-black, not black |
+| sidebar selection | 32.0 px tall, `#EDEFF1`, text UNCHANGED | 0.5 px | the selected row's fill rows against the row above | slice 6: the sidebar draws ONE layer where the icon view draws TWO |
+| list row pitch | 38 px (37-39) | 1.0 px | the separators down x=700 in the System Settings pane | slice 5's padding; NOT a menu item height |
+| sidebar row pitch | 32.0 px | 0.5 px | four icon rows in `Untitled7` and eleven text rows in `Untitled8`, both exactly 32 | the same figure in two different apps |
+| group gap | 10.0 px of `#FFFFFF` between two `#F7F7F7` group boxes | 0.5 px | a column through the pane | slice 5's spacing |
+| control height | 16.0 px | 0.5 px | the checkbox, the switch and the knob are all 16 px tall | one height for three controls |
+| right-edge alignment | 752.0 px | 0.3 px | the Magnification track's right end AND the switches' right edge | the pane has a right margin the controls share |
+| icon inside its cell | 118 x 93 px, inset 13 / 25 / 14 / 28 | 1.0 px | the blue body's bbox against the cell's | M5's 120 px folder, seen inside a selection |
+
+### What is NOT a number, and what could not be measured at all
+
+**Declared, because a capture cannot carry them** (all four are in the token as strings, so an edit
+cannot quietly turn one into a figure):
+* **The radio button.** Neither capture draws one. The kit's `[radio] width.medium = 16` and
+  `width_dot.medium = 4.8` are neither confirmed nor contradicted here, and the task's assumption
+  that `Untitled7` shows radios is wrong: it shows checkboxes, and they measure 16 px.
+* **The menu item height.** No menu is open in either capture, so the kit's 24 against the base
+  style's 29 is still open. The 38 px above is a System Settings list row, which is a different
+  control with a different job.
+* **The focus ring.** The selected item's indicator in `Untitled8` is the accent pill itself; there
+  is no second ring. A ring drawn only for KEYBOARD focus cannot appear in a mouse-driven capture,
+  so its width and colour are not measurable from this material.
+* **A hairline border and a drop shadow.** Both are in these pixels (the slider's knob casts a
+  visible shadow) and neither survives a coverage measurement: the reader's local background stops
+  being a constant. The knob's own HEIGHT is the case in point -- 15.75 px against a 247 background
+  and 15.82 against a 244 one -- and it is the figure with the largest uncertainty here.
+
+**Findings that are not numbers, and that a style still has to decide:**
+1. **The unchecked checkbox is a solid grey rounded square, not a hollow bordered one.** This is
+   the opposite of the default KDE/Breeze drawing, and it is a VISIBLE difference at 16 px.
+2. **One control height: 16 px** for the checkbox, the switch and the slider's knob. macOS draws a
+   single control band; a style that gives each of them its own height will look foreign next to it.
+3. **The switch's OFF state is a WHITE pill with a grey outline, not a grey track.** The kit only
+   says "ON = blue accent, not green"; the OFF state is the other half of the same control.
+4. **The Finder's icon-view selection is TWO layers and its sidebar's is ONE.** The first draws a
+   grey cell rectangle AND an accent pill behind the label, whose text turns white; the second
+   draws one grey row highlight and leaves the text alone. A QStyle that has one "selected" brush
+   cannot draw both.
+5. **The selection's cell is a rounded square of ~14 px radius around the ICON, and the label's
+   pill hangs BELOW it** rather than being enclosed by it. The pill's width follows the text (79 px
+   for "Applications"), so it is not a fixed-width highlight.
+6. **The two sliders' tracks are different lengths** (196 and 216 px) while their right ends and the
+   switches' right edge all land on 752.0 px: the pane aligns on the RIGHT, and a track stretches
+   to whatever the label column leaves.
+7. **The ticks are end marks, not a scale**, and the Magnification slider adds a centre one. The
+   kit's `tick_spacing = 2` cannot be checked against them.
+8. **Nothing in either capture is DISABLED**: every switch and every checkbox drawn is in its
+   enabled state, and no control is greyed out. Slice 6's "disabled" half therefore has no source
+   yet, and saying so is more useful than inventing a grey.
+
+**The figures that unblock a slice, said out loud and NOT drawn here:**
+* **slice 4's remaining gap: the track is 6.0 px (5.9 pt) thick**, with the knob confirmed at
+  19.83 x 15.8 px. The groove's rectangle can stop being the base style's.
+* **slice 5**: the combo chevron box is 20 x 20 px (the kit's 24 is the button's width, not this
+  box), the list row's pitch is 38 px and the group gap 10 px. The MENU item height is still not
+  measurable, so a menu row drawn from 24 today would still be drawn from 24 for a reason nobody
+  has checked.
+* **slice 6**: the selection cell is 144 x 145 px with a 14 px radius and `#E2E3E4`; the label's
+  pill is 79 x 16.4 px with a 5.7 px radius and `#0064E1` under white text; the sidebar's selection
+  is a 32 px tall `#EDEFF1` row that leaves the text alone. That is enough to draw the two
+  different selections and to stop having no source at all.
+
+**Where the values live.** `tokens/tokens-controls-measured.toml`, with the captures, the method,
+the instrument's own bound and every uncertainty; `tests/test-controls-measurement.sh` pins the
+properties rather than the sentences -- the track's thickness against the window its method
+supports, the knob's ratio against the kit's, the checkbox window against the kit's 5.5, and the
+declarations above; and `evidence/2026-10-16-m6-controls-measured.png` is OUR OWN drawing of the
+measured geometry, never a crop of Apple's pixels.
