@@ -2004,6 +2004,61 @@ uses to report the counter (the file reports "died without reporting a counter" 
 assertion passed), and `kreadconfig6` MERGES the `kdedefaults` fallback, so a key the tool dropped
 looks present until the test reads the file directly.
 
+## 10f. M5: the icon radius IS measurable, the corner family is NOT
+
+The ROADMAP said: "The squircle radii of the folder icons are missing. There are iOS values in the
+kit, but the macOS ones could not be confirmed." The answer turned out to be half of each, and the
+half that is NOT confirmed is the more useful half to have written down.
+
+**WHAT IS CONFIRMED, and from the primary source.** The radius. `muestras/` holds the user's own
+macOS screenshots and is gitignored, so the measurement is versioned and the pixels are not.
+`tools/measure-icon-geometry.py` reads the corner profile out of a capture -- the subpixel x where
+the icon's body starts, row by row -- and fits three families: a circle, the kit's own
+`cornerSmoothing` construction (IMPORTED from `effect-kwin/measure-corner.py`, because this
+repository does not keep two copies of one formula) and a superellipse. Before it is allowed to
+report anything from a photo, `--self-test` draws a corner of a KNOWN radius and reads it back:
+R = 14, 20 and 26 come back with **0.00 px** of error. Twelve icons fitted within 2 px across
+`Untitled3.png` (median 0.2161 +- 0.0026) and `Untitled2.png` (median 0.2135 +- 0.0067), giving
+**R/S = 0.215 +- 0.01** for a 96 px icon (R = 20.6 px). The tolerance is 0.01 and not the 0.006 the
+spread suggests, because the 0.5 crossing on an antialiased edge moves with the contrast, worth
+about half a pixel -- rounding a token's precision UP is how a token starts lying.
+
+**WHAT IS NOT CONFIRMED. Two things, and the token declares both.**
+1. **No folder icon is drawn in any of the nine captures.** The Launchpad and the Dock give APP
+   icons; the macOS folder is a folder shape with its own tab, and its body was never checked
+   against anything. The app icons sit on the same Apple icon geometry, so 0.215 is the best
+   available figure and NOT a measurement of the folder. A capture of a Finder window with large
+   icons would settle it.
+2. **The corner FAMILY cannot be resolved at this size.** This is a property of the pixels, not of
+   the fitter: the kit's own corner at `smoothing = 0.6` has a profile that differs from a plain
+   circular arc only in its first two rows, and from row 2 down the two agree to 0.01 px. Fitting a
+   CIRCLE to the kit's own drawn corner leaves a **0.29 px** residual (`--self-test` prints it). At
+   the 96 px an icon is drawn at on a 4K screenshot, the row that carries the difference is
+   sub-pixel, so the radius is measurable here and the smoothing is not. Anyone reporting a
+   smoothing from these captures is reporting noise.
+
+**THE KIT HAS NO iOS ICON RADIUS, which corrects the ROADMAP.** The five iOS values are CONTROL
+radii -- `Global/Radius`, `Button/Radius`, `Checkboxes/Radius`, `Disclosure/Radius`,
+`Stepper/Radius` -- and `tokens-shape-effects.toml`'s `[squircle] smoothing = 0.6` is a
+CONSTRUCTION parameter (what Figma's cornerSmoothing means), not a radius. `tokens-icons.toml`
+declares itself a context-only collection with no numeric values. So there was no iOS icon figure
+to compare against, and the figure in the token is a measurement and not a comparison.
+
+**FOUR MISTAKES MADE WHILE MEASURING, so the next reader does not repeat them.** Each one was
+caught by looking at the OUTPUT rather than at the code:
+- The reader took the first light pixel of the WHOLE row. On a Launchpad that is whatever is
+  brightest elsewhere in the screenshot: the first run reported insets of 180, 360, 540 px -- the
+  icon grid's own spacing -- with residuals that grew by one grid step per icon.
+- The icon's side was "the widest light row", which under a Launchpad icon is the LIGHT LABEL with
+  the app's name, not the icon: it read 112 px and 150 px for a 96 px icon.
+- The evidence render drew the BEST fit while its own caption claimed the worst (a stray minus),
+  and the next version drew a REJECTED measurement -- whose 8 px residual is a mis-detected corner
+  and not a difference between models -- under a caption saying the models agreed. It now draws the
+  worst fit AMONG THE VALID ONES, which is the residual worth looking at.
+- A measurement whose fit does not hold is REPORTED AND COUNTED, not averaged in: three icons of
+  fifteen had 8-11 px residuals and were left out of the statistic, visibly, rather than quietly
+  pulling the median.
+
 ## 11. Repository state
 
 - Branch `main`, remote `https://github.com/elanonimo832/kdeglass` (public).

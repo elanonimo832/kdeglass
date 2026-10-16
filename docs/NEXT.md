@@ -115,6 +115,25 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
    ```
    NEXT: M5 icons, then M6 QStyle -- which is also where the tracking lands.
 
+8. **M5 -- the icon squircle: MEASURED, and one half of it is NOT verifiable.** `tokens/tokens-icon-
+   geometry.toml` carries the figure: **R/S = 0.215 +- 0.01**, measured from the user's OWN macOS
+   screenshots -- twelve valid Launchpad icons in `muestras/Untitled3.png` and `muestras/Untitled2.png`
+   (medians 0.2161 +- 0.0026 and 0.2135 +- 0.0067) -- with `tools/measure-icon-geometry.py`, whose
+   `--self-test` draws a corner of a KNOWN radius and reads it back (0.00 px error at R = 14, 20 and
+   26) BEFORE it is allowed to report anything from a photo. Evidence:
+   `evidence/2026-10-15-m5-icon-corner.png`, our own drawing of the profile, never a crop of Apple's
+   pixels. **Two things are NOT verifiable and the token declares both**: no FOLDER icon appears in
+   any of the nine captures (only app icons, which sit on the same Apple icon geometry, but the
+   folder's own body was not checked against anything), and the corner FAMILY cannot be resolved at
+   the 96 px an icon is drawn at -- the kit's own `smoothing = 0.6` corner and a plain circle differ
+   by less than the sub-pixel top row (fitting a circle to the kit's corner leaves 0.29 px), so a
+   smoothing reported from these captures would be noise. Also measured, and it corrects the
+   ROADMAP: **the kit has NO iOS icon radius** to compare against -- `Global/Radius`, `Button/Radius`,
+   `Checkboxes/Radius`, `Disclosure/Radius` and `Stepper/Radius` are CONTROL radii, and
+   `[squircle] smoothing = 0.6` is a construction parameter, not a radius. `HANDOFF.md` §10f has the
+   four measurement mistakes that cost this section its first two attempts.
+   NEXT: M6 QStyle. The folder question wants a capture of a Finder window with large icons.
+
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.
 
