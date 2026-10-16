@@ -76,7 +76,6 @@ uniform float uMaterialBoost;
 uniform float uMaterialGain;
 uniform float uRefraction;
 uniform float uRimWidth;
-uniform float uRefractionReach;
 uniform float uRimColour;
 uniform float uSpecular;
 uniform float uSpecularWidth;
@@ -526,18 +525,15 @@ void main()
         // tests below zero.
         // The band's bottom IS the title bar's bottom, so that is where the min belongs: inside the
         // band, where the chroma kernel and the tone already keep away from the client.
-        // THE BAND'S OWN BOTTOM IS ITS OWN EDGE, and it is NOT part of the frame's rounded boundary:
-        // it is the top of the content. The frame's distance is flat there -- the interior of a much
-        // taller window -- so the bend along the bottom used to be exactly ZERO, and the user saw it:
-        // "en el fondo de la barra se ven lineas verticales, no curvea nada de ese fondo".
-        float bandEdge = uTitleBarHeight - topDistance;
-        float toEdge = min(edgeDistance, bandEdge);
-        // The straight distances are kept ONLY for the fillet's bias, which edge is the top. The left
-        // and right ones were dead -- the inward direction comes from the gradient below -- so they are
-        // gone rather than carrying a comment that says they matter.
-        float fromTop = topDistance;
+        float toEdge = min(edgeDistance, uTitleBarHeight - topDistance);
+        // The four straight distances are kept ONLY to say which way is inward (for the refraction)
+        // and which edge is the top (for the fillet's bias). Removing them entirely, as the first
+        // version of this fix did, leaves those two uses undefined.
+        float fromTop = (1.0 - vTexCoord.y) * uTextureSize.y;
         float fromBottom = uTitleBarHeight - fromTop;
-        float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);      // the RIM's width, only that
+        float fromLeft = vTexCoord.x * uTextureSize.x;
+        float fromRight = uTextureSize.x - fromLeft;
+        float falloff = 1.0 - smoothstep(0.0, uRimWidth, toEdge);
         // THE INWARD DIRECTION IS THE GRADIENT OF THE DISTANCE, not the sign of each axis. The signs
         // flip where the top and the bottom distances cross -- the middle of the bar -- so the bend
         // changed direction abruptly and left a horizontal seam on both sides, which is what the user
@@ -555,22 +551,8 @@ void main()
         // derecha". The simulator normalises with `max(length, 1e-6)` and a zero gradient therefore
         // shifts by ZERO; this now does the same, so the two implementations agree here again.
         float gLen = length(gradiente);
-        vec2 frameInward = (gLen > 1e-6) ? (-gradiente / gLen) : vec2(0.0);
-        // THE BEND FOLLOWS THE NEAREST EDGE OF THE BAND, and it BLENDS its edges instead of taking a
-        // `min`. A hard min leaves a seam wherever two edges are equally far -- the middle of the band
-        // and the diagonal out of every corner -- so each edge contributes its inward direction
-        // weighted by its own proximity, the sum is normalised, and the magnitude is the stronger of
-        // the two: the bend fades out at the middle instead of flipping through it. The frame carries
-        // the top, the two sides and the corners; the band's bottom is the second edge, and it is what
-        // makes the bottom bend at all. The reach is its own knob, so widening the bend no longer
-        // widens the rim.
-        float wFrame = 1.0 - smoothstep(0.0, uRefractionReach, edgeDistance);
-        float wBottom = 1.0 - smoothstep(0.0, uRefractionReach, bandEdge);
-        vec2 blended = wFrame * frameInward + wBottom * vec2(0.0, 1.0);
-        float bLen = length(blended);
-        vec2 inward = (bLen > 1e-6) ? (blended / bLen) : vec2(0.0);
-        float bend = max(wFrame, wBottom);
-        vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * bend;
+        vec2 inward = (gLen > 1e-6) ? (-gradiente / gLen) : vec2(0.0);
+        vec2 uvFrost = uvBackground + inward * uRefraction * uBackgroundTexel * falloff;
 
         if (uBackgroundRadius > 0.5) {
             // A PYRAMID OF FOUR LEVELS, and the reason is measured. The two-scale kernel had five
@@ -889,7 +871,6 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
     m_materialBoost = float(cfg.readEntry("MaterialBoost", double(kMaterialBoost)));
     m_materialGain = float(cfg.readEntry("MaterialGain", double(kMaterialGain)));
     m_refraction = float(cfg.readEntry("Refraction", double(kRefraction)));
-    m_refractionReach = float(cfg.readEntry("RefractionReach", double(kRefractionReach)));
     m_rimWidth = float(cfg.readEntry("RimWidth", double(kRimWidth)));
     m_rimColour = float(cfg.readEntry("RimColour", double(kRimColour)));
     m_specular = float(cfg.readEntry("Specular", double(kSpecular)));
@@ -909,7 +890,6 @@ void MacosGlassEffect::reconfigure(ReconfigureFlags)
             << "materialBoost=" << m_materialBoost
             << "materialGain=" << m_materialGain
             << "refraction=" << m_refraction
-            << "refractionReach=" << m_refractionReach
             << "rimWidth=" << m_rimWidth
             << "rimColour=" << m_rimColour
             << "specular=" << m_specular
@@ -1471,7 +1451,6 @@ void MacosGlassEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, W
     m_shader->setUniform(uniformLocation("uMaterialGain"), m_materialGain);
     m_shader->setUniform(uniformLocation("uRefraction"), m_refraction);
     m_shader->setUniform(uniformLocation("uRimWidth"), m_rimWidth);
-    m_shader->setUniform(uniformLocation("uRefractionReach"), m_refractionReach);
     m_shader->setUniform(uniformLocation("uRimColour"), m_rimColour);
     m_shader->setUniform(uniformLocation("uSpecular"), m_specular);
     m_shader->setUniform(uniformLocation("uSpecularWidth"), m_specularWidth);

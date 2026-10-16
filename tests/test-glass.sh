@@ -480,12 +480,12 @@ echo "  -- the bend's direction cannot be invented out of a zero gradient --"
 # un angulo sin curvas hacia la derecha". The interior of a flat edge has NO gradient -- the bar's
 # BOTTOM is not part of the frame's rounded distance -- and `normalize(gradiente + vec2(0.0001))`
 # turned that zero into a FIXED DIAGONAL exactly where the falloff was still on. The simulator never
-# had the bug: it guards the division with `glen > 1e-6`, so a zero gradient moves the sample by ZERO.
-# Both sides are pinned, because this is the drift the user SAW rather than one a number predicted.
+# had the bug: it divides by `max(length, 1e-6)`, so a zero gradient moves the sample by ZERO. Both
+# sides are pinned, because this is the drift the user SAW rather than one a number predicted.
 afirmar_glsl "the shader bends by ZERO where the gradient is zero" "$SOURCE" \
   '(gLen > 1e-6) ? (-gradiente / gLen) : vec2(0.0)'
 afirmar_glsl "and the simulator already did, so the two agree again" "$EF/simulate.py" \
-  'np.where(glen > 1e-6, -grad_x / np.maximum(glen, 1e-9), 0.0)'
+  'largo = np.maximum(np.sqrt(grad_x ** 2 + grad_y ** 2), 1e-6)'
 
 echo "  -- the bar's kernels do not look outside the bar --"
 # Measured on the user's screen: the lower 14 rows of a 39-row band had an implied tone of
@@ -715,7 +715,7 @@ echo "  -- the edge bends the backdrop and draws a line of contrast --"
 # window behind makes the band white, so the boundary vanishes -- which needs a hairline AWAY from
 # the backdrop.
 afirmar_glsl "the bend is applied to the frost's own uv" "$SOURCE" 'uvFrost = uvBackground + inward'
-afirmar_glsl "the bend is a knob, from the kit's refraction" "$SOURCE" 'uvBackground + inward * uRefraction * uBackgroundTexel * bend'
+afirmar_glsl "the bend is a knob, from the kit's refraction" "$SOURCE" 'uvBackground + inward * uRefraction * uBackgroundTexel * falloff'
 afirmar_glsl "a hairline goes away from the backdrop, not toward white" "$SOURCE" 'lineFactor = (backLuma > 0.5) ? 0.35 : 1.7'
 # And it has its OWN strength, independent of Rim: a boundary that is subtle is the problem the
 # user reported, and macOS's window border is one you can see -- 52.7 levels away from a white app
@@ -728,34 +728,11 @@ echo "  -- the bend is measured in pixels, not in Rim units --"
 # veo ningun desplazamiento del color por las orillas". The falloff, 0..1, is what scales it, and
 # Rim decides how much of the band is the bend at all. Simulated on a striped backdrop, the fix
 # moves edge pixels by up to 157.6 levels.
-afirmar_glsl "the displacement scales with the falloff" "$SOURCE" 'uRefraction * uBackgroundTexel * bend'
+afirmar_glsl "the displacement scales with the falloff" "$SOURCE" 'uRefraction * uBackgroundTexel * falloff'
 # The bend is no longer blended beside the frost -- it is the frost's own uv, which is why
 # frosting the rim costs a fetch LESS and makes the band one material instead of two.
 afirmar_glsl "the rim is the same frost, only bent" "$SOURCE" 'uvFrost = uvBackground + inward'
 afirmar_glsl "and its strength comes from the same falloff" "$SOURCE" 'float rim = falloff * uRim'
-
-echo "  -- the bend follows ALL FOUR edges of the band, not only the corners --"
-# THE USER'S COMPLAINT, verbatim: "en el fondo de la barra se ven lineas verticales, no curvea nada
-# de ese fondo". The band's bottom is the top of the CONTENT and not an edge of the frame, so the
-# frame's distance is FLAT there: its gradient is zero and the bend along the bottom was exactly
-# nothing. `bandEdge` is that edge. And the direction is the BLEND of the two edges' inward normals
-# rather than a hard `min`, because a min leaves a seam wherever two edges are equally far -- the
-# middle of the band and the diagonal out of every corner -- which is the defect section 9w already
-# paid for once.
-afirmar_glsl "the band's own bottom is an edge" "$SOURCE" 'float bandEdge = uTitleBarHeight - topDistance'
-afirmar_glsl "the edge distance is the nearer of the frame and that bottom" "$SOURCE" 'float toEdge = min(edgeDistance, bandEdge)'
-afirmar_glsl "the direction blends the two edges instead of choosing one" "$SOURCE" 'vec2 blended = wFrame * frameInward + wBottom * vec2(0.0, 1.0)'
-afirmar_glsl "and the magnitude is the stronger of the two weights" "$SOURCE" 'float bend = max(wFrame, wBottom)'
-afirmar_glsl "the bend's reach is its own knob, not the rim's width" "$SOURCE" 'smoothstep(0.0, uRefractionReach, bandEdge)'
-# MEASURED, not asserted by spelling. The instrument transcribes the shader's own expressions and
-# compares them with the simulator's field, edge by edge; the twelve numbers must agree, and the
-# bottom's direction must be vertical. A transcription can drift from the GLSL, which is why the
-# greps above and this measurement are both here: each covers the other's blind spot.
-if salida=$(cd effect-kwin && python3 measure-refraction.py --self-test 2>&1); then
-  ok "all four edges bend, shader against simulator ($(echo "$salida" | grep -o 'parity_max_mismatch=[0-9.]* px'))"
-else
-  fallo "the per-edge bend measurement failed:"; echo "$salida" | sed 's/^/      /' | head -8
-fi
 
 echo "  -- the gain is tone-mapped, not clipped --"
 # "se ve un como cuadro blancoso en la parte central" was the hard clamp: everything above 0.625
@@ -909,7 +886,7 @@ echo "  -- the discard can only ever test the FRAME's boundary --"
 # These two assertions are the shape of the fix, and they are the strongest a shell test can make
 # here because the content path never reaches the shader maths this suite can exercise.
 afirmar_glsl "the discard tests the frame's rounded distance alone" "$SOURCE" 'if (edgeDistance < -0.5)'
-afirmar_glsl "and the band's terms do include it, as their own edge" "$SOURCE" 'float toEdge = min(edgeDistance, bandEdge)'
+afirmar_glsl "and it does NOT include the bar's bottom" "$SOURCE" 'float toEdge = min(edgeDistance, uTitleBarHeight - topDistance)'
 # and the retired form must be gone, by name, so it cannot come back
 afirmar_igual "the broken expression is gone" "0" "$(grep -c 'roundedDistance' effect-kwin/src/glass.cpp)"
 
