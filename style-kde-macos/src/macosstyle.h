@@ -28,10 +28,10 @@
 #include <QString>
 #include <QStylePlugin>
 
-// The style itself. `drawComplexControl`, `subElementRect`, `standardIcon` and `styleHint` are
-// still NOT overridden: each needs its own slice and its own measurement, and `tests/test-style.sh`
-// still expects those to be absent -- it names the landed ones AND the absent ones, so an override
-// nobody measured cannot appear quietly.
+// The style itself. `subElementRect`, `standardIcon` and `styleHint` are still NOT overridden: each
+// needs its own slice and its own measurement, and `tests/test-style.sh` still expects those to be
+// absent -- it names the landed ones AND the absent ones, so an override nobody measured cannot
+// appear quietly.
 class MacosStyle : public QProxyStyle
 {
     Q_OBJECT
@@ -56,6 +56,13 @@ public:
                     const QWidget *w = nullptr) const override;
     void drawPrimitive(PrimitiveElement element, const QStyleOption *opt, QPainter *p,
                        const QWidget *w) const override;
+
+    // SLICE 4 -- the slider. `pixelMetric` answers the knob's thickness and length from the kit (16
+    // and 20, where the base answered 20 and 20) and `drawComplexControl` draws CC_Slider, because a
+    // slider is a COMPLEX control: its groove and its handle are sub-controls, and the base's own
+    // `subControlRect` picks up the new metrics by itself, so the geometry needs no second copy.
+    void drawComplexControl(ComplexControl control, const QStyleOptionComplex *opt, QPainter *p,
+                            const QWidget *w) const override;
 };
 
 // The plugin Qt's QStyleFactory finds and calls. The IID must be the one Qt itself declares --

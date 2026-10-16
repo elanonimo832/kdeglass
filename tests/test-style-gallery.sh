@@ -40,7 +40,7 @@ SIN_REFERENCIA="scrollbar tabbar menubar progressbar listview-selected tablehead
 # and ONLY these eight -- are allowed to differ from the base. A ninth row moving means a slice
 # touched a control nobody measured, which is the failure this whole instrument exists to make
 # visible.
-CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled checkbox checkbox-checked checkbox-disabled radio radio-checked"
+CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled checkbox checkbox-checked checkbox-disabled radio radio-checked slider"
 
 es_cambiado() { # es_cambiado <primitivo>
   case " $CAMBIADOS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
@@ -162,6 +162,23 @@ afirmar_contiene "our checkbox's indicator IS that token" \
   <(printf '%s\n' "$salida") "^OURS checkbox pixelMetric\(PM_IndicatorWidth\)=${indicador_casilla}\$"
 afirmar_contiene "and the radio's indicator is ITS token" \
   <(printf '%s\n' "$salida") "^OURS radio pixelMetric\(PM_ExclusiveIndicatorWidth\)=${indicador_radio}\$"
+# SLICE 4's reference, read the same way and from the same file. THE KNOB'S THICKNESS is what moved:
+# the kit's `[slider.knob_non_ticked_slider] height.medium` is 16 where the base answered 20, while
+# its `width.medium` is 20 -- which is what the base already answered, so the knob's LENGTH has
+# nothing to move and no OURS line to assert. And the two figures the kit does NOT carry are pinned
+# by their ABSENCE, not by a number invented to fill them: THE TRACK'S THICKNESS (the kit has only
+# the inset and the tick spacing) is not asserted because it was not sourced, and the SCROLLBAR is
+# kept out of CAMBIADOS for the same reason -- it has no size token at all in the kit, only a colour
+# (`tokens/tokens-colors.toml:132`), so leaving it untouched IS the decision and `negar` below pins it.
+slider_grosor="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-sizes.toml','rb'))['slider']['knob_non_ticked_slider']['height']['medium'])" 2>/dev/null)"
+afirmar_contiene "the token [slider.knob_non_ticked_slider] height.medium is a number (the assertion needs a reference, not a hole)" \
+  <(printf '%s\n' "$slider_grosor") '^[0-9][0-9]*$'
+afirmar_contiene "our slider's control thickness IS that token" \
+  <(printf '%s\n' "$salida") "^OURS slider pixelMetric\(PM_SliderControlThickness\)=${slider_grosor}\$"
+afirmar_contiene "and its size hint is that tall" \
+  <(printf '%s\n' "$salida") "^OURS slider sizeHint=[0-9]+x${slider_grosor}\$"
+afirmar_contiene "the scrollbar was NOT given a figure the kit does not carry (no size token exists)" \
+  <(printf '%s\n' "$salida") "^WIDGET scrollbar .* DIFF 0 of "
 # ONLY the declared primitives report a moved value. The OURS lines ARE the moved metrics, so the
 # check is that every one of them BELONGS to a declared primitive -- a property, not a number that
 # has to be kept in step by hand every time a slice lands.

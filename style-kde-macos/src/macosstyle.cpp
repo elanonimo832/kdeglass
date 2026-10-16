@@ -5,6 +5,7 @@
 #include <QPolygonF>
 #include <QStyleFactory>
 #include <QStyleOptionButton>
+#include <QStyleOptionSlider>
 #include <QStringList>
 
 // WHY THE BASE IS RESOLVED INSTEAD OF WRITTEN DOWN.
@@ -156,6 +157,17 @@ constexpr int kRadioSize = 16;           // [radio] width.medium
 constexpr qreal kRadioDot = 4.8;         // [radio] width_dot.medium
 constexpr qreal kTickWidth = 9.31;       // [checkboxes] width_checkmark.medium
 constexpr qreal kTickHeight = 8.93;      // [checkboxes] height_checkmark.medium
+
+// SLICE 4 -- THE SLIDER. The kit answers the KNOB and the track's INSET, and NOTHING for the track's
+// THICKNESS, which is the one figure the plan asked this slice to move and the kit does not carry:
+//   tokens/tokens-sizes.toml:138  [slider.knob_non_ticked_slider] height.medium  = 16
+//   tokens/tokens-sizes.toml:144  [slider.knob_non_ticked_slider] width.medium   = 20
+//   tokens/tokens-sizes.toml:162  [slider.track] inset_vertical.medium           = 1
+// So the knob moves and THE TRACK'S THICKNESS STAYS THE BASE'S, named here as unsourced instead of
+// invented; and the SCROLLBAR, which has no size token in the kit at all (only a colour,
+// tokens-colors.toml:132), is left untouched entirely rather than given a figure from the sleeve.
+constexpr int kSliderThickness = 16;   // [slider.knob_non_ticked_slider] height.medium
+constexpr int kSliderLength = 20;      // [slider.knob_non_ticked_slider] width.medium
 } // namespace
 
 int MacosStyle::pixelMetric(PixelMetric metric, const QStyleOption *opt, const QWidget *w) const
@@ -167,6 +179,14 @@ int MacosStyle::pixelMetric(PixelMetric metric, const QStyleOption *opt, const Q
     case PM_ExclusiveIndicatorWidth:
     case PM_ExclusiveIndicatorHeight:
         return kRadioSize;
+    case PM_SliderThickness:
+    case PM_SliderControlThickness:
+        // SLICE 4. The base answered 20 and 20; the kit's knob is 16 tall and 20 long. The base's
+        // OWN `subControlRect` reads these back, so the groove and the handle follow the kit without
+        // a second copy of their geometry living in this file.
+        return kSliderThickness;
+    case PM_SliderLength:
+        return kSliderLength;
     default:
         // EVERY OTHER METRIC IS STILL THE BASE'S, and the gallery asserts it: a control this slice
         // did not touch has to answer the same metrics AND draw the same pixels.
@@ -225,5 +245,58 @@ void MacosStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *opt
                                        QPointF(c.x() + hw, c.y() - hh)}));
         }
     }
+    p->restore();
+}
+
+// SLICE 4 -- THE SLIDER'S DRAWING, and it is `drawComplexControl` and not `drawPrimitive` because a
+// slider is a COMPLEX control: the groove and the handle are SUB-CONTROLS. Their rectangles come from
+// the base's own `subControlRect`, which reads the metrics above -- so the kit's geometry arrives
+// without a second copy of it here. What this changes is the LOOK: macOS draws a thin rounded track
+// with the travelled part in the accent and an oval knob, where Breeze draws a groove and an arrowed
+// handle. THE KNOB'S OVAL IS 20 x 16, the kit's own figure; there is no token for its radius because
+// it has none -- the oval is the shape, not a rounded rectangle with a radius to source.
+void MacosStyle::drawComplexControl(ComplexControl control, const QStyleOptionComplex *opt,
+                                    QPainter *p, const QWidget *w) const
+{
+    if (control != CC_Slider) {
+        QProxyStyle::drawComplexControl(control, opt, p, w);
+        return;
+    }
+    const auto *slider = qstyleoption_cast<const QStyleOptionSlider *>(opt);
+    if (!slider) {
+        QProxyStyle::drawComplexControl(control, opt, p, w);
+        return;
+    }
+    const QRect groove = subControlRect(CC_Slider, slider, SC_SliderGroove, w);
+    const QRect handle = subControlRect(CC_Slider, slider, SC_SliderHandle, w);
+    const bool enabled = opt->state & State_Enabled;
+    const QPalette pal = opt->palette;
+    // THE ACCENT COMES FROM THE PALETTE, the same requirement slice 3 met: `Highlight` is the role Qt
+    // spends on "the accent", so the dark scheme arrives by itself instead of a light constant here.
+    const QColor accent = pal.highlight().color();
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, true);
+    p->setPen(Qt::NoPen);
+    // THE TRACK. Its RECTANGLE is the base's, and that is deliberate: the track's thickness is the
+    // one figure this slice could not source, so it is not invented here -- only its drawing is
+    // macOS's.
+    const qreal trackRadius = groove.height() / 2.0;
+    p->setBrush(enabled ? pal.mid().color().darker(105) : pal.window().color());
+    p->drawRoundedRect(groove, trackRadius, trackRadius);
+    QRect travelled = groove;
+    if (slider->orientation == Qt::Horizontal) {
+        travelled.setRight(handle.center().x());
+    } else {
+        travelled.setBottom(handle.center().y());
+    }
+    if (travelled.width() > 0 && travelled.height() > 0) {
+        p->setBrush(accent);
+        p->drawRoundedRect(travelled, trackRadius, trackRadius);
+    }
+    // THE KNOB, in the kit's 20 x 16, drawn as the oval macOS uses and in the window colour so it
+    // reads as a cap on the track rather than a second accent.
+    p->setBrush(enabled ? pal.window().color() : pal.window().color().darker(105));
+    p->setPen(QPen(pal.mid().color().darker(115), 1));
+    p->drawEllipse(QRectF(handle).adjusted(0.5, 0.5, -0.5, -0.5));
     p->restore();
 }
