@@ -2642,3 +2642,31 @@ theme of our own that draws the folder with the measured geometry). The value is
 `tokens/tokens-icon-geometry.toml` `[measure.installed_theme]` and by `tests/test-icon-geometry.sh`,
 which asserts the PROPERTY and not the sentence: the installed theme's figure must sit outside the
 macOS figure's own window, and the low 120 px raster read must stay a separate, lower key.
+
+## 10n. M6, slice 4: the slider, and the two figures the kit does not carry (2026-10-16)
+
+WHAT MOVED. The slider's knob, from `[slider.knob_non_ticked_slider]` (`tokens-sizes.toml:138`,
+`:144`): `height.medium = 16` and `width.medium = 20`. `PM_SliderThickness` and
+`PM_SliderControlThickness` answer `16` where the base answered `20`, and the size hint is `84x16`.
+The knob's LENGTH was already `20` -- what the base answered -- so it has nothing to move.
+
+THE HOOK IS `drawComplexControl`, and the reason is a fact about Qt: a slider is a COMPLEX control and
+its groove and handle are SUB-CONTROLS, so there is no primitive to intercept. Their rectangles are the
+base's own `subControlRect`, which reads the metrics above, so the kit's geometry arrives with no
+second copy of it in the style. `tests/test-style.sh` moved with the slice: `drawComplexControl` left
+the "must stay absent" list and is asserted by name.
+
+TWO FIGURES ARE NOT INVENTED, and their absence is PINNED by the test rather than filled:
+  * THE TRACK'S THICKNESS. The plan asked this slice for it and the kit does not carry it:
+    `[slider.track]` has `inset_horizontal.medium = 1`, `inset_vertical.medium = 1` and
+    `tick_spacing.medium = 2`. So the groove's rectangle stays the base's and only its DRAWING is
+    macOS's. Naming which figure is missing is the answer the kit allows.
+  * THE SCROLLBAR. It has NO size token anywhere in `tokens/` -- only a colour
+    (`tokens-colors.toml:132`: `#FFFFFF` at 0.55 dark, `#000000` at 0.5 light) and a
+    `blur_scroll_edge = 6` shape effect. So it was left untouched, and the instrument asserts it still
+    differs by zero pixels. The thinness the plan points at is exactly what could not be sourced.
+
+MEASURED. `slider` differs by 1052 pixels; the scrollbar and the other ten untouched primitives by
+zero. Break-on-purpose: with the thickness forced to 22 the suite fails twice and BOTH messages carry
+the kit's own `16` -- the assertion compares what the style ANSWERS against the token READ FROM THE
+FILE, so a slice that "corrects" the value to one it liked fails with the kit's number in the message.

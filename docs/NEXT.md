@@ -286,3 +286,12 @@ Two more, from the same day: the shader and `simulate.py` are two implementation
 other while they measured different shapes); and **do not trade the look for speed without measuring** --
 the 36-tap frost kernel is slow on purpose, because four equal levels only killed 82.5% of the text
 behind the bar and the radius alone did nothing.
+
+14. **M6 -- slice 4: THE SLIDER is redrawn, and the kit's two missing figures are named.** The knob
+    answers the kit's `16` where the base answered `20` (`PM_SliderThickness`,
+    `PM_SliderControlThickness`, size hint `84x16`); the hook is `drawComplexControl` because a slider
+    is a complex control; and the GROOVE'S rectangle stays the base's because the kit has NO track
+    thickness (`[slider.track]` carries only the insets and the tick spacing). The SCROLLBAR has no
+    size token at all -- only a colour -- and was left untouched, which the instrument asserts. The
+    evidence is regenerated and the metrics table now stores both the base's figures and ours, as the
+    "before" of slice 5 (comboboxes, tabs and menus). See `HANDOFF.md` 10n.

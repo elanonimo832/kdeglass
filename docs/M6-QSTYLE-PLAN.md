@@ -148,6 +148,22 @@ deliberately broken value passed twice before the same break, run through `tests
 The dark scheme (`KdeMacosDark`, already generated) has to be honoured by every slice above, and
 the style must read its colours from the active palette rather than hard-coding the light ones.
 
+**Slice 4 is DONE.** The slider's knob answers the kit's `16` where the base answered `20`
+(`PM_SliderThickness` and `PM_SliderControlThickness`), its size hint is `84x16`, and the knob's
+LENGTH was already `20`, which is what the base answered -- so the thickness is the figure that moved.
+A slider is a COMPLEX control, so the hook is `drawComplexControl` and not `drawPrimitive`: the groove
+and the handle are sub-controls, and their rectangles come from the base's own `subControlRect`, which
+reads the new metrics -- the geometry arrives without a second copy of it in the style.
+`tests/test-style.sh` moved `drawComplexControl` out of its "must stay absent" list and asserts it by
+name, which is the contract moving and not weakening.
+
+**THE PLAN ASKED THIS SLICE FOR THE TRACK'S THICKNESS, AND THE KIT DOES NOT CARRY IT**: `[slider.track]`
+has the insets (`1`) and the tick spacing (`2`) and nothing else, so the groove's rectangle stays the
+base's and only its drawing is macOS's. And the SCROLLBAR has **no size token anywhere in `tokens/`**
+(only a colour, `tokens-colors.toml:132`), so it is left untouched and the instrument asserts it still
+differs by zero pixels. Naming which figure the kit does not carry is the answer the kit allows; a
+number from the sleeve is what this project does not do.
+
 ## OPEN — decided by measurement later, not invented now
 
 * **Whether the base should stay `QProxyStyle`-over-Breeze, or eventually become a
