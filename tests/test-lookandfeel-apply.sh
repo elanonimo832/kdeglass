@@ -16,6 +16,15 @@
 #
 # Everything here runs with an ISOLATED XDG_CONFIG_HOME and XDG_DATA_HOME. The user's session is
 # never touched: that is not an installer's decision to make from a test.
+#
+# AND HOME IS ISOLATED TOO, which is not belt-and-braces but a bug this file caused: measured on
+# 2026-10-15 by running the suite with `env -u HOME`. XDG_CONFIG_HOME covers kdeglobals, but
+# `kreadconfig6`/`kwriteconfig6` fall back to HOME for their OWN bookkeeping, so with HOME empty
+# they tried to write `//.config/kreadconfig6rc` and put a **dialog on the user's screen**
+# ("Configuration file ... not writable. Please contact your system administrator.") -- from a test
+# that is supposed to touch nothing. It wrote nothing (the root filesystem is not writable), but a
+# test suite must not be able to open a window in somebody's session, and the only reason it could
+# is that this file isolated every variable except the one the tool actually falls back to.
 
 echo "  -- the installer applies what plasma-apply-lookandfeel drops --"
 
@@ -25,7 +34,8 @@ AISLADO="$(mktemp -d)"
 # though every assertion passed. Cleanup is a plain call at the end of the file.
 export XDG_CONFIG_HOME="$AISLADO/config"
 export XDG_DATA_HOME="$AISLADO/data"
-mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+export HOME="$AISLADO/home"
+mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$HOME"
 
 # Read a key from the PLAIN INI that KDE writes, with NO fallback: `kreadconfig6` merges the
 # kdedefaults layer, so a key the tool dropped in there would look present when the user's own
