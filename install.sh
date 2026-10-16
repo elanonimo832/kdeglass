@@ -27,7 +27,12 @@ set -uo pipefail
 # Paths and constants
 # --------------------------------------------------------------------------
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SALIDA="$AQUI/salida"
+# The generators all write to `output/` (and install-decoration.sh has always read
+# `$AQUI/output/...`), but this said `salida/`, a directory that does not exist. MEASURED:
+# `./install.sh plan` reported "source does not exist" for ALL SIX entries, so the installer
+# installed nothing and said nothing while looking like it worked. The name is fixed here and
+# tests/test-global-theme.sh walks the plan so the two cannot drift apart again.
+SALIDA="$AQUI/output"
 TOKENS="$AQUI/tokens"
 
 : "${XDG_CONFIG_HOME:=$HOME/.config}"
@@ -96,6 +101,11 @@ $SALIDA/gtk-3.0/kde-macos.css|$XDG_DATA_HOME/themes/kde-macos/gtk-3.0/gtk.css|GT
 $SALIDA/gtk-3.0/kde-macos-dark.css|$XDG_DATA_HOME/themes/kde-macos/gtk-3.0/gtk-dark.css|Dark GTK3 theme
 $SALIDA/gtk-4.0/kde-macos.css|$XDG_DATA_HOME/themes/kde-macos/gtk-4.0/gtk.css|GTK4 theme
 $SALIDA/gtk-4.0/kde-macos-dark.css|$XDG_DATA_HOME/themes/kde-macos/gtk-4.0/gtk-dark.css|Dark GTK4 theme
+$SALIDA/desktoptheme/KdeMacOS/metadata.json|$XDG_DATA_HOME/plasma/desktoptheme/KdeMacOS/metadata.json|PlasmaStyle metadata
+$SALIDA/desktoptheme/KdeMacOS/colors|$XDG_DATA_HOME/plasma/desktoptheme/KdeMacOS/colors|PlasmaStyle palette
+$SALIDA/desktoptheme/KdeMacOS/plasmarc|$XDG_DATA_HOME/plasma/desktoptheme/KdeMacOS/plasmarc|PlasmaStyle defaults
+$SALIDA/look-and-feel/KdeMacOS/metadata.json|$XDG_DATA_HOME/plasma/look-and-feel/KdeMacOS/metadata.json|Global theme metadata
+$SALIDA/look-and-feel/KdeMacOS/contents/defaults|$XDG_DATA_HOME/plasma/look-and-feel/KdeMacOS/contents/defaults|Global theme defaults
 MAPA
 }
 
@@ -168,7 +178,8 @@ cmd_preflight() {
 
   info "7. Generated output available"
   local n=0
-  for f in "$SALIDA"/color-schemes/*.colors "$SALIDA"/gtk-3.0/*.css "$SALIDA"/gtk-4.0/*.css; do
+  for f in "$SALIDA"/color-schemes/*.colors "$SALIDA"/gtk-3.0/*.css "$SALIDA"/gtk-4.0/*.css \
+           "$SALIDA"/desktoptheme/*/metadata.json "$SALIDA"/look-and-feel/*/metadata.json; do
     [ -f "$f" ] && n=$((n+1))
   done
   if [ "$n" -gt 0 ]; then ok "$n generated files in output/"; else fallo "nothing in output/: run the generators"; fi
