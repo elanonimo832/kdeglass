@@ -11,10 +11,16 @@
 #      recovers the radius. Without this, a number from a photo is a coincidence, not a measure.
 #   2. THE VALUE HAS A PROVENANCE. The token says which screenshots it came from, on which icons,
 #      with which method and on which date. A token is a figure with an origin or it is a rumour.
-#   3. THE PART THAT IS **NOT** VERIFIABLE IS DECLARED. Two of them, and they are the honest half
-#      of M5: the captures contain NO folder icon (only app icons), and at ~96 px with a 1 px edge
-#      the CIRCLE and the CONTINUOUS corner are indistinguishable, so the smoothing cannot be
-#      confirmed from these captures at all.
+#   3. THE PART THAT IS **NOT** VERIFIABLE IS DECLARED. One of them, and it is the honest half
+#      of M5: at ~96 px with a 1 px edge the CIRCLE and the CONTINUOUS corner are indistinguishable,
+#      so the smoothing cannot be confirmed from these captures at all.
+#
+# AND IT PINS THE CORRECTION OF 2026-10-16. The reader these figures were first taken with was
+# PHASE-DEPENDENT: its two errors cancelled at a half-pixel edge -- the only phase its self-test drew
+# -- and nowhere else, so a drawn R = 8.0 read 5.30 on an integer edge. The figures moved with it:
+# the app icon from 0.215 to 0.250 and the folder from 0.049 to 0.097, while the installed theme
+# stayed at 0.075. Two of M5's conclusions therefore changed direction, and the assertions below pin
+# the CORRECTED ones, including the one that says the theme is no longer the rounder of the two.
 #
 # The test does NOT touch `muestras/`: those are the user's screenshots and they are gitignored.
 # What is versioned is the measurement, never the pixels it came from.
@@ -27,7 +33,28 @@ afirmar_existe "the icon measuring instrument exists" "$TOOL"
 afirmar "the instrument is executable" test -x "$TOOL"
 
 # 1. The instrument can measure: a known radius, drawn and read back.
-afirmar "the instrument recovers a KNOWN radius from a drawn corner" "$TOOL" --self-test
+#
+# THE OUTPUT IS CAPTURED ONCE. The self-test draws and fits twelve phase cases on top of the
+# radii it already checked; running it once per assertion multiplied the file's runtime by the
+# number of assertions, and this file has a per-file time bound in `tests/run.sh`.
+SELFTEST_OUT="$(mktemp "${TMPDIR:-/tmp}/icon-self-test.XXXXXX")"
+python3 "$TOOL" --self-test > "$SELFTEST_OUT" 2>&1
+afirmar_igual "the instrument recovers KNOWN radii from a drawn corner" "0" "$?"
+
+# 1b. AND IT SWEEPS THE SUBPIXEL PHASES. This is the assertion that was missing, and its absence is
+# exactly why the phase term went unnoticed (HANDOFF 10o): the old self-test drew every corner with
+# its edge on a HALF pixel, which is the one phase where the profile's two errors cancel, so it
+# recovered R = 14, 20 and 26 with 0.00 px of error while an INTEGER edge read a drawn R = 8.0 as
+# 5.30. A self-test that only visits the phase that agrees with it cannot see the phase it is wrong
+# about. Both phases must be named in the output, and the worst error must be bounded.
+afirmar_contiene "the self-test sweeps the subpixel PHASES" "$SELFTEST_OUT" 'self-test phase'
+afirmar_contiene "the sweep includes the INTEGER edge, where the old reader read 5.30 for R = 8" \
+    "$SELFTEST_OUT" 'phase 0\.00'
+afirmar_contiene "the sweep includes the HALF-pixel edge, the one that used to cancel" \
+    "$SELFTEST_OUT" 'phase 0\.50'
+afirmar "the sweep's worst error is inside the bound the token declares" \
+    bash -c "grep -qE 'worst phase error [0-4]\\.' '$SELFTEST_OUT'"
+rm -f "$SELFTEST_OUT"
 
 # 2. The token, with its provenance.
 afirmar_existe "the measured icon geometry token exists" "$TOKEN"
@@ -37,6 +64,42 @@ afirmar_contiene "the token names the SCREENSHOTS it was measured from" "$TOKEN"
 afirmar_contiene "the token names the ICONS it was measured on" "$TOKEN" 'Launchpad|Dock'
 afirmar_contiene "the token names the method" "$TOKEN" 'measure-icon-geometry'
 afirmar_contiene "the token carries a date" "$TOKEN" 'date'
+
+# 2b. THE THREE FIGURES ARE CHECKED AGAINST THE FILE, NOT AGAINST A NUMBER REMEMBERED HERE. Two
+# properties, both read out of the token:
+#   * each ratio must agree with its own radius and side, so editing one of the three without the
+#     other two cannot pass -- which is the failure mode of a token whose value was copied by hand;
+#   * each uncertainty must be at least the reader's own bound divided by that figure's side: the
+#     instrument's precision is a floor under the token's, and rounding it DOWN is how a measurement
+#     claims a precision its method does not have.
+afirmar "each ratio agrees with its own radius and side, read from the token" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))["measure"]
+bad = []
+for sec in ("", "folder", "installed_theme"):
+    d = t if not sec else t[sec]
+    got = float(d["radius_px"]) / float(d["side_px"])
+    if abs(got - float(d["radius_ratio"])) > 0.01:
+        bad.append((sec or "app") + ": " + str(got) + " != " + str(d["radius_ratio"]))
+sys.exit(0 if not bad else 1)'
+afirmar "each uncertainty is the reader's bound, rounded up for its own side" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))["measure"]
+bound = float(t["reader_bound_px"])
+bad = []
+for sec in ("", "folder", "installed_theme"):
+    d = t if not sec else t[sec]
+    floor = bound / float(d["side_px"])
+    if float(d["uncertainty"]) + 1e-9 < floor:
+        bad.append((sec or "app") + ": " + str(d["uncertainty"]) + " < " + str(floor))
+sys.exit(0 if not bad else 1)'
+# ... and the token has to say WHICH reader produced the figures and that it is phase-independent:
+# the value is only as good as the instrument that read it, and 10o's instrument was not.
+afirmar_contiene "the token names the phase-independent reader that produced the figures" \
+    "$TOKEN" 'phase-independent|phase independent'
+afirmar_contiene "and it carries that reader's own bound" "$TOKEN" 'reader_bound_px'
 
 # 3. The honest half: what is NOT verifiable is declared, and it cannot quietly become a claim.
 afirmar_contiene "the token declares that the corner FAMILY is not resolvable" "$TOKEN" 'familia|smoothing|continua'
@@ -55,16 +118,16 @@ afirmar "the folder ratio is inside the range its measurement supports" \
 import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 r = float(t["measure"]["folder"]["radius_ratio"])
-sys.exit(0 if 0.03 <= r <= 0.08 else 1)'
-# AND IT IS NOT THE APP ICON'S SQUIRCLE. The whole point of measuring the folder separately is that
-# assuming the app figure would have been wrong; this pins the difference so a later edit cannot
-# quietly collapse the two into one number.
-afirmar "the folder is NOT drawn on the app icons squircle (more than 3x tighter)" \
+sys.exit(0 if 0.05 <= r <= 0.15 else 1)'
+# AND IT IS NOT THE APP ICON'S SQUIRCLE -- but the corrected reader also says it is NOT the ">4x
+# tighter" the first reader reported. The phase bias inflated that ratio, so the test pins a BAND and
+# not a floor: a floor of 3 would pin the bias itself and fail the moment the reader got honest.
+afirmar "the folder is tighter than the app icon, but by less than the biased reader claimed" \
     python3 -c '
 import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 app = float(t["measure"]["radius_ratio"]); folder = float(t["measure"]["folder"]["radius_ratio"])
-sys.exit(0 if app / folder > 3.0 else 1)'
+sys.exit(0 if 2.0 <= app / folder <= 3.5 else 1)'
 
 # 3c. THE THEME THE USER ALREADY RUNS. M5 left an ERRAND: the measured macOS radius cannot be applied
 # because the global theme points at Breeze, and an icon theme is not a milestone of this ROADMAP. The
@@ -84,28 +147,36 @@ import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 r = float(t["measure"]["installed_theme"]["radius_ratio"])
 sys.exit(0 if 0.05 <= r <= 0.10 else 1)'
-# THE VERDICT, as a property and not as a sentence: the installed theme's corner must sit OUTSIDE the
-# macOS figure's own window. If a later edit makes the token say the two coincide, this fails -- and
-# the difference is the whole finding, so it must not be able to evaporate.
-afirmar "the installed theme's corner is OUTSIDE the macOS figure's window" \
+# THE VERDICT, as a property and not as a sentence, AND THE CORRECTED READER REVERSED IT. The first
+# reader had the installed theme 1.5x ROUNDER than macOS and outside its window on the high side; with
+# the phase bias removed the macOS folder is the wider one. What must not evaporate is the
+# DISAGREEMENT itself: the theme's corner must still sit off the macOS figure, now on the LOW side. A
+# later edit that quietly restores "the theme is rounder" fails here.
+afirmar "the installed theme's corner still sits OFF the corrected macOS figure, on the low side" \
     python3 -c '
 import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 inst = float(t["measure"]["installed_theme"]["radius_ratio"])
 mac = float(t["measure"]["folder"]["radius_ratio"])
-tol = float(t["measure"]["folder"]["uncertainty"])
-sys.exit(0 if inst > mac + tol else 1)'
-# AND THE RASTER'S OWN TRAP IS KEPT VISIBLE. The tool reads this corner LOW at a literal 120 px (the
-# corner is only ~8 px, the reader's reference edge is an integer pixel and the first row is 62%
-# covered), so the token carries that read as a SEPARATE key. A later edit cannot quietly promote the
-# raster's 120 px number to the value, nor hide it.
+sys.exit(0 if inst < mac else 1)'
+# ... and the token has to SAY that the first verdict was reversed, so a reader of the file cannot
+# come away with the old "1.5x rounder" story.
+afirmar_contiene "and the token records that the earlier verdict was reversed" "$TOKEN" 'REVERS'
+# AND THE RASTER'S OWN TRAP IS KEPT VISIBLE. The literal 120 px read is the coarse one and it is kept
+# as a SEPARATE key with the 10x read beside it; a later edit cannot quietly promote one of them to
+# the value. With a true subpixel edge the 120 px read is ~5% HIGH (it used to be 12% low, because a
+# biased crossing on an integer reference edge is what "low" was), so the property is AGREEMENT
+# within the token's own window, not a direction.
 afirmar_contiene "the token keeps the literal 120 px raster read apart" "$TOKEN" 'radius_ratio_at_120'
-afirmar "and it is LOWER than the value, as a raster artifact and not a second answer" \
+afirmar_contiene "and the 10x raster read beside it" "$TOKEN" 'radius_ratio_at_10x'
+afirmar "both raster reads agree with the value inside the token's own window" \
     python3 -c '
 import sys, tomllib
 t = tomllib.load(open("'"$TOKEN"'", "rb"))
 g = t["measure"]["installed_theme"]
-sys.exit(0 if float(g["radius_ratio_at_120"]) < float(g["radius_ratio"]) else 1)'
+u = float(g["uncertainty"]); v = float(g["radius_ratio"])
+sys.exit(0 if abs(float(g["radius_ratio_at_120"]) - v) <= u
+            and abs(float(g["radius_ratio_at_10x"]) - v) <= u else 1)'
 
 # The value is in the range the measurement supports. This is a WINDOW on purpose: a token that
 # claimed a single confident number at 1 px resolution would be lying about its own precision.

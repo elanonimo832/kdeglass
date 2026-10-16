@@ -12,20 +12,31 @@
 #   `tokens-shape-effects.toml`. So there is no iOS icon figure in the kit to compare against, and
 #   the figure below is not a comparison with one -- it is a measurement.
 #
+# CORRECTED ON 2026-10-16, AND THE CORRECTION MOVED TWO OF THE THREE FIGURES. The reader these
+# figures were first taken with (`tools/measure-icon-geometry.py`) measured its corner's edge by
+# interpolating between two neighbouring pixels and fitted the circle at `dy = row index`: two
+# errors that CANCEL when the edge falls on a half pixel -- the phase its own `--self-test` drew --
+# and do not cancel anywhere else. On an integer edge the same reader recovered 5.30 px for a drawn
+# 8.0 and 16.40 px for a 20.0. The reader is now phase-independent (the partial coverage of both
+# pixels that straddle the crossing, and a real `dy`), and its `--self-test` sweeps four phases
+# instead of one. That moved the APP figure from 0.215 to 0.250 and the FOLDER from 0.049 to 0.097
+# -- see `[measure.folder]` for why the folder's own uncertainty grew with it -- while the
+# INSTALLED THEME stayed at 0.075. Every number below was re-measured with the corrected reader.
+#
 # WHAT WAS MEASURED, AND WHAT WAS NOT. Read this before using the number.
 #   * MEASURED: the corner profile of the macOS APP icons drawn in the screenshots. Twelve of them
-#     fitted within 2 px (six in `muestras/Untitled3.png`, six in `muestras/Untitled2.png`), all of
-#     them Launchpad icons 96 px on a side.
+#     fitted within 0.37 px (six in `muestras/Untitled3.png`, six in `muestras/Untitled2.png`), all
+#     of them Launchpad icons 96 px on a side. One icon in each capture (the same grid position) did
+#     NOT fit and is counted in `[measure.rejected]` instead of averaged in.
 #   * ALSO MEASURED, LATER AND SEPARATELY: the FOLDER's body corner, which is the literal subject of
 #     M5, in `muestras/Untitled6.png` (a Finder window with four folders). It is in `[measure.folder]`
-#     below, and it is NOT the app figure: it came out about FOUR times tighter. That is exactly why
-#     it had to be measured rather than assumed -- and the earlier version of this file declared it
-#     "not verifiable" precisely because assuming it was the only alternative it had.
+#     below. The first reader put it at 0.049; the corrected one puts it at 0.097, and the tangent
+#     line the arc is fitted against is the reason its uncertainty is the largest here.
 #   * ALSO MEASURED, 2026-10-16: the folder corner of the ICON THEME THE USER ALREADY RUNS
 #     (`MacTahoe-light`), because M5 left an ERRAND -- applying the macOS figure needs a theme of our
 #     own, and the user already has one. It is NOT the macOS figure and it is not our work either:
-#     see `[measure.installed_theme]` below for the gap, and for why the theme's files are read in
-#     place and never copied into this repository.
+#     see `[measure.installed_theme]` below for why the theme's files are read in place and never
+#     copied into this repository.
 #   * NOT MEASURABLE AT THIS SIZE, and this is the honest half: the corner FAMILY. Drawing the
 #     kit's own corner at `smoothing = 0.6` and fitting the profile that comes back gives a CIRCLE
 #     fit with a 0.29 px residual (`--self-test` prints it), because the two constructions differ
@@ -36,50 +47,66 @@
 
 [measure]
 # R / S, where S is the icon's side and R the corner radius of its squircle.
-# 12 valid measurements, two screenshots: medians 0.2161 (+-0.0026) and 0.2135 (+-0.0067).
-radius_ratio = 0.215
-# The spread of the measurement is ~0.006; the figure is 0.01 because the EDGE DETECTION adds a
-# systematic term the spread cannot see: the 0.5 crossing on an antialiased edge moves with the
-# background/body contrast, worth up to half a pixel, which is ~0.005 of the ratio. Rounding up
-# rather than down: a token that claims more precision than its method has is a token that lies.
+# 12 valid measurements, two screenshots: both medians 0.2500 (spreads 0.0051). The corrected reader
+# reads the SAME twelve corners ~3.5 px wider than the old one, which is the phase term 10o measured.
+radius_ratio = 0.250
+# The spread of the measurement is ~0.005; the figure is 0.01 because the reader's own bound
+# (`reader_bound_px` below: 0.75 px over four subpixel phases) is 0.0078 of a 96 px side before the
+# edge detection's systematic term is added at all. Rounding up rather than down: a token that
+# claims more precision than its method has is a token that lies.
 uncertainty = 0.01
-radius_px = 20.6          # the median radius measured, on a 96 px icon
+radius_px = 24.0          # the median radius measured, on a 96 px icon (was 20.6 with the old reader)
 side_px = 96.0            # the icon side the screenshots draw (Launchpad, 4K, scale 1)
-date = "2026-10-15"
+date = "2026-10-16"
 method = "tools/measure-icon-geometry.py --image <capture> --grid 40,210"
 icons = "Launchpad app icons (ServiceNow, Office, Outlook, Facebook, WhatsApp, YouTube, Add)"
 captures = ["muestras/Untitled3.png", "muestras/Untitled2.png"]
 
+# THE READER'S OWN PRECISION, AND IT IS A FLOOR UNDER EVERY UNCERTAINTY HERE. The instrument draws a
+# corner of a KNOWN radius at four subpixel phases (0, 0.25, 0.5, 0.75) and three or four radii, reads
+# each back, and asserts this bound; `--self-test` prints the worst error it actually measured
+# (0.50 px) and this is that worst case ROUNDED UP. `tools/measure-controls.py` imports the reader and
+# this constant rather than keeping a second copy of either.
+reader_bound_px = 0.75
+reader = "phase-independent exact corner fit (tools/measure-icon-geometry.py); its --self-test sweeps the subpixel phases"
+
 [measure.rejected]
 # Reported, not hidden: a measurement whose fit does not hold must not move the number and must not
-# vanish either. One icon in each capture gave an 8-11 px residual -- its corner was mis-detected,
-# most likely because its body is not uniform -- and it was left OUT of the statistic above.
-count = 3
-reason = "corner profile did not fit any family within 2 px: the icon's body is not uniform there"
+# vanish either. One icon in each capture (the same grid cell) gave a 5.8 px residual with the
+# corrected reader -- its corner is not a circle of any radius the grid allows, most likely because
+# its body is not uniform -- and it was left OUT of the statistic above.
+count = 2
+reason = "corner profile did not fit a circle within 2 px: the icon's body is not uniform there"
 
 # ------------------------------------------------------------------------------------------------
 # THE FOLDER, WHICH IS WHAT M5 LITERALLY ASKS ABOUT. `[not_verifiable] folder_icon` used to say no
 # capture showed one; `muestras/Untitled6.png` does (Applications, Library, System, Users). Four of
 # four measured, none rejected.
 #
-# IT IS NOT THE APP FIGURE. 0.049 against 0.215 is more than FOUR times tighter, so "the folder is
-# drawn on the same squircle as an app icon" is now a measured falsehood and not a guess either way.
+# THE CORRECTED READER PUTS IT ~TWO TIMES WIDER THAN THE FIRST READER DID. 0.097 against 0.049, and
+# the phase term 10o measured on the 120 px folder is ~3.6 px of radius -- which is most of the
+# difference. The arc is real and its own fit holds to 0.34 px; what the pixels cannot settle is the
+# TANGENT line it should be measured against, and that is the 0.02 of uncertainty below.
 # ------------------------------------------------------------------------------------------------
 [measure.folder]
-radius_ratio = 0.049
-# Same reasoning as the app figure: the spread across the four folders is 0.000 (they are identical
-# to the grid's resolution), and the figure is 0.01 because the EDGE DETECTION and the 0.76 px fit
-# residual add a systematic term the spread cannot see. Rounding up: a token that claims more
-# precision than its method has is a token that lies.
-uncertainty = 0.01
-radius_px = 5.9           # 5.85 px at the command's 0.05 px radius resolution
+radius_ratio = 0.097
+# Bigger than the app figure's on purpose, and the reason is the corner's own geometry. The folder
+# is TWO shapes: the visible top-right arc belongs to the back shape, whose flat right edge is at
+# x = 433.5, but the front panel's edge (0.85 px further right) takes over ~10 px below the top and
+# is what a fixed probe reads. Fitting the SAME arc against the back shape's own tangent gives
+# R = 9.90 px (0.083) with a 0.28 px residual; the tool's reproducible fixed-reference fit gives
+# R = 11.65 px (0.097) with a 0.34 px residual. Both fit; the pixels prefer neither by more than a
+# tenth of a pixel. 0.014 of ratio is that ambiguity, 0.006 is the reader's own bound and 0.005 the
+# residual, so the uncertainty is rounded UP to 0.02 rather than down to a single confident number.
+uncertainty = 0.02
+radius_px = 11.65         # the tool's fixed-reference exact fit; the free-tangent alternative is 9.90
 side_px = 120.0           # the icon's WIDTH. The body is 120 x 89, so it is not square and the ratio
-body_px = "120 x 89"      # depends on the side: 0.049 on the width, 0.066 on the height. The width is
+body_px = "120 x 89"      # depends on the side: 0.097 on the width, 0.13 on the height. The width is
                           # quoted because that is the side the app figure above uses (horizontal extent).
 corner = "top-right"      # the TAB occupies the top-left, so the body's corner cannot be read there
 rows_fitted = 6           # the corner is over in six rows; see the taper note below
-date = "2026-10-15"
-method = "tools/measure-icon-geometry.py --image muestras/Untitled6.png --grid 165,290 --corner tr --polarity dark --threshold 210 --radius-min 4 --radius-max 9 --radius-step 0.05 --rows 6 --x-range 300,1000"
+date = "2026-10-16"
+method = "tools/measure-icon-geometry.py --image muestras/Untitled6.png --grid 165,290 --corner tr --polarity dark --threshold 210 --radius-min 4 --radius-max 20 --radius-step 0.05 --rows 6 --x-range 300,1000"
 icons = "Finder folder bodies (Applications, Library, System, Users), 4 of 4 measured, 0 rejected"
 captures = ["muestras/Untitled6.png"]
 
@@ -88,24 +115,36 @@ why_top_right = """A macOS folder icon is a folder SHAPE: its tab sits on the to
 body's corner there is covered. The top-RIGHT corner of the body is clean, and that is the one this
 figure reads. Reading the top-left would have measured the TAB, whose corner is not the body's."""
 
-rows_fitted = """SIX rows, and the number is data and not taste. The profile is 5.10, 3.28, 2.20,
-1.15, 0.45, 0.04 -- the corner -- and then 0.29, 0.63, 0.86, 0.99, 1.13, 1.20, 1.22, 1.22: past the
-corner the body's right edge keeps moving INWARD by 1.2 px. That is the icon's own taper (and its
-shadow), not a corner, and fitting it in moved the radius from 5.9 to 5.1 px. Six rows is the corner
-up to its first minimum."""
+tangent_ambiguity = """The one thing these pixels cannot settle, and the reason the uncertainty is
+0.02 instead of 0.01. The corner's arc is the BACK shape's, and its tangent is the back shape's
+right edge; the front panel's edge is 0.85 px further out and begins ~10 px below the top edge. A
+probe 30 px down reads the FRONT panel, so the tool's fixed-reference fit answers 11.65 px. Fitting
+the same arc with its tangent line FREE (three parameters instead of two) answers 9.90 px with a
+0.28 px residual and a tangent at x = 433.60. Sweeping the tangent from 433.0 to 434.4 moves R from
+8.1 to 12.9: that sweep is the uncertainty, and it is why the old 0.049 is not replaced by another
+over-confident single digit."""
+
+rows_fitted = """SIX rows, and the number is data and not taste. With the DELETED phase bias gone the
+profile is 6.14, 4.27, 3.25, 2.21, 1.24, 1.14 measured from the back shape's tangent (the old
+reader's compressed 5.10, 3.28, 2.20, 1.15, 0.45, 0.04 is what a biased crossing does to the same
+pixels). Six rows is where the arc stops moving faster than the front panel's edge; past it the
+silhouette steps out by 0.85 px and fitting that in moves R to the grid edge, which is M5's own
+trap arriving from a new direction."""
 
 family = """The corner FAMILY is NOT resolved here either, and for the same reason as the app icons:
-at a 5.9 px radius a circular arc, the kit's construction at any smoothing, and a superellipse all
-fit identically (the fit returns smoothing = 0.00 and exponent = 2.00, which ARE the circle). The
-radius is a radius; it is not a statement that the corner is a continuous one."""
+at a ~10 px radius a circular arc, the kit's construction at any smoothing, and a superellipse all
+fit within the raster. The radius is a radius; it is not a statement that the corner is a continuous
+one."""
 
-comparison = """Against the app icons: 0.215 / 0.049 = 4.4x tighter. So a folder's body is NOT
-drawn on the app icon's squircle. This is the measurement M5 was missing, and it says the
-assumption would have been wrong."""
+comparison = """Against the app icons: 0.250 / 0.097 = 2.6x tighter (with the free-tangent
+alternative, 3.0x). The folder is STILL not drawn on the app icon's squircle -- but the "more than
+four times tighter" the first reader reported was part of its phase bias, and the corrected ratio is
+under three. A property test that demanded > 3x would be pinning the bias, which is why the test now
+pins a BAND instead of a floor."""
 
-bottom_corner = """The BOTTOM-right corner reads ~4.1 px against the top-right's 5.9, and the
-difference is the icon's shadow and taper rather than a second radius: they darken the body's lower
-edge, which moves the 0.5 crossing. The top-right is the clean read and the one this token uses."""
+bottom_corner = """The BOTTOM-right corner reads lower than the top-right's, and the difference is
+the icon's shadow and taper rather than a second radius: they darken the body's lower edge, which
+moves the 0.5 crossing. The top-right is the clean read and the one this token uses."""
 
 # ------------------------------------------------------------------------------------------------
 # THE FOLDER THE USER'S DESKTOP ALREADY DRAWS. This is NOT macOS and it is NOT our work: MacTahoe-light
@@ -118,30 +157,39 @@ edge, which moves the 0.5 crossing. The top-right is the clean read and the one 
 # generated global theme points at Breeze (`output/look-and-feel/KdeMacOS/contents/defaults`) and an
 # icon theme is not a milestone of this ROADMAP. The user already runs a macOS-style icon theme, so
 # the errand's first question was whether that theme already CARRIES the geometry -- if it did, there
-# would be nothing to apply. It does NOT, and the gap is now a number with a destination.
+# would be nothing to apply.
+#
+# THE FIRST ANSWER WAS "IT DOES NOT, IT IS 1.5x ROUNDER". THE CORRECTED READER REVERSES IT. Re-measured
+# on 2026-10-16 with the phase-independent reader, the theme's folder is 0.075 and the macOS folder is
+# 0.097 +- 0.02: the theme is NOT the rounder of the two, it sits at the LOW edge of the corrected
+# reference -- 13% flatter than the figure above, where the first reader had it 53% rounder. The
+# errand still stands (the theme is not the measured macOS geometry), but the direction of the gap was
+# wrong, and the corrected reading is why.
 # ------------------------------------------------------------------------------------------------
 [measure.installed_theme]
-# THE VERDICT IS IN THE COMPARISON, not in the digit: 0.075 against macOS's 0.049 +- 0.01 is about
-# 1.5x ROUNDER and it sits OUTSIDE the reference's own window. At the reference's 120 px folder that
-# is a radius of ~9 px where macOS draws 5.85 px -- about 3 px too round.
+# THE VERDICT IS IN THE COMPARISON, not in the digit: 0.075 against macOS's 0.097 +- 0.02 is NOT
+# outside on the high side, and the "1.5x rounder" this file first carried does not survive its own
+# reader's correction. Both numbers are windows, and the windows overlap.
 radius_ratio = 0.075
 # The SAME window as the macOS figure, on purpose: two numbers compared through different rulers are
 # not compared. It is a round-up of a method whose 10x raster agrees with the SVG's own attributes to
 # ~0.002, and rounding a token's precision UP is this file's rule.
 uncertainty = 0.01
-radius_px = 8.1            # the visible body corner, on a 120 px canvas
+radius_px = 8.1            # the visible body corner, on a 120 px canvas (10x read: 7.95)
 side_px = 108.8            # the body's width inside that canvas: the SVG leaves a ~5% margin
 radius_px_body120 = 9.0    # ... and with the body scaled to the reference's 120 px, to compare like
-corner = "top-right"       # for like with the 5.85 px macOS figure: the TAB covers the top-left
-# WHAT THE TOOL READS ON A LITERAL 120 px RASTER IS LOWER, and it is kept rather than quietly dropped:
-# the corner is only ~8 px tall, `corner_profile` takes its reference edge as an INTEGER pixel and the
-# corner's first row is only 62% covered, so the fit lands ~12% short. The geometry does not move with
-# the raster: the SVG's own arc radius and a 10x render both say 8.1 px.
-radius_ratio_at_120 = 0.066
+corner = "top-right"       # for like with the macOS figure: the TAB covers the top-left
+# WHAT THE CORRECTED READER READS ON A LITERAL 120 px RASTER IS 5% HIGH, not 12% low, and it is kept
+# as its own key so the two rasters stay comparable instead of one being silently promoted. The
+# integer reference edge and the coarse raster used to push it DOWN to 0.066; with a true subpixel
+# edge the same file answers 8.65 px on a 110 px run (0.079), against the 10x read's 7.95 px on a
+# 107.7 px run (0.0738) and the SVG's own 1.146/15.345 = 0.0747. The 120 px read is the coarse one.
+radius_ratio_at_120 = 0.079
+radius_ratio_at_10x = 0.0738   # 79.50 px on a 1077 px run, divided by 10
 date = "2026-10-16"
 source = "~/.local/share/icons/MacTahoe-light/places/scalable/folder.svg"
 theme = "MacTahoe-light (third-party; its places/ is a symlink into the sibling theme MacTahoe/)"
-method = "rsvg-convert -w 120 -h 120 (and -w 1200 for the 10x check), composed on white, then tools/measure-icon-geometry.py --image <canvas> --grid 76,160 --corner tr --polarity dark --threshold 220 --radius-min 2 --radius-max 20 --radius-step 0.05 --rows 6"
+method = "rsvg-convert -w 120 -h 120 (and -w 1200 for the 10x check), composed on white, then tools/measure-icon-geometry.py --image <canvas> --grid 70,180 --corner tr --polarity dark --threshold 220 --radius-min 2 --radius-max 20 --radius-step 0.05 --rows 12"
 
 [measure.installed_theme.notes]
 which_file = """`places/scalable/folder.svg`, and the choice is a measurement of its own: the theme's
@@ -158,11 +206,10 @@ the_traps = """Three, and the first two each produced a wrong number before they
 12 px and this corner is ~8, so the fit has to be given `--radius-min 2`.
 (2) THE THRESHOLD, and this one is the theme's own artwork: the theme draws a white highlight rim
 along the top edge, which brightens the corner's first row above 210, so `find_icons` skips it, the
-profile starts one row into the corner, and the SAME file answers R = 4.95 px. At 220 the row is caught
-and it answers 7.30 px. A 47% swing from a threshold is not a measurement, which is why the value
-above is not the 120 px raster's.
-(3) POLARITY, checked rather than assumed: dark-on-white gives R/S 0.0664 and light-on-dark 0.0659,
-the same within the grid."""
+profile starts one row into the corner, and the SAME file answers a different radius. The corrected
+reader does not use the threshold to SET the edge -- it uses the 0.5 crossing of a coverage ramp, and
+the threshold only FINDS the icon -- which is why the 120 px read no longer swings with it.
+(3) POLARITY, checked rather than assumed: dark-on-white and light-on-dark agree within the grid."""
 
 what_it_does_not_say = """It does NOT say the corner FAMILY differs: at an 8 px radius a circle, the
 kit's construction at any smoothing and a superellipse fit identically, exactly as `[measure.folder]`
@@ -170,9 +217,10 @@ records for macOS's. It is a radius. It also says nothing about the theme's othe
 shape was measured, the one a desktop folder size resolves to."""
 
 [not_verifiable]
-folder_icon = """CLOSED on 2026-10-15 by `muestras/Untitled6.png`. The folder's body radius IS
-measured: see `[measure.folder]` above. What this key used to say -- that no capture showed a folder
--- is no longer true, and the value is not the app icons' figure: it is about 4x tighter."""
+folder_icon = """CLOSED on 2026-10-15 by `muestras/Untitled6.png`, and CORRECTED on 2026-10-16. The
+folder's body radius IS measured: see `[measure.folder]` above, which moved from 0.049 to 0.097 when
+the reader's phase bias was removed. What this key used to say -- that no capture showed a folder --
+is no longer true."""
 smoothing = """The corner FAMILY cannot be resolved from these captures. The kit's construction at
 smoothing = 0.6 and a plain circular arc differ by less than the sub-pixel row at a 96 px icon: the
 circle fit of the kit's OWN corner leaves a 0.29 px residual. The radius above is a radius, NOT a
@@ -180,3 +228,9 @@ statement that the corner is a continuous one."""
 folder_retry = """DONE on 2026-10-15: the Finder capture arrived (`muestras/Untitled6.png`) and the
 folder was measured -- see `[measure.folder]`. It is kept here, empty of its original purpose, so the
 record shows the gap was a task and it got done instead of quietly disappearing."""
+phase_bias = """FIXED on 2026-10-16. The corner reader's edge crossing interpolated between two
+neighbouring pixels and its fit evaluated the circle at the row index; the two errors cancel at a
+half-pixel edge (the only phase the old self-test drew) and nowhere else, so a drawn R = 8.0 read
+5.30 on an integer edge. The reader is now phase-independent and its self-test sweeps four phases;
+this is the correction that moved the app and folder figures above. The measurement and the table of
+drawn-vs-read radii are in `docs/HANDOFF.md` section 10p."""

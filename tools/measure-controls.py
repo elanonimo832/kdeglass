@@ -58,20 +58,30 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 ICON_TOOL = os.path.join(HERE, "measure-icon-geometry.py")
 
-# The bound the exact corner fit is asserted to hold across the four subpixel edge phases the
-# self-test draws (radii 3, 5 and 8 px). It is the tool's own precision, and a measured corner is
-# reported with an uncertainty ROUNDED UP from it, never down to it.
-PHASE_TOL = 0.75
+# The bound the exact corner fit is asserted to hold across the subpixel edge phases the self-test
+# draws. THE NUMBER LIVES IN `measure-icon-geometry.py`, with the reader that has to hold it: this
+# tool imports the reader, so it imports the bound too instead of keeping a second copy that can
+# drift. It is assigned after `_ICON` is loaded, below.
+PHASE_TOL = None
+
+_ICON_TOOL = None
 
 
 def load_icon_tool():
-    """The corner reader/fitter lives in ONE place; this tool imports it."""
-    spec = importlib.util.spec_from_file_location("measure_icon_geometry", ICON_TOOL)
-    if spec is None or spec.loader is None:  # pragma: no cover
-        raise RuntimeError(f"cannot import {ICON_TOOL}")
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-    return modulo
+    """The corner reader/fitter lives in ONE place; this tool imports it.
+
+    CACHED, because it is called once per measured corner and re-executing the module on every call
+    was doing real work for no reason.
+    """
+    global _ICON_TOOL
+    if _ICON_TOOL is None:
+        spec = importlib.util.spec_from_file_location("measure_icon_geometry", ICON_TOOL)
+        if spec is None or spec.loader is None:  # pragma: no cover
+            raise RuntimeError(f"cannot import {ICON_TOOL}")
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        _ICON_TOOL = modulo
+    return _ICON_TOOL
 
 
 # --------------------------------------------------------------------------------------------------
@@ -87,20 +97,6 @@ def patch_color(im, x, y, box=2):
     ys = np.clip(np.arange(int(y) - box, int(y) + box + 1), 0, im.shape[0] - 1)
     xs = np.clip(np.arange(int(x) - box, int(x) + box + 1), 0, im.shape[1] - 1)
     return np.median(im[np.ix_(ys, xs)].reshape(-1, 3), axis=0)
-
-
-def coverage(pixels, bg, ink):
-    """How much of each pixel is INK, by projecting onto the bg->ink vector.
-
-    One channel would do for a grey bar on a grey background and would lie for a blue accent on a
-    grey one. The projection uses all three at once, and it is the same quantity the icon reader's
-    0.5 crossing uses -- so a BAR and a CORNER are read by one definition of "edge", not two.
-    """
-    v = np.asarray(ink, dtype=float) - np.asarray(bg, dtype=float)
-    denom = float(v @ v)
-    if denom == 0.0:
-        return np.zeros(len(pixels), dtype=float)
-    return np.clip(((np.asarray(pixels, dtype=float) - bg) @ v) / denom, 0.0, 1.0)
 
 
 def boundary_outward(cov, start, direction):
@@ -146,24 +142,19 @@ def run_extent(cov, inside, lo, hi):
     return a, b
 
 
-def first_crossing(cov):
-    """The LEFT/TOP boundary: the first pixel whose coverage reaches 0.5, and its own partial
-    coverage. Inside a box with a tick or a hole, the first covered pixel IS the box's side."""
-    idx = np.where(np.asarray(cov) >= 0.5)[0]
-    if len(idx) == 0:
-        return None
-    i = int(idx[0])
-    return float(i) + 1.0 - float(cov[i])
-
-
-def last_crossing(cov):
-    """The RIGHT/BOTTOM boundary, from the last pixel whose coverage reaches 0.5."""
-    idx = np.where(np.asarray(cov) >= 0.5)[0]
-    if len(idx) == 0:
-        return None
-    j = int(idx[-1])
-    return float(j) + float(cov[j])
-
+# THE SHARED PRIMITIVES, IMPORTED FROM THE ONE PLACE THAT DEFINES THEM. `coverage`, the two subpixel
+# crossings, the exact corner profile and the circle fitter all live in
+# `tools/measure-icon-geometry.py`, whose header carries WHY the two crossings are the
+# phase-independent versions: this file used to define its own, and the radius this tool reports is
+# exactly what that shared reader answers. Aliasing them here keeps every call site in this file
+# unchanged while keeping ONE definition of "an edge" in the repository.
+_ICON = load_icon_tool()
+coverage = _ICON.coverage
+first_crossing = _ICON.first_crossing
+last_crossing = _ICON.last_crossing
+exact_corner_profile = _ICON.exact_corner_profile
+fit_circle = _ICON.fit_circle
+PHASE_TOL = _ICON.PHASE_TOL
 
 # --------------------------------------------------------------------------------------------------
 # THE READERS
@@ -256,23 +247,21 @@ def read_box(im, rect, corner="tl", rows=8, radius_min=1.0, radius_max=9.0, radi
     left, right = float(x0) + left, float(x0) + right
     top, bottom = float(y0) + top, float(y0) + bottom
 
-    # THE CORNER, TWO WAYS, because the imported fitter's answer depends on where the box's edge
-    # falls in the pixel grid and a 16 px checkbox with a 3-5 px corner is exactly where that shows.
+    # THE CORNER, TWO WAYS, and the contrast is kept rather than erased because it is the finding.
     #
-    #   (a) `fit`       -- `measure-icon-geometry.py`'s own reader and fitter, on the RECT CROP.
+    #   (a) `fit`       -- `measure-icon-geometry.py`'s OLD reader and fitter, on the RECT CROP.
     #                      Kept for continuity with M5's published figures. Its crossing is the
-    #                      0.5 crossing of a ramp between two neighbouring pixels, which sits
-    #                      ~0.5 px OUTSIDE the true edge, and `fit_all` evaluates the model at
-    #                      dy = row index. The two cancel only when the edge lands on a HALF
-    #                      pixel (the phase its `--self-test` draws): then R = 5.0 comes back 5.00.
-    #                      On an INTEGER edge nothing cancels, and the same drawn 5.0 comes back
-    #                      2.30 (measured, this tool's own --self-test prints it).
-    #   (b) `fit_exact` -- the same coverage definition as the BAR reader (a pixel's own coverage,
-    #                      not an interpolation between two pixels), the inset measured from the
-    #                      box's TRUE subpixel edge, and the model evaluated at the row's real
-    #                      dy = row centre - edge. Over 31 synthetic boxes (radii 2.5..20 px,
-    #                      edge phases 0.0..0.8) this recovers the drawn radius within 0.70 px
-    #                      worst case, and the self-test below pins that.
+    #                      0.5 crossing of a ramp between two neighbouring pixels, and `fit_all`
+    #                      evaluates the model at dy = row index. The two errors cancel only when the
+    #                      edge lands on a HALF pixel (the phase its old `--self-test` drew): then
+    #                      R = 5.0 comes back 5.00. On an INTEGER edge nothing cancels, and the same
+    #                      drawn 5.0 comes back 2.30 and a drawn 8.0 comes back 5.30 (both printed by
+    #                      this tool's own `--self-test`).
+    #   (b) `fit_exact` -- the SHARED, phase-independent reader (HANDOFF 10o -> 10p): each pixel's own
+    #                      coverage, the body's TRUE subpixel edge, the model evaluated at the row's
+    #                      real dy = row centre - edge, and the profile starting at the first row
+    #                      fully inside the edge. Over the self-test's phase sweep it recovers the
+    #                      drawn radius within PHASE_TOL, and the self-test below pins that.
     lum = sub.mean(axis=2)
     bg_l = float(np.mean(bg))
     body_l = float(np.mean(body))
@@ -298,65 +287,6 @@ def read_box(im, rect, corner="tl", rows=8, radius_min=1.0, radius_max=9.0, radi
         "profile": profile, "fit": ajuste, "x_edge": x_edge, "y_edge": y_edge,
         "insets": insets, "dys": dys, "fit_exact": exacto,
     }
-
-
-def exact_corner_profile(crop, bg, body, corner, left, right, top, bottom, rows):
-    """The corner's inset per row, from the pixel's OWN coverage and the box's TRUE subpixel edge.
-
-    The rows start at the first row whose CENTRE is at or beyond the edge (a row whose centre is
-    still outside the box has no inset to measure), and each row carries its real dy. That pair --
-    exact inset and real dy -- is what makes the fit phase-independent; feeding the row INDEX as
-    dy instead is what makes the imported reader's answer depend on where the edge sits.
-    """
-    insets, dys = [], []
-    if corner in ("tl", "tr"):
-        y_start, step = int(np.ceil(top - 0.5)), +1
-        x_true = left if corner == "tl" else right
-    else:
-        y_start, step = int(np.floor(bottom - 0.5)), -1
-        x_true = left if corner == "bl" else right
-    for k in range(rows):
-        y = y_start + step * k
-        if y < 0 or y >= crop.shape[0]:
-            break
-        cov = coverage(crop[y], bg, body)
-        # dy is measured from the corner's OWN horizontal edge: the TOP for a top corner and the
-        # BOTTOM for a bottom one. Using one reference for both (the first version did) gave the
-        # top-right corner dys of 15.5, 14.5, 13.5 ... against insets of 2.4, 1.3, 0.4 and a fit
-        # with a 2.45 px residual -- a top corner measured as if it were upside down.
-        dys.append((float(y) + 0.5 - top) if corner in ("tl", "tr")
-                   else (bottom - (float(y) + 0.5)))
-        if corner in ("tl", "bl"):
-            a = first_crossing(cov)
-            insets.append(np.nan if a is None else a - x_true)
-        else:
-            b = last_crossing(cov)
-            insets.append(np.nan if b is None else x_true - b)
-    return np.array(insets, dtype=float), np.array(dys, dtype=float)
-
-
-def fit_circle(insets, dys, radius_min=0.5, radius_max=12.0, radius_step=0.05):
-    """The best circular corner for an exact inset profile, with its residual.
-
-    The MODEL is imported (`measure-icon-geometry.py`'s `inset_circle`), not copied; what is local
-    is only the pairing of a row's inset with that row's own dy. The corner FAMILY is not fitted
-    here: at a 3-8 px radius a circle, the kit's construction and a superellipse are the same
-    curve to within a tenth of a pixel (M5's finding, and 10f-bis's), so a family would be an
-    answer the pixels cannot carry.
-    """
-    ic = load_icon_tool()
-    ok = ~np.isnan(np.asarray(insets, dtype=float))
-    if int(ok.sum()) < 4:
-        return None
-    ins = np.asarray(insets, dtype=float)[ok]
-    d = np.asarray(dys, dtype=float)[ok]
-    mejor = None
-    for R in np.arange(float(radius_min), float(radius_max) + 1e-9, float(radius_step)):
-        e = float(np.max(np.abs(ic.inset_circle(d, R) - ins)))
-        if mejor is None or e < mejor[0]:
-            mejor = (e, float(R))
-    return {"radius": mejor[1], "error": mejor[0], "rows": int(ok.sum()),
-            "radios": (float(radius_min), float(radius_max))}
 
 
 def read_cap(im, cols, rows, bg=None, ink=None):
