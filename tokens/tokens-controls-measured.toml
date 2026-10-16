@@ -64,6 +64,14 @@
 #   phases x radii 3, 5, 8 and 20 x both corners: `radius_bound_px` below, ROUNDED UP from the
 #   0.50 px it measures.
 #
+#   ONE MORE THING THE RE-DERIVATION FOUND, and it is not a figure: the shared `coverage` primitive
+#   had a latent 1-D shape bug (it returned a 0-d array for the LUMINANCE form its own docstring
+#   promises, and the crossings then raised on `np.where`). Both tools pass it an RGB (N, 3) profile,
+#   so no measured figure ever saw it; the assertion 10q added for the CROSSING's own definition
+#   called the primitive directly and found it. It is fixed in `tools/measure-icon-geometry.py` and
+#   the M5 figures it feeds were re-checked unchanged (the app icon still reads R/S = 0.2500 over six
+#   valid of seven rows in `muestras/Untitled3.png`).
+#
 # NOT IMPLEMENTED HERE. This file MEASURES. Slices 5 and 6 are still to be drawn, and the figures
 # that unblock them are named in the sections below.
 

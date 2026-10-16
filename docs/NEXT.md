@@ -295,3 +295,20 @@ behind the bar and the radius alone did nothing.
     size token at all -- only a colour -- and was left untouched, which the instrument asserts. The
     evidence is regenerated and the metrics table now stores both the base's figures and ours, as the
     "before" of slice 5 (comboboxes, tabs and menus). See `HANDOFF.md` 10n.
+
+15. **THE TASK 10p LEFT NAMED IS DONE: M6's control figures are re-derived with the corrected reader,
+    and the argument against re-deriving them was wrong for one figure.** 10p fixed the shared corner
+    reader's subpixel phase bias but did not re-measure `tokens/tokens-controls-measured.toml`, on the
+    argument that the phase term moves a right or bottom edge by at most half a pixel, inside those
+    figures' 0.8-1.5 px uncertainties. It was inside them, and it was still a real 0.85 px on the
+    checkbox. Four figures moved: the UNCHECKED checkbox's radius **5.85 -> 5.00**, the selection
+    pill's radius **5.7 -> 5.10** and height **16.4 -> 17.0**, and the popup chevron's box radius
+    (**never measured -> 9.5 px +- 0.9**). Everything else was RE-MEASURED AND DID NOT MOVE -- the
+    track's 6.0 px, the knob's 19.83 x 15.8, the checkbox's 16.00 x 16.00, the tick, the chevron box's
+    20 x 20, the row pitch and the group gap -- and the test pins that as a result, not as an
+    omission. The finding that reverses: 10o published a 1.25 px DISAGREEMENT between the checkbox's
+    two states and had to call it unresolved. The corrected reader puts 0.35 px between them, inside
+    its own 0.75 px bound, so the gap was the READER's, and the token and the test now say so. Slice 4
+    (the track), slice 5 (the chevron and the list row) and slice 6 (the selection) can consume these
+    figures without re-checking them. `HANDOFF.md` 10q has the old -> new table for every figure and
+    names, for each, whether it moved.

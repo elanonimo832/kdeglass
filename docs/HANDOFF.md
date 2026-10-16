@@ -2673,6 +2673,13 @@ FILE, so a slice that "corrects" the value to one it liked fails with the kit's 
 
 ## 10o. M6's remaining slices, measured from the two new captures (2026-10-16)
 
+> **SUPERSEDED IN PART.** The numbers below were read with the shared corner reader BEFORE 10p fixed
+> its subpixel phase bias. Section 10q re-derived every one of them with the corrected reader: the
+> checkbox's unchecked radius (5.85 -> 5.00), the selection pill's radius (5.7 -> 5.10) and height
+> (16.4 -> 17.0) and the checkbox's state discrepancy (1.25 px, now 0.35 px, i.e. the reader's) MOVED;
+> the rest were re-measured and did not. Read 10q for the current figures; this section is kept as the
+> record of what the old reader produced and why it produced it.
+
 The user left two captures in `muestras/` and the question with them: fill the reference gaps the
 kit does not carry, because those are what block the slices M6 has left. Slice 4 shipped with the
 track's thickness as a NAMED GAP (10n); slices 5 and 6 were not started at all. This is the
@@ -2945,7 +2952,149 @@ landed on the grid edge, which is M5's own trap.
   0.35 px), but `tokens/tokens-controls-measured.toml`'s checkbox radii and selection figures were NOT
   re-derived in this step: the corrected falling-edge crossing moves a right or bottom edge by up to
   half a pixel, which is inside those figures' 0.8-1.5 px uncertainties, and re-deriving them is a
-  named follow-up rather than a claim.
+  named follow-up rather than a claim. **DONE in section 10q (2026-10-16)**, and the argument above
+  was wrong for one figure: the gap was inside the uncertainty AND it was a real 0.85 px on the
+  unchecked checkbox. Four figures moved; the rest were re-measured and did not.
 * **The theme's 10x read needed the reader to scale with the icon.** A fixed 30 px probe and a fixed
   16 px body sample are below a 1x icon's corner and INSIDE a 10x one's; both now scale with the
   side, which is what makes the 10x cross-check (0.0738 against the SVG's own 0.0747) reproducible.
+
+## 10q. M6's control figures re-derived with the corrected reader: four moved, everything else was re-measured and did not (2026-10-16)
+
+Section 10p fixed the shared corner reader's subpixel phase bias and re-measured M5's figures; it
+did **not** re-derive `tokens/tokens-controls-measured.toml`, because the corrected falling-edge
+crossing moves a right or bottom edge by at most half a pixel and that sat inside those figures'
+0.8-1.5 px uncertainties. That was an argument, not a measurement. This section does the
+measurement, and the argument turns out to be **wrong for one figure and right for the rest**: the
+gap was inside the uncertainty, and it was still a real 0.85 px on the checkbox.
+
+**THE METHOD, AND WHY THE DELTAS ARE THE READER'S.** Every figure was read TWICE on the SAME crop,
+with the SAME rectangle, the same corner, the same rows/radius grid and the same explicit
+background and body: once by the repository's own pre-10p tool (`git show
+6d694bb^:tools/measure-controls.py`, with the pre-10p `measure-icon-geometry.py` beside it) and once
+by the working tree's. The old tool reproduces the published table exactly -- 4.60 and 5.85 for the
+two checkbox states, 5.70/5.75 for the selection pill -- which is what makes it the "before" rather
+than a reconstruction of one. The two changes of 10p were then isolated one at a time:
+
+| box | old crossing + old row start | new crossing + old row start | old crossing + new row start | both (the reader today) |
+|---|---|---|---|---|
+| checkbox checked | 4.60 | 4.60 | 4.65 | **4.65** |
+| checkbox unchecked | 5.85 | **5.00** | 5.85 | **5.00** |
+
+The UNCHECKED box moves with the CROSSING alone and not with the row start; the CHECKED box moves
+with the ROW START alone and not with the crossing. That is the phase term showing up where it
+should: the unchecked box's edges sit on integers 624.0/640.0/610.0/626.0 where the old crossing
+loses its half pixel, and the checked box's sit at 515.003/610.003, where it does not.
+
+**THE TABLE, OLD -> NEW.** "Moved" is against the figure the token published in 10o; the
+uncertainty is the reader's 0.75 px bound rounded up, or the figure's own method where that is
+larger. Nothing here was re-measured with a different probe: the rectangles are 10o's.
+
+| figure | old | corrected | moved? | where it lands |
+|---|---|---|---|---|
+| slider track thickness | 6.0 px = 5.9 pt | **6.0 px = 5.9 pt** | no | `[measure.slider]` |
+| slider knob | 19.83 x 15.8 px, ratio 0.797 | **19.83 x 15.8 px, ratio 0.797** | no | same |
+| knob position, track lengths, right edge | 50/62%, 196/216 px, 752.0 | **unchanged** | no | same |
+| tick marks | 2 x 2 px, inset 10.0 px | **2 x 2 px, inset 10.0 px** | no | same |
+| checkbox box | 15.99 x 16.00 px | **15.99 x 16.00 px** (15.994 and 16.000) | no | `[measure.checkbox]` |
+| checkbox radius, checked | 4.6 px | **4.65 px** | +0.05 px | same |
+| **checkbox radius, unchecked** | **5.85 px** | **5.00 px** | **-0.85 px** | same |
+| checkbox tick | 8 x 8 px bbox, 4 px in, 2 px stroke | **8 x 8, 4 px in, 2 px stroke** | no | same |
+| switch pill, radius, knob | 35.96 x 15.98, R 7.8, 20.9 x 13.6 | **unchanged** | no | `[measure.switch]` |
+| **chevron box radius** | never measured | **9.5 px +- 0.9** | new | `[measure.popup]` |
+| chevron box | 20 x 20 px | **20 x 20 px** | no | same |
+| selection cell | 144.0 x 145.0 px | **144.2 x 143.9 px** | width +0.2, **height -1.1** | `[measure.selection]` |
+| selection cell radius | 14.0 px | **14.0 px** (corners 13.45..14.80) | no | same |
+| **selection label pill radius** | **5.7 px** | **5.10 px** | **-0.6 px** | same |
+| **selection label pill height** | **16.4 px** | **17.0 px** | **+0.6 px** | same |
+| sidebar row pitch, selection, text | 32.0 px, #EDEFF1, unchanged | **unchanged** | no | same |
+| list row pitch | 38 px (37-39) | **38.0 px (separators 272/311/349/432/469/506)** | no | `[measure.rows]` |
+| group gap | 10.0 px | **10.0 px** | no | same |
+| control height, icon body, insets, traffic lights | 16.0, 118 x 93, 13/25/14/28, 14/23 | **unchanged** | no | `[measure.layout]` |
+
+**FOUR FIGURES MOVED, AND ONE OF THEM CLOSES A FINDING INSTEAD OF RESTATING IT.**
+1. **The unchecked checkbox's radius, 5.85 -> 5.00.** The old reader's answer is 0.85 px too round,
+   which is its own bound and then some, and it is the crossing's doing (table above). The two states
+   of one 16 px control measure 4.65 and 5.00 now.
+2. **The checkbox's state DISAGREEMENT is closed.** 10o published "the checked box's corner is
+   1.25 px tighter than the unchecked one's" and declared it unresolved because 1.25 px is more than
+   the instrument can see. The corrected reader puts **0.35 px** between them, INSIDE its own 0.75 px
+   bound: the disagreement was the READER's, not the pixels'. The token's `state_discrepancy` now
+   says so, and `tests/test-controls-measurement.sh` asserts the agreement rather than the gap, so a
+   later edit cannot restore a difference the instrument cannot measure.
+3. **The selection label pill, radius 5.7 -> 5.10 and height 16.4 -> 17.0.** The radius is the phase
+   bias again (the old tool answers 5.75 on that crop). The height is a different failure: the pill's
+   fill covers the 17 rows 332..348 and the corrected crossing agrees (edges 332.000 and 349.000),
+   while the old crossing put both edges 0.3 px inside the run. 17.0 is also what a plain pixel count
+   gives, which is the independent check. The pill is still NOT a stadium -- a stadium's ends would be
+   R = 8.5 -- which is the finding slice 6 needs.
+4. **The chevron box's radius, never measured -> 9.5 px +- 0.9.** 10o recorded the box's 20 x 20 px
+   size, which the corrected reader confirms unchanged, and none of its corners. The four boxes in
+   `Untitled7` fit 9.45, 9.50, 9.56 and (one box, two corners) 8.10/7.80; the token carries their
+   median and an uncertainty that covers the spread AND the reader's bound. The old reader was not
+   asked for this in 10o because a 20 px box is exactly where its bias shows worst.
+
+**THE ONE FIGURE THAT MOVED FOR A REASON THAT IS NOT THE READER, SAID OUT LOUD.** The selection
+cell's HEIGHT reads 143.9 px where 10o published 145.0. That is not the phase term: it is 10o's own
+crop. Its `box` call passed a rectangle whose bottom edge (y = 335) is BELOW the cell's fill, so the
+published 145.0 was measured to the crop's boundary, and the cell's own fill stops at 329.9. The
+corrected read puts the cell's flat edges at L 254.765, R 398.926, T 186.074, B 329.926: **144.2 x
+143.9**, square to within the 1 px uncertainty, which is what a Finder icon cell is. The WIDTH moved
+0.2 px for the reader's reason and the HEIGHT moved for the crop's; both are recorded.
+
+**WHAT DID NOT MOVE, WITH THE SAME CLARITY, BECAUSE "NOT CHECKED" IS THE WRONG READING.** The track's
+6.0 px (all three probes re-run: `bar` answers 6.000 at x = 350, 450 and 560), the knob's 19.83 x
+15.8, the knob's ratio 0.797, the tick's 8 x 8 at a 4 px offset, the chevron box's 20 x 20, the
+checkbox's 15.99 x 16.00, the list row pitch's 38 px, the group gap's 10 px, the sidebar's 32 px row
+pitch, the control height's 16 px and the layout figures. Every one is a straight edge or a bar, read
+by the SAME crossing on both readers, and the phase term's half-pixel ceiling cannot show at the
+precision those figures are written to. The suite pins them as VALUES read from the token and re-runs
+the self-test's bar, so an edit that "corrects" one of them fails.
+
+**WHAT THE TOKEN AND THE TEST NOW CARRY.** `tokens/tokens-controls-measured.toml`: the four moved
+figures, the reader's history and the new `chevron_box_radius_px`/`_uncertainty_px`, a
+`radius_bound_px` comment that names the corrected sweep (four phases x radii 3, 5, 8 and 20 x BOTH
+corners, 0.50 px measured, imported as `PHASE_TOL`), and an explicit "re-measured and unchanged" note
+on the figures that did not move.
+`tests/test-controls-measurement.sh`: it now refuses the old reader's numbers BY NAME (the unchecked
+radius must be 5.00 and must NOT be 5.85; the pill radius must be 5.10), asserts that the two
+checkbox states agree within the instrument's own bound and that the token records the reversal,
+asserts the chevron corner's window and its uncertainty, asserts the UNCHANGED figures as a block,
+and checks that the token's radius uncertainty is not smaller than the reader's imported bound.
+
+**WHAT WAS *NOT* VERIFIED.**
+* **The `muestras/` captures are gitignored and the suite never reads them**, so what the suite can
+  pin is the token, the instrument's self-test and the invariants -- not the pixels. The re-measurement
+  above is reproducible from the transcript's commands but is not a test the suite can re-run on a
+  clone without the user's screenshots.
+* **The chevron radius is a median over four boxes, and the spread is real.** One box's top corners
+  read 8.10 and 7.80 where the others read 9.45-9.56. The token's +-0.9 covers it; nothing in the
+  capture says which box is the odd one.
+* **The pill's 17.0 px is the crossing's figure and the run of ink is 17 rows**, so the two agree
+  here -- but a 16 px control band and a 17 px pill in the same capture is exactly the kind of
+  0.5 px question this repository writes down instead of rounding away. Nothing draws a pill in the
+  System Settings capture, so there is no second sample.
+* **The cell's fill has a gradient** (227 at its top edge, 230 in its middle, 228 at its left edge),
+ which is why its left and right vertical edges carry 8-25 levels against their local background and
+ its corner fit spreads 13.45..14.80. The 14.0 px is the median and the +-0.75 is the reader's
+ bound; the gradient is inside it.
+
+**AND THE ASSERTION FOR THE CROSSING FOUND A SECOND BUG, IN THE PRIMITIVE ITSELF.** 10q's first job
+was to pin the property the moved figures rest on, so the test calls the imported `coverage` DIRECTLY
+and derives the boundary from the crossing's own definition instead of asserting a digit: pixel i
+covers [i, i+1) and coverage is the fraction of it that is ink, so a boundary at x = 3.4 leaves pixel
+3 exactly 60% covered. That call raised. `coverage`'s projection was written as
+`np.sum((p - bg) * v, axis=-1)`, which is right for an (N, 3) colour profile and WRONG for the 1-D
+LUMINANCE form the same docstring promises: for a bare (N,) ramp the only axis IS the pixel axis, so
+the sum collapsed the whole profile to one number, the function returned a 0-d array, and
+`first_crossing` rejected it on `np.where` ("Calling nonzero on 0d arrays is not allowed"). Both
+tools hand it an RGB profile -- `exact_corner_profile` slices the RGB crop, `read_box` and `read_bar`
+pass colour -- which is why the repository was green and this was invisible.
+
+The fix branches on the dimensionality: one number per pixel for 1-D, reduced over the channel axis
+for (N, 3), and the (N, 1) form the geometry tool passes still reduces to one per pixel. Because
+`coverage` is a SHARED primitive, the geometry tool's own figures were re-checked by hand afterwards:
+the app icon still reads **R/S = 0.2500** (six valid rows of seven in `muestras/Untitled3.png`,
+residuals 0.21-0.37 px), which is the figure `tokens/tokens-icon-geometry.toml` carries, and both
+self-tests are unchanged. So the fix moved no published figure; it removed a trap that the next 1-D
+caller would have fallen into.
