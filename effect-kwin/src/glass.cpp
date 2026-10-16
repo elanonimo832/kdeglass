@@ -1190,8 +1190,24 @@ bool MacosGlassEffect::captureBackground(const RenderTarget &renderTarget,
     // the blit writes only the clamped part and the rest is cleared -- so the comparison is
     // against `region`, not against `source`.
     const Rect frameRect = w->frameGeometry().toRect();
+    // THE V AXIS IS BOTTOM-UP, and reading it downwards is what broke the band capture.
+    //
+    // `uvBackground = uBackgroundOffset + vTexCoord * uBackgroundScale` turns a frame coordinate
+    // into a region coordinate, and `vTexCoord` runs bottom-up -- the shader's own distance from the
+    // window's top is `(1 - vTexCoord.y) * uTextureSize.y`, a flip that was measured on screen and
+    // not assumed. So the offset has to measure the frame's BOTTOM from the region's BOTTOM.
+    //
+    // Written the other way round it is harmless while the region is the whole expanded geometry,
+    // whose shadow margins are symmetric here (2 px top against 2 px bottom), so the two origins
+    // differ by 4 px out of 762 and the mapping was verified then. It is fatal for a crop: with the
+    // band (126 px instead of 762) the top-down offset is +0.349 where the bottom-up one is -5.365,
+    // so every band fragment asked for `uv.y = 6.06..6.37`. The texture clamps to its edge, the
+    // frost averages ONE ROW of the backdrop horizontally, and the bar shows that row smeared into
+    // vertical lines -- the user's regression, and the reason reverting the LATER commits changed
+    // nothing: the band capture is the commit that carried it. See measure-capture-map.py.
+    const int frameBottomFromRegionBottom = (region.y() + region.height()) - (frameRect.y() + frameRect.height());
     m_sampleOffset = QVector2D(float(frameRect.x() - region.x()) / region.width(),
-                               float(frameRect.y() - region.y()) / region.height());
+                               float(frameBottomFromRegionBottom) / region.height());
     m_sampleScale = QVector2D(float(frameRect.width()) / region.width(),
                               float(frameRect.height()) / region.height());
     m_lastUse[key] = ++m_useClock;

@@ -58,6 +58,25 @@ afirmar_codigo "and the band stops at the bar plus that reach" "$SOURCE" \
   'frame[.]y[(][)] [+] int[(]std::ceil[(]barHeight[)][)] [+] reach'
 negar "the capture region is never the frame alone" \
   grep -qE 'const Rect region = snapToPixels[(]w->frameGeometry' "$SOURCE"
+# THE MAPPING'S V AXIS IS BOTTOM-UP, and this is where audit 1's band capture broke the effect. The
+# shader reads the window bottom-up -- `topDistance` is `(1 - vTexCoord.y) * height`, and the flip
+# was measured, not assumed -- so the offset that turns a frame coordinate into a region coordinate
+# must measure the frame's BOTTOM from the region's BOTTOM. Written top-down it is harmless while the
+# region is the whole expanded geometry, whose 2 px margins cancel to within 4 px; it is fatal for
+# the band, where every band fragment lands at uv.y 6.35, the texture clamps to one row, and the
+# frost smears that row horizontally. That is the "vertical lines" the user reported, and it is why
+# reverting the LATER commits changed nothing: the band capture itself carried the fault.
+afirmar_codigo "the capture offset reads the v axis bottom-up" "$SOURCE" \
+  '[(]region[.]y[(][)] [+] region[.]height[(][)][)] - [(]frameRect[.]y[(][)] [+] frameRect[.]height[(][)][)]'
+negar "the capture offset is never the top-down form" \
+  grep -qE 'float[(]frameRect[.]y[(][)] - region[.]y[(][)][)] / region[.]height[(][)]' "$SOURCE"
+# The arithmetic itself, on the geometry the effect logs: the band must land INSIDE the region, and
+# the whole geometry must be indifferent to the two origins -- which is exactly why it hid there.
+if python3 "$EF/measure-capture-map.py" --self-test >/dev/null 2>&1; then
+  ok "the capture map lands inside the region for the band, and is origin-blind for the whole"
+else
+  fallo "the capture map's known-geometry cases disagree: $(python3 "$EF/measure-capture-map.py" --self-test 2>&1 | tr '\n' ' ')"
+fi
 # The composite happens in the shader, so there is no second quad that could be
 # drawn under the window (HANDOFF section 5, risk 4).
 afirmar_codigo "the shader samples the captured background" "$SOURCE" 'texture[(]background'
