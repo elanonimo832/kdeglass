@@ -89,6 +89,35 @@ leer_clave() {
   ' "$ruta"
 }
 
+# Does `<path>` have `<group>/<key>`? Exit code only, and WITHOUT the kdedefaults fallback that
+# kreadconfig6 merges in: the question here is what a FILE contains, not what KDE would resolve.
+clave_en_fichero() { # clave_en_fichero <path> <group> <key>
+  awk -v g="$2" -v k="$3" '
+    { linea = $0; sub(/\r$/, "", linea) }
+    /^\[/ { sec = linea; sub(/^\[/, "", sec); sub(/\]$/, "", sec); dentro = (sec == g); next }
+    dentro && index(linea, k"=") == 1 { hallado = 1; exit }
+    END { exit !hallado }
+  ' "$1" 2>/dev/null
+}
+
+# Back up a config file ONCE per run and record it in the manifest, so rollback undoes it. The
+# manifest is the only record of what was touched: a write that is not in it is a write that
+# "full revert" leaves behind, and this project has already paid for one of those.
+respaldar_una_vez() { # respaldar_una_vez <absolute path>
+  local ruta="$1" base
+  base="$(basename "$ruta")"
+  awk -F'\t' -v r="$ruta" '$1 == r { hallado = 1 } END { exit !hallado }' "$MANIFIESTO" 2>/dev/null && return 0
+  if [ -f "$ruta" ]; then
+    if cp -a "$ruta" "$BACKUPS/$base.claves.bak"; then
+      printf '%s\t%s\t%s\n' "$ruta" "modificado" "$BACKUPS/$base.claves.bak" >> "$MANIFIESTO"
+      return 0
+    fi
+    return 1
+  fi
+  printf '%s\t%s\t%s\n' "$ruta" "creado" "-" >> "$MANIFIESTO"
+  return 0
+}
+
 # --------------------------------------------------------------------------
 # Install map: source in the repo -> destination on the system
 # --------------------------------------------------------------------------
@@ -317,6 +346,61 @@ cmd_aplicar() {
   else
     aviso "kwriteconfig6 not usable here: activate the scheme by hand in System Settings"
     gris "  (kdeglobals has not been touched: there is nothing to revert there)"
+  fi
+
+  echo
+  # ------------------------------------------------------------------
+  # WHAT `plasma-apply-lookandfeel` DROPS. MEASURED, not assumed.
+  #
+  # The tool writes the theme's `defaults` into `$XDG_CONFIG_HOME/kdedefaults/<file>` -- the layer
+  # KDE reads as a FALLBACK -- and it silently DROPS the keys that do not fit there. Measured on
+  # this Plasma by applying into an isolated XDG_CONFIG_HOME and grepping file by file: the SEVEN
+  # font keys (`[General] font`, `menuFont`, `toolBarFont`, `smallestReadableFont`, `fixed`, and
+  # `[WM] activeFont`/`inactiveFont`) and `[kwinrc][Plugins] macosglass2Enabled` land NOWHERE. The
+  # package promised a type scale and an effect switch, the tool reported success, and neither
+  # happened -- and a default that never reaches the user's config is a key that does not exist,
+  # because the user's own `[WM] activeFont` would win over it anyway.
+  #
+  # So the generated `defaults` is read HERE -- the one source of truth, the same file the map
+  # installs, never a copy of its values that could drift -- and only the keys the tool did not
+  # carry are written with kwriteconfig6, which is what the Fonts KCM does when a font is changed
+  # by hand.
+  # ------------------------------------------------------------------
+  local DEFS="$XDG_DATA_HOME/plasma/look-and-feel/KdeMacOS/contents/defaults"
+  if [ -f "$DEFS" ] && command -v kwriteconfig6 >/dev/null 2>&1 && [ "$KRECONFIG_UTIL" != "cuelga" ]; then
+    local fichero="" grupo="" clave="" valor="" escritas=0
+    while IFS= read -r linea || [ -n "$linea" ]; do
+      linea="${linea%$'\r'}"
+      case "$linea" in
+        \[*\]\[*\]*)   # [file][group]: the shape a look-and-feel `defaults` uses
+          fichero="${linea#\[}"; fichero="${fichero%%]*}"
+          grupo="${linea#*\]\[}"; grupo="${grupo%%]*}"
+          continue ;;
+      esac
+      case "$linea" in
+        *=*) clave="${linea%%=*}"; valor="${linea#*=}" ;;
+        *) continue ;;
+      esac
+      [ -n "$fichero" ] && [ -n "$grupo" ] && [ -n "$clave" ] || continue
+      # A key present in the kdedefaults layer was carried by the tool; a key that is not there
+      # was dropped. With no layer at all (the user has not run the tool yet) every key is
+      # written, which is what applying the theme means.
+      if [ -f "$XDG_CONFIG_HOME/kdedefaults/$fichero" ] \
+         && clave_en_fichero "$XDG_CONFIG_HOME/kdedefaults/$fichero" "$grupo" "$clave"; then
+        continue
+      fi
+      respaldar_una_vez "$XDG_CONFIG_HOME/$fichero" || { aviso "could not back up $fichero: left unwritten"; continue; }
+      if timeout 5 kwriteconfig6 --file "$fichero" --group "$grupo" --key "$clave" "$valor" 2>/dev/null; then
+        escritas=$((escritas+1))
+      else
+        aviso "kwriteconfig6 did not accept $fichero [$grupo] $clave"
+      fi
+    done < "$DEFS"
+    if [ "$escritas" -gt 0 ]; then
+      ok "$escritas key(s) the look-and-feel tool drops applied: the fonts, and the effect switch"
+    fi
+  else
+    aviso "could not read $DEFS or kwriteconfig6 is not usable: apply the fonts by hand"
   fi
 
   echo
