@@ -66,6 +66,47 @@ t = tomllib.load(open("'"$TOKEN"'", "rb"))
 app = float(t["measure"]["radius_ratio"]); folder = float(t["measure"]["folder"]["radius_ratio"])
 sys.exit(0 if app / folder > 3.0 else 1)'
 
+# 3c. THE THEME THE USER ALREADY RUNS. M5 left an ERRAND: the measured macOS radius cannot be applied
+# because the global theme points at Breeze, and an icon theme is not a milestone of this ROADMAP. The
+# user's desktop already draws its folders with `MacTahoe-light`, so the question became whether that
+# theme CARRIES the geometry -- if it did, there would be nothing to apply. It does not, and the gap
+# is what makes the errand actionable. These assertions were written BEFORE the token had the section
+# and were watched fail: without the section the file read as "the value was measured and that is all".
+afirmar_contiene "the token carries the INSTALLED theme's measurement" "$TOKEN" '^\[measure\.installed_theme\]'
+afirmar_contiene "it names the third-party theme it read" "$TOKEN" 'MacTahoe'
+afirmar_contiene "it names the SVG the desktop's folders are drawn from" "$TOKEN" 'places/scalable/folder\.svg'
+# It is read IN PLACE. This repository does not version another author's artwork, exactly as it does
+# not version the user's screenshots: what travels is the number.
+afirmar_contiene "and reads it IN PLACE, never from a copy in this repository" "$TOKEN" '\.local/share/icons'
+afirmar "the installed theme's ratio is inside the range its method supports" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+r = float(t["measure"]["installed_theme"]["radius_ratio"])
+sys.exit(0 if 0.05 <= r <= 0.10 else 1)'
+# THE VERDICT, as a property and not as a sentence: the installed theme's corner must sit OUTSIDE the
+# macOS figure's own window. If a later edit makes the token say the two coincide, this fails -- and
+# the difference is the whole finding, so it must not be able to evaporate.
+afirmar "the installed theme's corner is OUTSIDE the macOS figure's window" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+inst = float(t["measure"]["installed_theme"]["radius_ratio"])
+mac = float(t["measure"]["folder"]["radius_ratio"])
+tol = float(t["measure"]["folder"]["uncertainty"])
+sys.exit(0 if inst > mac + tol else 1)'
+# AND THE RASTER'S OWN TRAP IS KEPT VISIBLE. The tool reads this corner LOW at a literal 120 px (the
+# corner is only ~8 px, the reader's reference edge is an integer pixel and the first row is 62%
+# covered), so the token carries that read as a SEPARATE key. A later edit cannot quietly promote the
+# raster's 120 px number to the value, nor hide it.
+afirmar_contiene "the token keeps the literal 120 px raster read apart" "$TOKEN" 'radius_ratio_at_120'
+afirmar "and it is LOWER than the value, as a raster artifact and not a second answer" \
+    python3 -c '
+import sys, tomllib
+t = tomllib.load(open("'"$TOKEN"'", "rb"))
+g = t["measure"]["installed_theme"]
+sys.exit(0 if float(g["radius_ratio_at_120"]) < float(g["radius_ratio"]) else 1)'
+
 # The value is in the range the measurement supports. This is a WINDOW on purpose: a token that
 # claimed a single confident number at 1 px resolution would be lying about its own precision.
 afirmar "the measured ratio is inside the range the captures support" \

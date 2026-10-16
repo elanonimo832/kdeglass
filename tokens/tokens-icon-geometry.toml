@@ -21,6 +21,11 @@
 #     below, and it is NOT the app figure: it came out about FOUR times tighter. That is exactly why
 #     it had to be measured rather than assumed -- and the earlier version of this file declared it
 #     "not verifiable" precisely because assuming it was the only alternative it had.
+#   * ALSO MEASURED, 2026-10-16: the folder corner of the ICON THEME THE USER ALREADY RUNS
+#     (`MacTahoe-light`), because M5 left an ERRAND -- applying the macOS figure needs a theme of our
+#     own, and the user already has one. It is NOT the macOS figure and it is not our work either:
+#     see `[measure.installed_theme]` below for the gap, and for why the theme's files are read in
+#     place and never copied into this repository.
 #   * NOT MEASURABLE AT THIS SIZE, and this is the honest half: the corner FAMILY. Drawing the
 #     kit's own corner at `smoothing = 0.6` and fitting the profile that comes back gives a CIRCLE
 #     fit with a 0.29 px residual (`--self-test` prints it), because the two constructions differ
@@ -101,6 +106,68 @@ assumption would have been wrong."""
 bottom_corner = """The BOTTOM-right corner reads ~4.1 px against the top-right's 5.9, and the
 difference is the icon's shadow and taper rather than a second radius: they darken the body's lower
 edge, which moves the 0.5 crossing. The top-right is the clean read and the one this token uses."""
+
+# ------------------------------------------------------------------------------------------------
+# THE FOLDER THE USER'S DESKTOP ALREADY DRAWS. This is NOT macOS and it is NOT our work: MacTahoe-light
+# is a third-party icon theme installed under `~/.local/share/icons/`, and its
+# `places/scalable/folder.svg` is the file that draws the desktop's folders at every size at or above
+# 32 px. The theme's files are READ IN PLACE and never copied, versioned or redistributed -- what is
+# recorded here is the MEASUREMENT, exactly as with the captures in `muestras/`.
+#
+# WHY IT IS HERE (M5's errand). M5 measured the macOS folder's body corner and could not APPLY it: the
+# generated global theme points at Breeze (`output/look-and-feel/KdeMacOS/contents/defaults`) and an
+# icon theme is not a milestone of this ROADMAP. The user already runs a macOS-style icon theme, so
+# the errand's first question was whether that theme already CARRIES the geometry -- if it did, there
+# would be nothing to apply. It does NOT, and the gap is now a number with a destination.
+# ------------------------------------------------------------------------------------------------
+[measure.installed_theme]
+# THE VERDICT IS IN THE COMPARISON, not in the digit: 0.075 against macOS's 0.049 +- 0.01 is about
+# 1.5x ROUNDER and it sits OUTSIDE the reference's own window. At the reference's 120 px folder that
+# is a radius of ~9 px where macOS draws 5.85 px -- about 3 px too round.
+radius_ratio = 0.075
+# The SAME window as the macOS figure, on purpose: two numbers compared through different rulers are
+# not compared. It is a round-up of a method whose 10x raster agrees with the SVG's own attributes to
+# ~0.002, and rounding a token's precision UP is this file's rule.
+uncertainty = 0.01
+radius_px = 8.1            # the visible body corner, on a 120 px canvas
+side_px = 108.8            # the body's width inside that canvas: the SVG leaves a ~5% margin
+radius_px_body120 = 9.0    # ... and with the body scaled to the reference's 120 px, to compare like
+corner = "top-right"       # for like with the 5.85 px macOS figure: the TAB covers the top-left
+# WHAT THE TOOL READS ON A LITERAL 120 px RASTER IS LOWER, and it is kept rather than quietly dropped:
+# the corner is only ~8 px tall, `corner_profile` takes its reference edge as an INTEGER pixel and the
+# corner's first row is only 62% covered, so the fit lands ~12% short. The geometry does not move with
+# the raster: the SVG's own arc radius and a 10x render both say 8.1 px.
+radius_ratio_at_120 = 0.066
+date = "2026-10-16"
+source = "~/.local/share/icons/MacTahoe-light/places/scalable/folder.svg"
+theme = "MacTahoe-light (third-party; its places/ is a symlink into the sibling theme MacTahoe/)"
+method = "rsvg-convert -w 120 -h 120 (and -w 1200 for the 10x check), composed on white, then tools/measure-icon-geometry.py --image <canvas> --grid 76,160 --corner tr --polarity dark --threshold 220 --radius-min 2 --radius-max 20 --radius-step 0.05 --rows 6"
+
+[measure.installed_theme.notes]
+which_file = """`places/scalable/folder.svg`, and the choice is a measurement of its own: the theme's
+`places/16`, `places/22` and `places/24` carry a DIFFERENT folder -- a monochrome Breeze-style shape
+whose path is `ColorScheme-Text`, not the blue macOS one -- so the theme is not even consistent with
+itself below 32 px. `places/scalable` is the only macOS-style folder, and it is what a desktop icon
+size resolves to. The blue shape is TWO pieces (a back shape carrying the tab, and a front panel), and
+only ONE corner is visible at the top-right: the front panel's own corner lies inside the back shape's
+right edge, so it is an INTERNAL edge that this instrument, which reads the silhouette against the
+background, cannot see at all."""
+
+the_traps = """Three, and the first two each produced a wrong number before they were caught.
+(1) THE RADIUS GRID, which is M5's own trap arriving from a new direction: the CLI's default floor is
+12 px and this corner is ~8, so the fit has to be given `--radius-min 2`.
+(2) THE THRESHOLD, and this one is the theme's own artwork: the theme draws a white highlight rim
+along the top edge, which brightens the corner's first row above 210, so `find_icons` skips it, the
+profile starts one row into the corner, and the SAME file answers R = 4.95 px. At 220 the row is caught
+and it answers 7.30 px. A 47% swing from a threshold is not a measurement, which is why the value
+above is not the 120 px raster's.
+(3) POLARITY, checked rather than assumed: dark-on-white gives R/S 0.0664 and light-on-dark 0.0659,
+the same within the grid."""
+
+what_it_does_not_say = """It does NOT say the corner FAMILY differs: at an 8 px radius a circle, the
+kit's construction at any smoothing and a superellipse fit identically, exactly as `[measure.folder]`
+records for macOS's. It is a radius. It also says nothing about the theme's other icons: one folder
+shape was measured, the one a desktop folder size resolves to."""
 
 [not_verifiable]
 folder_icon = """CLOSED on 2026-10-15 by `muestras/Untitled6.png`. The folder's body radius IS
