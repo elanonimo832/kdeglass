@@ -35,6 +35,16 @@ lineedit-focused progressbar listview-selected tableheader"
 # must add it and say so.
 SIN_REFERENCIA="scrollbar tabbar menubar progressbar listview-selected tableheader"
 
+# THE PRIMITIVES THIS SLICE MOVED, and the list is the contract exactly like the one above: slice 2
+# is the push button, so these three rows -- and ONLY these three -- are allowed to differ from the
+# base. A fourth row moving means the slice touched a control nobody measured, which is the failure
+# this whole instrument exists to make visible.
+CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled"
+
+es_cambiado() { # es_cambiado <primitivo>
+  case " $CAMBIADOS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
+
 echo "  -- the instrument exists and asks Qt the questions a style decision needs --"
 afirmar_existe "the gallery source exists" "$FUENTE"
 # The three families of metric the plan names. A gallery that rendered widgets but asked Qt nothing
@@ -60,9 +70,11 @@ if [ -x "$GALERIA" ]; then
   salida="$(QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$ST/build" timeout 120 "$GALERIA" 2>&1)"
   rc=$?
 fi
-# A non-zero exit means the tool itself is asserting the no-op property and it no longer holds: that
-# is slice 2's signal to replace this expectation WITH its measurement, not a reason to weaken it.
-afirmar_igual "the gallery exits cleanly" "0" "$rc"
+# The tool ASSERTS the delegation property and exits 5 the moment a primitive stops being a no-op.
+# Slice 2 is that moment, so "5 with exactly the declared set" is the EXPECTED answer now -- not a
+# reason to weaken the check: the tool still reports which and how many, and the rows below pin them.
+afirmar_igual "the gallery reports that a primitive moved (exit 5)" "5" "$rc"
+afirmar_contiene "and it counts exactly the declared ones" <(printf '%s\n' "$salida") "^CHANGED: 3\$"
 
 echo "  -- every declared primitive is rendered, and each one is a real render --"
 for w in $WIDGETS; do
@@ -81,16 +93,32 @@ for w in $WIDGETS; do
   else
     fallo "'$w' reported no painted pixels: $linea"
   fi
-  # 2. The per-widget difference. Zero today; the number the next slice has to move.
-  afirmar_igual "'$w' differs from the base by ZERO pixels" "0" "${dif:-?}"
+  # 2. The per-widget difference. Slice 2 moved the push button on purpose, so THAT row must have
+  #    moved and every other row must still be zero. A diff of -1 is the tool saying the two renders
+  #    were not the same size, which is not a difference anybody measured and is caught here.
+  if es_cambiado "$w"; then
+    if [ -n "$dif" ] && [ "$dif" -gt 0 ] 2>/dev/null; then
+      ok "'$w' moved by $dif pixels, which is slice 2's declared change"
+    else
+      fallo "'$w' is declared as changed by this slice but differs by '${dif:-?}'"
+    fi
+  else
+    afirmar_igual "'$w' still differs from the base by ZERO pixels" "0" "${dif:-?}"
+  fi
 done
 
 echo "  -- and Qt's metrics per primitive are on the record --"
 for w in $WIDGETS; do
   afirmar_contiene "'$w' reports its metrics" <(printf '%s\n' "$salida") "^METRIC ${w} "
-  # And the metrics are ALSO a no-op today: the skeleton delegates, so every number ours answers is
-  # the base's. A primitive whose metrics move while its pixels do not is a change nobody measured.
-  afirmar_contiene "'$w' answers the SAME metrics as the base" <(printf '%s\n' "$salida") "^METRICDIFF ${w} 0\$"
+  # And the metrics are a no-op for every control this slice did NOT touch: a primitive whose metrics
+  # move while its pixels do not is a change nobody measured. The button's are expected to move, and
+  # the exact values it answers are asserted against the token below, not merely counted.
+  if es_cambiado "$w"; then
+    negar "'$w' is declared changed, so its metrics MUST have moved" \
+      grep -qE "^METRICDIFF ${w} 0\$" <(printf '%s\n' "$salida")
+  else
+    afirmar_contiene "'$w' answers the SAME metrics as the base" <(printf '%s\n' "$salida") "^METRICDIFF ${w} 0\$"
+  fi
 done
 # The metrics are not just counted, they have four families: the "before" the next slice needs.
 afirmar_contiene "the size hints are reported" <(printf '%s\n' "$salida") '^METRIC \S+ sizeHint='
@@ -102,6 +130,31 @@ afirmar_contiene "the sub-control rectangles are reported" <(printf '%s\n' "$sal
 # rectangle at all.
 afirmar_contiene "the sub-element rectangles are reported too (buttons are not complex controls)" \
   <(printf '%s\n' "$salida") '^METRIC \S+ subElementRect\(SE_'
+
+echo "  -- the numbers that moved are the token's, and the token is read from the file --"
+# The reference is read HERE, from the same collection the rest of the project uses, so this cannot
+# drift into a constant somebody remembered: the assertion compares what the STYLE ANSWERS against
+# what the KIT SAYS, and both come out of the same file. A slice that changed a button to 22 px
+# because it looked better fails here, and it fails with the token's number in the message.
+altura_medio="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-sizes.toml','rb'))['global']['height']['medium'])" 2>/dev/null)"
+# The reference itself is asserted to exist: a test that reads a missing value and compares "" with
+# "" would pass over a token that had been deleted.
+afirmar_contiene "the token [global] height.medium is a number (the assertion needs a reference, not a hole)" \
+  <(printf '%s\n' "$altura_medio") '^[0-9][0-9]*$'
+afirmar_contiene "our push button's height IS that token" \
+  <(printf '%s\n' "$salida") "^OURS pushbutton sizeHint=[0-9]+x${altura_medio}\$"
+afirmar_contiene "and its sizeFromContents answers the same height" \
+  <(printf '%s\n' "$salida") "^OURS pushbutton sizeFromContents\(CT_PushButton\)=[0-9]+x${altura_medio}\$"
+# ONLY the declared primitives report a moved value. The OURS lines ARE the moved metrics, so their
+# count is the contract's arithmetic (3 buttons x 2 metrics), not a number to keep in step by hand.
+afirmar_igual "only the declared primitives report a moved value" "6" "$(grep -cE '^OURS ' <<<"$salida")"
+for w in $WIDGETS; do
+  if es_cambiado "$w"; then
+    afirmar_contiene "'$w' reports the value it moved to" <(printf '%s\n' "$salida") "^OURS ${w} "
+  else
+    negar "'$w' reports no moved value" grep -qE "^OURS ${w} " <(printf '%s\n' "$salida")
+  fi
+done
 
 echo "  -- every primitive is backed by a reference, or declared to have none --"
 # The reference lives in the tokens the project already extracted; the instrument does not read TOML
@@ -161,10 +214,15 @@ fi
 echo "  -- the instrument can write the baseline (a temp file, never the repository) --"
 if [ -x "$GALERIA" ]; then
   tmpbase="$(mktemp)"
-  if QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$ST/build" timeout 120 "$GALERIA" --baseline "$tmpbase" >/dev/null 2>&1; then
-    ok "the gallery writes a baseline file"
+  QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$ST/build" timeout 120 "$GALERIA" --baseline "$tmpbase" >/dev/null 2>&1
+  rcbase=$?
+  # EXIT 5 IS THE TOOL'S OWN REPORT, not a failure: it means "a primitive moved", which is true now,
+  # and the file is still written. Calling that a failure would force the tool to stop reporting the
+  # very thing this slice is here to measure.
+  if [ "$rcbase" = "0" ] || [ "$rcbase" = "5" ]; then
+    ok "the gallery writes a baseline file (exit $rcbase is its own report)"
   else
-    fallo "the gallery could not write a baseline"
+    fallo "the gallery could not write a baseline (exit $rcbase)"
   fi
   faltan_base=""
   for w in $WIDGETS; do
@@ -178,10 +236,12 @@ if [ -x "$GALERIA" ]; then
   rm -f "$tmpbase"
   # And the drawing: OUR gallery, not a screenshot of anybody's desktop.
   tmpimg="$(mktemp -u).png"
-  if QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$ST/build" timeout 120 "$GALERIA" --render "$tmpimg" >/dev/null 2>&1 && [ -s "$tmpimg" ]; then
+  QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$ST/build" timeout 120 "$GALERIA" --render "$tmpimg" >/dev/null 2>&1
+  rcimg=$?
+  if { [ "$rcimg" = "0" ] || [ "$rcimg" = "5" ]; } && [ -s "$tmpimg" ]; then
     ok "the gallery can draw itself to a PNG (the evidence is ours)"
   else
-    fallo "the gallery could not render its PNG"
+    fallo "the gallery could not render its PNG (exit $rcimg)"
   fi
   rm -f "$tmpimg"
 fi

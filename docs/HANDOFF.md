@@ -2268,3 +2268,50 @@ is the name; the fix was to correct the expectation, not to rename working code 
 - No Apple material in version control. SF Pro is not redistributable; the project
   uses Inter (SIL OFL). The original brief stays in Spanish as `BRIEF-ORIGINAL.md`,
   sha256 `1f95c5239a3af3ef99614ff1104363a6e2c7799b4e1929d5eeba1053497bf5e1`.
+
+## 10j. M6, slice 2: the push button, and the three facts of Qt that decided how
+
+SLICE 2 redraws ONE control -- the push button -- and the contract has two halves: the button MUST
+move, and the other sixteen primitives MUST NOT move a pixel. `tests/test-style-gallery.sh` asserts
+both, and it asserts the button's new height against the token READ FROM THE FILE, not against a
+number remembered here.
+
+**The reference, with its provenance.**
+`tokens/tokens-sizes.toml:88` `[global] height.medium = 24`, `:27` `[button] radius.medium = 6`,
+`:24` `[button] padding_horizontal.medium = 16`. Mode `medium`, the one the typography slice took
+too. What the base answered: `sizeHint=84x34` -- a button **42% taller** than the kit's. Ours:
+`104x24`, where the width is the content plus twice the token's padding (84 + 2x(16-6)).
+
+**Three facts of Qt 6 that changed the design, each read from the header AFTER the compiler refused
+a guess:**
+1. There is NO `PE_PushButtonBevel`. The bevel is `CE_PushButtonBevel`, a CONTROL element
+   (`qstyle.h:172`); only `SE_PushButtonBevel` is a sub-element.
+2. The bevel cannot be intercepted at the control element either: `QProxyStyle` chains to a SEPARATE
+   base-style object, whose own `drawControl` calls dispatch to ITSELF, not to the proxy. The hook is
+   therefore the whole `CE_PushButton`, and the label and the state decoration still come from the
+   base.
+3. `PM_ButtonMargin` is what the base adds around the text (6 px here). Sizing the button as "the
+   content plus twice the token" WITHOUT subtracting it would have made the padding the base's plus
+   ours -- a number nobody chose and nobody can point at a token for.
+
+**The corner is a circular arc, and that is a measurement, not a preference.** The plan left open
+whether a control's corner should reuse the window's clothoid. At a 6 px radius the two families
+differ by less than the antialiasing: the kit's own corner at `smoothing = 0.6` fits an arc to 0.29 px
+at 96 px, and at 6 px the single row that carries the difference is sub-pixel. A Fresnel integral in
+the paint path of every button on the desktop to move a corner less than a pixel is not a trade this
+project makes, so the arc is used and declared.
+
+**The instrument lied twice before it told the truth, and both times the OUTPUT said so:**
+* `DIFF -1` for the button. `differingPixels` returns -1 when the two images differ in SIZE, and they
+  did: the canvas was sized from `sizeHint` -- the very number this slice changed (34 -> 24) -- so the
+  two renders were 140x34 and 140x30, and the answer was "not comparable" where the question was "how
+  different". The canvas is now the BASE's for BOTH passes, and the size change stays on the record as
+  `METRICDIFF`.
+* The baseline table wrote the BASE's metrics only, which would have shown this slice's button as
+  34 px **after** it had been changed to 24. It now writes OURS as well, and that file is the
+  "before" slice 3 will diff against.
+
+**What is NOT verified:** the appearance in a real session. The gallery renders offscreen; the size
+change is visible in the metrics and in the gallery's own image, but a button that is 24 px tall
+inside EVERY dialog is a layout change only a session shows. `sizeHint` is the layout of every
+dialog, and that risk was written down before the change, not after it.

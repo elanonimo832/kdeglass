@@ -1,19 +1,36 @@
-# style-kde-macos — the M6 QStyle (first slice: a skeleton that compiles, installs and is selectable)
+# style-kde-macos — the M6 QStyle (slices 0-2: the skeleton, its instrument, and the push button)
 
-A Qt 6 widget style plugin that Qt can select by the key **`KdeMacOS`**. It is the first slice of
-M6 in [`../docs/ROADMAP.md`](../docs/ROADMAP.md): a QStyle of our own so native Qt applications are
+A Qt 6 widget style plugin that Qt can select by the key **`KdeMacOS`**. It is M6 in
+[`../docs/ROADMAP.md`](../docs/ROADMAP.md): a QStyle of our own so native Qt applications are
 drawn like macOS without depending on Kvantum. The full plan, with the decisions, the measurements
 behind them and the slices that follow, is [`../docs/M6-QSTYLE-PLAN.md`](../docs/M6-QSTYLE-PLAN.md).
 
-**What this slice is NOT:** it does not draw a single pixel of its own. The style is a
-`QProxyStyle` that chains to the base style the desktop was already using and overrides **no**
-primitive. That is not an unfinished job, it is the property that makes the slice safe: M6's done
-criterion asks for a style that is "selectable **without breaking applications**", and the only way
-to be sure of that before the primitives exist is for selecting it to change nothing.
+**What is drawn, and what is still delegated.** The style is a `QProxyStyle` that chains to the base
+style the desktop was already using, and it overrides exactly TWO things: `sizeFromContents` and
+`drawControl`, both for the push button (slice 2). Everything else -- sixteen primitives measured by
+the gallery -- is still the base's, pixel for pixel. That is deliberate: M6's done criterion asks for
+a style that is "selectable **without breaking applications**", and each slice keeps that true by
+moving ONE control and proving the rest did not budge.
 
-`tests/test-style.sh` asserts that absence, and `tests/style-probe.cpp` proves it by rendering the
-same widget twice — once under the base style, once under ours — and comparing the images pixel by
-pixel. Measured here: **`DIFF: 0`**.
+`tests/test-style.sh` asserts which overrides exist (and that no unmeasured one appears), and
+`tests/style-probe.cpp` proves the delegation property by rendering the same widget twice -- once
+under the base style, once under ours -- and comparing the images pixel by pixel. Measured here:
+**`DIFF: 0`**, on a control no slice has touched yet.
+
+## Slice 2: the push button
+
+The first control that moved, and the numbers are the kit's own, not taste:
+
+| what | the kit says | where | the base answered | ours |
+|---|---|---|---|---|
+| height | **24** | `tokens/tokens-sizes.toml:88` `[global] height.medium` | 34 | **24** |
+| horizontal padding | **16** | `:24` `[button] padding_horizontal.medium` | 6 (`PM_ButtonMargin`) | **16** |
+| corner radius | **6** | `:27` `[button] radius.medium` | -- | **6** |
+
+The corner is a plain **arc** rather than the window's clothoid, and that is a measurement: at 6 px
+the two families differ by less than the antialiasing (0.29 px at 96 px, and sub-pixel at 6 px), so a
+Fresnel integral in the paint path of every button would buy less than a pixel. `../docs/HANDOFF.md`
+§10j has the rest, including the two Qt 6 facts that decided the hook.
 
 ## The primitive instrument (slice 1)
 
@@ -30,12 +47,15 @@ QT_QPA_PLATFORM=offscreen QT_PLUGIN_PATH="$PWD/build" ./build/bin/primitive-gall
 It renders nineteen controls under the base style and under ours and reports, **per widget**, the
 pixel difference between the two, what Qt answers for that control (`sizeHint`, `pixelMetric`,
 `sizeFromContents`, `subControlRect`, `subElementRect`) and whether our answers differ from the
-base's. Today every number is zero, because this style still delegates every primitive: that zero is
-the line the next slice has to move. `--render` draws the two panels side by side (our own drawing,
-never a screenshot) and `--baseline` writes the "before" table.
+base's. After slice 2 exactly three rows differ -- the three push buttons -- and the other sixteen
+are still zero, which is the assertion that separates "the slice changed the button" from "the slice
+broke the style". `--render` draws the two panels side by side (our own drawing, never a screenshot)
+and `--baseline` writes the "before" table, with OUR answers in it: a table of the base alone would
+have shown the button as 34 px after it had already been changed to 24.
 
 A difference that is not zero makes the tool **exit non-zero on purpose**: it means a primitive
-changed, and a primitive changes only with its measurement in the test that goes with it.
+changed, and a primitive changes only with its measurement in the test that goes with it -- so the
+suite accepts exit 5 and asserts the exact set of rows behind it.
 
 ## Build
 

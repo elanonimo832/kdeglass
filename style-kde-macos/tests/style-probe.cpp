@@ -22,7 +22,6 @@
 #include <QColor>
 #include <QImage>
 #include <QPixmap>
-#include <QPushButton>
 #include <QStyle>
 #include <QStyleFactory>
 #include <QVariant>
@@ -40,8 +39,12 @@ QImage renderUnder(QStyle *style)
 
     QWidget window;
     window.resize(220, 90);
-    QPushButton button(QStringLiteral("OK"), &window);
-    button.setGeometry(10, 10, 90, 30);
+    // THE WIDGET IN THIS WINDOW IS ONE *NO* SLICE HAS TOUCHED, and that is what makes the probe's
+    // claim still testable: it asserts that delegating every primitive is a no-op, and a control a
+    // slice has already redrawn cannot test that. Slice 2 changed the push button, so the button
+    // MOVED to `primitive-gallery.cpp` -- where it is measured per widget and against its token --
+    // and this probe is left on the checkbox, where "identical to the base" is still exactly true.
+    // The button did not simply disappear: where it went is this comment.
     QCheckBox check(QStringLiteral("Check"), &window);
     check.setGeometry(10, 50, 130, 25);
 

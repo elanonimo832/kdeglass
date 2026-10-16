@@ -851,16 +851,26 @@ int main(int argc, char **argv)
     QHash<QString, QImage> imageOurs;
     long changedWidgets = 0;
 
+    // THE CANVAS IS ONE SIZE FOR BOTH PASSES, and it is the BASE's. Slice 2 changed a sizeHint --
+    // the button's height, 34 -> 24 -- and sizing each canvas from the style UNDER TEST gave the two
+    // renders different heights, so `differingPixels` answered -1: "not comparable" where the
+    // question is "how different". The size change is already on the record as METRICDIFF; the
+    // pixels have to be judged on ONE canvas or the change hides the measurement that justified it.
+    QHash<QString, QSize> canvasSizes;
+
     for (int pass = 0; pass < 2; ++pass) {
         std::unique_ptr<QStyle> style(QStyleFactory::create(
             pass == 0 ? baseKey : QStringLiteral("KdeMacOS")));
         QApplication::setStyle(style.release());
         for (const Primitive &p : primitives()) {
-            const QSize size = sizeFor(p);
+            const QString key = QLatin1String(p.name);
+            if (pass == 0) {
+                canvasSizes.insert(key, sizeFor(p));
+            }
+            const QSize size = canvasSizes.value(key);
             const QImage img = renderOne(p.make, size);
             // What the CONTROL drew, over an empty widget of its own size -- see renderBlank above.
             const long painted = differingPixels(img, renderBlank(size));
-            const QString key = QLatin1String(p.name);
             if (pass == 0) {
                 imageBase.insert(key, img);
                 paintedBase.insert(key, painted);
@@ -897,6 +907,15 @@ int main(int argc, char **argv)
         for (const QString &line : metrics[i].base) {
             std::printf("METRIC %s %s\n", p.name, line.toUtf8().constData());
         }
+        // THE VALUE THAT MOVED IS REPORTED, not only counted. `METRICDIFF 2` says two metrics
+        // changed; a slice whose justification is a token ("the height is 24") has to let the test
+        // READ that 24 here, or the test would be asserting a number it cannot see -- and the next
+        // slice would have no "before" to diff against either.
+        for (int k = 0; k < metrics[i].ours.size() && k < metrics[i].base.size(); ++k) {
+            if (metrics[i].ours.at(k) != metrics[i].base.at(k)) {
+                std::printf("OURS %s %s\n", p.name, metrics[i].ours.at(k).toUtf8().constData());
+            }
+        }
         std::printf("METRICDIFF %s %d\n", p.name, metrics[i].differing);
     }
 
@@ -906,13 +925,22 @@ int main(int argc, char **argv)
             std::printf("BASELINE: could not write %s\n", baselinePath.toUtf8().constData());
             return 8;
         }
-        std::fprintf(f, "# M6 slice 1: the BASE style's metrics per primitive, the \"before\" every\n");
-        std::fprintf(f, "# following slice diffs against. Written by primitive-gallery --baseline.\n");
+        std::fprintf(f, "# M6: Qt's metrics per primitive. BASE is the style this one chains to; OURS is\n");
+        std::fprintf(f, "# what THIS style answers today, and it is the \"before\" the next slice diffs\n");
+        std::fprintf(f, "# against -- a table of the base alone would have shown slice 2's button as 34 px\n");
+        std::fprintf(f, "# after it had already been changed to 24. Written by --baseline.\n");
         std::fprintf(f, "BASE %s\n", baseKey.toUtf8().constData());
         for (size_t i = 0; i < primitives().size(); ++i) {
             for (const QString &line : metrics[i].base) {
                 std::fprintf(f, "METRIC %s %s\n", primitives()[i].name, line.toUtf8().constData());
             }
+            for (int k = 0; k < metrics[i].ours.size() && k < metrics[i].base.size(); ++k) {
+                if (metrics[i].ours.at(k) != metrics[i].base.at(k)) {
+                    std::fprintf(f, "OURS %s %s\n", primitives()[i].name,
+                                 metrics[i].ours.at(k).toUtf8().constData());
+                }
+            }
+            std::fprintf(f, "METRICDIFF %s %d\n", primitives()[i].name, metrics[i].differing);
         }
         std::fclose(f);
     }
@@ -934,7 +962,7 @@ int main(int argc, char **argv)
         painter.drawText(QRect(0, 0, panelW, titleH), Qt::AlignCenter,
                          QStringLiteral("base: %1").arg(baseKey));
         painter.drawText(QRect(panelW, 0, panelW, titleH), Qt::AlignCenter,
-                         QStringLiteral("ours: KdeMacOS (every primitive delegated)"));
+                         QStringLiteral("ours: KdeMacOS (slice 2: the push button; the rest delegated)"));
         for (size_t i = 0; i < primitives().size(); ++i) {
             const Primitive &p = primitives()[i];
             const QString key = QLatin1String(p.name);

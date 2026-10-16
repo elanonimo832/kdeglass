@@ -180,6 +180,21 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
       (radius 6, padding 16) is already in `tokens/tokens-sizes.toml`. Its risk is that a button's
       size hint is every dialog's layout -- which is why it gets measured before it is changed.
 
+11. **M6 — slice 2: THE PUSH BUTTON is redrawn, and it is the first control that has moved.** It
+    answers `104x24` where the base answered `84x34`. The height is the kit's
+    `[global] height.medium = 24` (`tokens/tokens-sizes.toml:88` -- 42% less than the base), the width
+    is the content plus twice `[button] padding_horizontal.medium = 16` (`:24`), and the corner is
+    `[button] radius.medium = 6` (`:27`). The other **sixteen** primitives still differ by exactly
+    zero pixels, and `tests/test-style-gallery.sh` asserts BOTH halves -- including the new height,
+    read from the token file rather than from a number written into the test.
+    - **The corner is a plain arc, and that is a measurement**: at 6 px the clothoid and the arc
+      differ by less than the antialiasing (`HANDOFF.md` §10j has the 0.29 px figure), so the plan's
+      open question is closed rather than deferred.
+    - **To see it, in ONE application and without installing anything**:
+      `QT_PLUGIN_PATH="$PWD/style-kde-macos/build" QT_STYLE_OVERRIDE=KdeMacOS dolphin`.
+    - **NOT verified: a real session.** A button that is 24 px tall inside EVERY dialog is a layout
+      change that only a session shows, and `sizeHint` is the layout of every dialog.
+
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.
 

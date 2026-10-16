@@ -4,23 +4,33 @@
 // style is a `QProxyStyle` chained to a base style. The plan behind the slice is in
 // `docs/M6-QSTYLE-PLAN.md`; the short version is here, next to the code it explains.
 //
-// WHY IT OVERRIDES NOTHING YET, ON PURPOSE. M6's done criterion is "it exists, is installed and
-// is selectable WITHOUT BREAKING APPLICATIONS". A skeleton that redraws one button and delegates
+// WHY IT OVERRODE NOTHING IN SLICE 0, ON PURPOSE. M6's done criterion is "it exists, is installed
+// and is selectable WITHOUT BREAKING APPLICATIONS". A skeleton that redraws one button and delegates
 // the rest breaks applications in the one place nobody looks, and it cannot be told apart from a
-// skeleton that works. So this class implements no primitive at all: every pixel an application
-// draws still comes from the base style, and selecting it is therefore a no-op by construction.
-// `tests/test-style.sh` asserts that absence -- it is the property, not a TODO.
+// skeleton that works. So slice 0 implemented no primitive at all: every pixel an application drew
+// came from the base style, and selecting it was a no-op by construction. `tests/test-style.sh`
+// pinned that absence -- it was the property, not a TODO.
 //
-// The primitives, each with its own measurement, are the next slices: see the plan.
+// SLICE 2 OVERRIDES EXACTLY TWO THINGS, and this list is the contract: `sizeFromContents` (the
+// button's height and horizontal padding) and `drawControl` (its corner, drawn for CE_PushButton).
+// Every other primitive still delegates, and `tests/test-style-gallery.sh` asserts that the other
+// seventeen controls have not moved a single pixel. An override that is not named here is a change
+// nobody measured.
+//
+// WHY `drawControl` AND NOT `drawPrimitive`: Qt 6 has NO `PE_PushButtonBevel` (measured in
+// <QtWidgets/qstyle.h>: the bevel is `CE_PushButtonBevel`, a CONTROL element, with only a
+// `SE_PushButtonBevel` sub-element). And the bevel cannot be intercepted at the control element
+// either: `QProxyStyle` chains to a SEPARATE base-style object, whose own `drawControl` calls
+// dispatch to itself. So the hook is the whole `CE_PushButton`.
 #pragma once
 
 #include <QProxyStyle>
 #include <QString>
 #include <QStylePlugin>
 
-// The style itself. NO `drawPrimitive`, `drawControl`, `pixelMetric`, `sizeFromContents`,
-// `subElementRect`, `standardIcon` or `styleHint` override belongs here until its slice lands: the
-// test counts them and expects zero.
+// The style itself. `drawPrimitive`, `drawComplexControl`, `pixelMetric`, `subElementRect`,
+// `standardIcon` and `styleHint` are still NOT overridden: each needs its own slice and its own
+// measurement, and `tests/test-style.sh` still expects those to be absent.
 class MacosStyle : public QProxyStyle
 {
     Q_OBJECT
@@ -30,6 +40,12 @@ public:
     // The base style this one chains to, resolved from what Qt actually offers. Public and static
     // so the probe can report which base was chosen instead of the test guessing.
     static QString baseStyleKey();
+
+    // SLICE 2 -- the push button's geometry comes from `tokens/tokens-sizes.toml`, not from taste.
+    QSize sizeFromContents(ContentsType type, const QStyleOption *opt, const QSize &size,
+                           const QWidget *w) const override;
+    void drawControl(ControlElement element, const QStyleOption *opt, QPainter *p,
+                     const QWidget *w) const override;
 };
 
 // The plugin Qt's QStyleFactory finds and calls. The IID must be the one Qt itself declares --

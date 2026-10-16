@@ -55,17 +55,23 @@ else
   fallo "metadata.json is not valid JSON with Keys == [\"KdeMacOS\"]"
 fi
 
-echo "  -- the skeleton delegates EVERYTHING, which is what makes it safe --"
-# This is the assertion that keeps the first slice honest. Every one of these is a drawing or
-# measuring primitive that changes what an application LOOKS like; overriding one without its
-# measurement is how a half-finished style breaks the desktop.
+echo "  -- the style overrides ONLY what a landed slice has measured --"
+# This is the assertion that keeps the style honest. Every one of these is a drawing or measuring
+# primitive that changes what an application LOOKS like; overriding one without its measurement is
+# how a half-finished style breaks the desktop.
+#
+# Slice 2 landed `sizeFromContents` and `drawControl` (the push button), so those two are no longer
+# absent -- the assertion MOVES WITH THE SLICE and keeps naming the ones that must stay absent. It is
+# not weakened: the list is still checked, and the two that landed are asserted BY NAME just below.
 #
 # It asks `codigo_contiene`, which IGNORES COMMENTS, and that is not a detail: the header's own
 # comment lists these primitives to explain WHY they are absent, and a plain grep counted the
 # explanation as the deed (it reported two overrides that do not exist). Same lesson as the
 # harness's, in the other direction.
-negar "no primitive is overridden yet" \
-  codigo_contiene "$ST/src/macosstyle.h" 'drawPrimitive|drawControl|drawComplexControl|pixelMetric|sizeFromContents|subElementRect|standardIcon|styleHint'
+negar "no primitive beyond the landed slices is overridden" \
+  codigo_contiene "$ST/src/macosstyle.h" 'drawPrimitive|drawComplexControl|pixelMetric|subElementRect|standardIcon|styleHint'
+afirmar_codigo "slice 2's size override is the one that landed" "$ST/src/macosstyle.h" 'sizeFromContents'
+afirmar_codigo "and so is its drawing override" "$ST/src/macosstyle.h" 'drawControl'
 
 echo "  -- it builds --"
 # The build runs here because 'the plugin compiles' is one of the three claims, and a claim that is

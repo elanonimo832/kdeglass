@@ -123,6 +123,16 @@ can be settled without redrawing anything: `HANDOFF.md` §10i lists the **nine c
 reference in the kit** and the **first one to redraw** (the push button, 42% too tall against the
 kit's `global` height), with the measurements behind both.
 
+**Slice 2 is DONE too**, and it is the first row of the table above that has moved: the push button
+answers `104x24` where the base answered `84x34` (+42% before, the kit's `[global] height.medium = 24`
+after), its corner is a 6 px arc from `[button] radius.medium`, and the other SIXTEEN primitives still
+differ by zero pixels -- the test asserts both halves, and the height it asserts is read from
+`tokens/tokens-sizes.toml`, not remembered. It also settled the corner question below by measurement
+(`HANDOFF.md` §10j), and it cost the instrument two corrections that only its own OUTPUT revealed: a
+canvas sized from the very `sizeHint` the slice changed (which reported `DIFF -1`, "not comparable",
+where the question was "how different") and a baseline table that only stored the base's metrics
+(which would have shown the button as 34 px after it had been changed to 24).
+
 The dark scheme (`KdeMacosDark`, already generated) has to be honoured by every slice above, and
 the style must read its colours from the active palette rather than hard-coding the light ones.
 
@@ -143,10 +153,12 @@ the style must read its colours from the active palette rather than hard-coding 
   file, and that case has not been measured.
 * **The style's behaviour under a scale factor other than 1**, and on an X11 session. Both are
   unmeasured here.
-* **Whether the KWin decoration and the widget style should share the corner construction** (the
-  clothoid of `effect-kwin/`, G2) or whether a control's corner is a plain arc. Measured for the
-  WINDOW's corner, never for a control's — the M5 measurement showed exactly how easily a corner
-  family is asserted from too few pixels.
+* **RESOLVED in slice 2 — the control's corner is a plain arc, not the window's clothoid.** The
+  measurement, not the taste, is what settled it: at a 6 px radius the two families differ by less
+  than the antialiasing (the kit's own corner at `smoothing = 0.6` fits an arc to 0.29 px at 96 px,
+  and at 6 px the row carrying the difference is sub-pixel), so a Fresnel integral in the paint path
+  of every button on the desktop would buy less than a pixel. The M5 warning still stands for any
+  radius big enough to see the difference; this one is not. See `HANDOFF.md` §10j.
 
 ## Risks
 
