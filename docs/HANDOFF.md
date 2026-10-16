@@ -1453,6 +1453,44 @@ disagreed about where the material bends. The shader now matches the simulator a
 Two hypotheses of mine died first (the corner smoothing, then the capture's reach) and neither was
 the cause; the image the user sent was the instrument that found it.
 
+## 9x. The band capture's mapping read the v axis downwards, and THAT was the "vertical lines"
+
+**The report.** The text behind the bar showed as SHARP VERTICAL LINES instead of the frosted haze it
+had had earlier. No value fixed it, and two reverts (the environment reach `1c97e31`, then the whole
+audit pass and M2.5) both came back "igual".
+
+**The cause.** `uvBackground = uBackgroundOffset + vTexCoord * uBackgroundScale` (`glass.cpp:500`)
+turns a frame coordinate into a region coordinate. The shader reads the window BOTTOM-UP -- its own
+distance from the top is `(1 - vTexCoord.y) * uTextureSize.y` (`glass.cpp:323`), a flip that was
+MEASURED on screen, not assumed -- but the offset was written top-down:
+`(frameRect.y() - region.y()) / region.height()` (`glass.cpp:1193`, before the fix).
+
+**Why it hid.** With the WHOLE expanded geometry as the region, the shadow margins are symmetric here
+(2 px top against 2 px bottom), so both origins agree to 4 px out of 762. `measure-capture-map.py`
+measures it: `uv.y = 0.948..0.997` either way. Audit 1 (`e727879`) made the region the BAND -- 126 px
+instead of 762 -- where the top-down offset is `+0.349` and the bottom-up one is `-5.365`. Every band
+fragment then asked for `uv.y = 6.06..6.37`: the texture clamped to one row, the frost averaged that
+row horizontally, and the band showed ONE ROW of the backdrop repeated. Vertical lines.
+`evidence/2026-10-15-capture-map-bug-vs-fix.png` draws both, side by side.
+
+**Why the bisect failed.** Both reverts were LATER than the band capture, which is the commit that
+carried the fault. The user named the missing instrument: "es una tristeza ver como perdimos ese
+progreso por no tener bien documentado un set de imagenes con cada avance". That is `snapshot.sh`,
+which writes the image with the commit, the INSTALLED md5 and the live values in its name.
+
+**The fix** (`glass.cpp:1208`) is
+`frameBottomFromRegionBottom = (region.y() + region.height()) - (frameRect.y() + frameRect.height())`
+-- the frame's bottom measured from the region's bottom. The whole-geometry mode does not move
+(0.0026 either way, since the margins cancel) and the band lands at `0.349..0.651`: the reach above
+the frame plus the band, which is exactly the region the capture covers. The suite pins the
+expression AND refuses the top-down form; both assertions were watched fail first.
+
+**What the simulator CANNOT say.** `simulate.py` models the band's MATERIAL, not the capture: it is
+handed the backdrop already cropped and assumes the mapping is right. It could not have found this,
+and it must not be asked to -- the mapping is arithmetic between two rectangles, and that is
+`measure-capture-map.py`. Stated here because "the simulator is green" was about to be read as "the
+screen is right", which is the same mistake this file exists to prevent.
+
 ## 10a. Two taste changes the user asked for, made in the THEME not the effect
 
 "podrias hacer los botones mas grandes y texto en negrita y mas grande" -- before the next

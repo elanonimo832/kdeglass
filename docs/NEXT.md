@@ -31,6 +31,14 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
 
 ## What to do next, in order
 
+0. **The "vertical lines" regression is FIXED in the tree and NOT yet on screen** (`5d87f31`). The
+   capture's sub-rectangle offset read the v axis downwards while the shader reads the window
+   bottom-up, so every band fragment asked for `uv.y = 6.06..6.37`, the texture clamped to one row,
+   and the frost smeared that row: the user's vertical lines. The fix is one expression, the suite
+   pins it, and `evidence/2026-10-15-capture-map-bug-vs-fix.png` draws the two. What is missing is
+   `./install.sh` and a relogin -- **this cannot be checked without a screen**, and until it is, the
+   screen is still running `88152bc4` and the regression is still there. Detail: §9x of `HANDOFF.md`.
+
 1. **M2 — squircle corners: the curve is REPLACED, and it wants a screen.** Read `HANDOFF.md` §10c
    first. The door exists and works: `CornerSmoothing` (default 0, range 0..1, in `tune.sh`, the
    README table, the suite and the shader). What used to be behind it was the wrong curve -- a
@@ -80,6 +88,9 @@ to touch **with the measurement behind each one**. Read it before changing anyth
     python3 simulate.py --self-test   # the model of the shader, checked against two known cases
     python3 measure-corner.py --self-test  # the SHAPE of a corner, against five known synthetic cases
     ./capture-pair.sh                 # the two screenshots simulate.py needs, in one command
+    ./snapshot.sh                     # a photo of the FIXED scene + commit + INSTALLED md5 + values
+    ./snapshot.sh --self-test         # its refusal and its naming, with no screen
+    python3 measure-capture-map.py --self-test   # the capture's sub-rectangle mapping, known geometry
 
 `simulate.py` implements the band's arithmetic in numpy so a look can be judged WITHOUT a relogin, with
 every knob as an option and the defaults read from `src/glass.h`. Use it before proposing a value.
