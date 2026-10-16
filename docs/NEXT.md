@@ -223,13 +223,25 @@ The defaults in `src/glass.h` are the user's own choices, each with its measurem
     is in [`HANDOFF.md`](HANDOFF.md) §10k) and how far a Qt application that was never designed for a
     unified chrome cooperates. Qt's unified API is `setUnifiedTitleAndToolBarOnMac`, and Qt documents
     it as the look **on macOS**: it is the application's call, not a style's.
-13. **A TASK M5 left, and NOT a milestone: applying the measured folder radius needs an icon theme of
-    our own.** The value is not missing: `tokens/tokens-icon-geometry.toml` `[measure.folder]` carries
-    `R/S = 0.049 +- 0.01`, measured from the Finder capture and about 4x tighter than the app icons'
-    `0.215`, and what is missing is a destination -- the global theme still points at Breeze
-    (`output/look-and-feel/KdeMacOS/contents/defaults:23`, `Theme=breeze`), and an icon theme is not a
-    milestone of this ROADMAP. So it stays here as an errand: draw the folder icons with that geometry
-    and ship a theme that carries them.
+13. **A TASK M5 left, and NOT a milestone -- and it now has a NUMBER and a destination instead of a
+    hunch: the icon theme the user already runs does NOT carry the radius.** The value was never the
+    missing part: `tokens/tokens-icon-geometry.toml` `[measure.folder]` carries `R/S = 0.049 +- 0.01`,
+    measured from the Finder capture and about 4x tighter than the app icons' `0.215`. What was
+    missing was a destination: the global theme still points at Breeze
+    (`output/look-and-feel/KdeMacOS/contents/defaults`) and an icon theme is not a milestone of this
+    ROADMAP. The user DOES already run a macOS-style icon theme -- `MacTahoe-light`, the one drawing
+    the desktop's folders -- so the errand's first question was whether that theme already carries the
+    geometry, in which case there would be nothing to apply. MEASURED on 2026-10-16, and the answer is
+    NO: its folder body corner is `R/S = 0.075 +- 0.01`, about **1.5x rounder** than macOS's and
+    outside the reference's own window -- **~3 px of radius too much at the reference's 120 px
+    folder**, ~9 px where macOS draws 5.85. The file is
+    `~/.local/share/icons/MacTahoe-light/places/scalable/folder.svg`, read IN PLACE and never copied
+    into this repository, and the theme is not even consistent with itself: its `places/16`, `22` and
+    `24` carry a DIFFERENT, monochrome Breeze-style folder, so below 32 px it draws something else
+    entirely. The measurement, the three traps that each produced a wrong number first, and the two
+    red herrings it closes: `HANDOFF.md` §10m and the token's `[measure.installed_theme]`. So the
+    errand STANDS and is now actionable: draw the folder icons with `0.049` -- not with what the
+    installed theme draws -- and ship a theme that carries them.
 
 `docs/HANDOFF.md` §9v has every audit finding with `file:line` and effort, and the list of things NOT
 to touch **with the measurement behind each one**. Read it before changing anything in the shader.

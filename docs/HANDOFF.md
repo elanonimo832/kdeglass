@@ -2542,3 +2542,103 @@ never a test file.
 "only the declared primitives report a moved value" check stopped being a count (which had to be kept
 in step by hand) and became a property: every `OURS` line must belong to a declared row. The gallery's
 evidence was regenerated: `evidence/2026-10-15-m6-gallery.png` and the baseline table.
+
+## 10m. M5's errand: the icon theme the user already RUNS does not carry the measured radius (2026-10-16)
+
+**The errand, and the question that replaced it.** M5 measured the macOS folder's body corner
+(`[measure.folder]`: `R/S = 0.049 +- 0.01`, `R = 5.85 px` on a 120 px body) and could not APPLY it: the
+generated global theme points at Breeze and an icon theme is not a milestone of this ROADMAP. The user
+already runs a macOS-style icon theme -- `MacTahoe-light`, the one drawing the desktop's folders -- so
+the errand's first question became whether that theme already carries the geometry. If it did, the
+answer would be "nothing to apply", which is a RESULT and not a failure. **It does not**, and the gap
+is now a number instead of a hunch.
+
+**Which file, and why that one.** `~/.local/share/icons/MacTahoe-light/places/scalable/folder.svg`
+(`places/` and the other icon contexts are symlinks into the sibling theme `MacTahoe`, so the three
+`MacTahoe*` siblings draw the same artwork). It is the only macOS-style folder in the theme: the
+`index.theme` says `places/scalable` is `Size=64`, `Type=Scalable`, `MinSize=32`, `MaxSize=512`, and
+that is what a desktop icon size resolves to. The theme's `places/16`, `places/22` and `places/24`
+carry a DIFFERENT folder -- a monochrome Breeze-style shape whose path is `ColorScheme-Text`, not the
+blue one -- so the theme is not even consistent with itself below 32 px, and a measurement of any of
+those three would have been a measurement of another shape. **The theme's files are read IN PLACE and
+never copied, versioned or redistributed.** What travels is the measurement, exactly as with the
+user's screenshots in `muestras/`.
+
+**The tools.** `rsvg-convert` 2.63.2 (librsvg 2.63.2 on cairo 1.18.6) rasterizes the SVG -- the theme
+is SVG, so it can be read -- and the raster is composed on white so the reader sees the same polarity
+the Finder capture gave macOS. Then `tools/measure-icon-geometry.py`, whose `--self-test` was re-run
+BEFORE any number: `R = 14, 20, 26` and the two small TOP-RIGHT radii the folder path needs
+(`R = 5.0, 8.0`) all come back with **0.00 px** of error. The instrument is not the problem here.
+
+**The number, and the two independent ways it was checked.** The visible corner is the SVG's BACK
+shape's top-right one, a quarter-circle arc of `rx = 1.146` user units on a body `15.345` user units
+wide -> **`R/S = 0.0747`**, i.e. `R = 8.12 px` on a 120 px canvas where the body is 108.75 px.
+
+* the same reader on a **10x render** (1200 px, divided by 10): `R = 8.20 px`, `side = 108.8` ->
+  `R/S = 0.0754`, residual 0.06 px at the 120 px scale. The two agree, and they are the value.
+* what the tool answers on a LITERAL 120 px raster is `R = 7.30 px`, `side = 110` -> **`R/S = 0.0664`**
+  (threshold 220, residual 0.53 px). That is **~12% low**, and the reason is a property of an 8 px
+  corner in a 1 px raster: `corner_profile` takes its reference edge as an **INTEGER** pixel, and the
+  corner's first row is only **62% covered**, so the profile starts one row into the corner. The token
+  keeps it as `radius_ratio_at_120` rather than promoting it to the value -- this is the "the
+  rasterization introduces its own alias" case, said out loud instead of reported as a measurement.
+
+**Against the reference.** `0.075` against macOS's `0.049 +- 0.01`: about **1.5x rounder**, and it sits
+OUTSIDE the reference's own window -- even the low 120 px read, `0.0664`, is above `0.059`. At the
+reference's 120 px folder the theme draws `R ~ 9.0 px` where macOS draws `5.85 px`: **~3 px of radius
+too much**. The verdict does not depend on which piece of the two-piece shape is called "the body":
+the front panel's own corner is `1.058 / 15.345 = 0.0689`, still outside.
+
+**Three traps, each of which produced a wrong number first.**
+1. **The radius grid, which is M5's own trap arriving from a new direction.** The CLI's floor is 12 px
+   and this corner is ~8: with the default grid the command prints `R = 12.00, err 5.23` and then
+   "no icon fitted within 2.0 px" -- a grid edge answering the question. `--radius-min 2` is not a
+   refinement, it is the difference between a measurement and a coincidence.
+2. **The threshold, and this one is the theme's own artwork.** The theme draws a white highlight rim
+   along the top edge, and it brightens the corner's FIRST row above 210. At `--threshold 210` the
+   band finder skips that row, the profile starts one row into the corner, and the SAME file answers
+   `R = 4.95 px`; at 220 the row is caught and it answers `7.30 px`. A **47% swing** from a threshold
+   is not a measurement, which is the second reason the value above is not the 120 px raster's.
+3. **The corner, and the piece nobody would guess.** `--corner tr` because a folder's TAB covers the
+   top-left -- M5's own finding. But the shape is TWO pieces: a back shape carrying the tab, and a
+   front panel whose top edge sits ~7.5 px lower. The front panel's own corner lies INSIDE the back
+   shape's right edge (their right edges coincide to 0.002 user units), so it is an INTERNAL edge, and
+   the instrument -- which reads the 0.5 crossing of the SILHOUETTE against the background -- cannot
+   see it at all. There is exactly ONE corner to read there, and the profile confirms it: after the
+   back's corner the inset goes to ~0 and stays there, with no second corner.
+
+**Polarity, checked rather than assumed** (the trap the task named): dark folders on white give
+`R/S = 0.0664` and the same icon lit on a dark background with `--polarity light` gives `0.0659` --
+the same within the grid. The polarity is not what is wrong here.
+
+**What was measured and what was rejected, counted.** Candidate files: **4** (`places/scalable`,
+`places/24`, `places/22`, `places/16`); **1 measured**, **3 rejected** because they are a different
+design (monochrome Breeze-style) and below the size a desktop folder is drawn at. Within the measured
+icon: **1 corner measurable**, **1 rejected** as an internal edge (the front panel's). Raster readings:
+**2**, of which **1 rejected as the value** (the literal 120 px read, ~12% low) and kept as a separate
+token key. Fits: **1 icon, 0 rejected on residual** (0.53 px, well inside the 2 px tolerance). The
+corner FAMILY is not resolved here either and is not claimed: at an 8 px radius a circle, the kit's
+construction at any smoothing and a superellipse fit identically, exactly as §10f-bis found for macOS's.
+
+**Two facts measured on the way, recorded so nobody chases them again.**
+* **`qt.svg.draw: The requested buffer size is too big, ignoring` is NOT the QStyle.** It also appears
+  with `QT_STYLE_OVERRIDE=Breeze`, and the style's own source carries no SVG, icon or pixmap code at
+  all: `grep -niE 'svg|icon|pixmap' style-kde-macos/src/` gives **0** for `svg`, **0** for `pixmap`,
+  and one `icon` hit, which is the comment naming `standardIcon` among the primitives the style
+  deliberately does NOT override (`style-kde-macos/src/macosstyle.h:31`). It is preexisting environment
+  noise from libQt6Svg drawing the icon theme's SVGs -- `INCIDENT.md` had already traced the message to
+  `libQt6Svg` and called it secondary -- so it is not a symptom of anything in this repository.
+* **Our global theme's `[kdeglobals][Icons] Theme` cannot stomp the user's choice.** The generated
+  `contents/defaults` says `Theme=breeze`, and that lands in the **`kdedefaults` fallback layer**, not
+  in the user's own file: measured on this machine, `~/.config/kdedefaults/kdeglobals` carries
+  `[Icons] Theme=breeze` (written by the apply of 2026-10-15) while `~/.config/kdeglobals:144` still
+  says `Theme=MacTahoe-light`. That is why the user keeps their icon theme although our package names
+  `breeze`, and why the package does NOT have to solve the icon theme to be safe: a value there is a
+  fallback, and the user's own value wins.
+
+**So M5's errand STANDS, and it is no longer a blank one.** It has a number (`0.049`, where the theme
+the user runs draws `0.075`), a size (at a 120 px folder that is ~3 px of radius) and a destination (a
+theme of our own that draws the folder with the measured geometry). The value is pinned by
+`tokens/tokens-icon-geometry.toml` `[measure.installed_theme]` and by `tests/test-icon-geometry.sh`,
+which asserts the PROPERTY and not the sentence: the installed theme's figure must sit outside the
+macOS figure's own window, and the low 120 px raster read must stay a separate, lower key.
