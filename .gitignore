@@ -22,6 +22,7 @@ fig-extraido/
 # Construccion del efecto KWin (se regenera con cmake; nunca se versiona)
 # ---------------------------------------------------------------------------
 effect-kwin/build/
+style-kde-macos/build/
 *.so
 *.o
 *.a

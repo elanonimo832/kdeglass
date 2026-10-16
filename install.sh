@@ -43,6 +43,28 @@ ESTADO="$XDG_STATE_HOME/kde-macos"
 BACKUPS="$ESTADO/backups/$(date +%Y%m%d-%H%M%S)"
 MANIFIESTO="$ESTADO/manifest.tsv"
 
+# --------------------------------------------------------------------------
+# M6 — the widget style (QStyle). Kept OUT of the file map below, on purpose.
+#
+# The map is for files a GENERATOR produces, and an entry whose source is missing is reported there
+# as "source does not exist" -- the right sentence for a generator nobody ran, and the wrong one for
+# a plugin nobody COMPILED yet. So the style has its own step, with its own message, and its own two
+# halves:
+#   * the plugin, which Qt finds only inside a `styles/` subdirectory (MEASURED: QStyleFactory scans
+#     <pluginpath>/styles, not the plugin path itself), and
+#   * QT_PLUGIN_PATH, because Qt does NOT search $HOME/.local/lib/qt6/plugins by itself either
+#     (MEASURED: the library paths are QT_PLUGIN_PATH, then /usr/lib/qt6/plugins, then the app's).
+# Without the second half the plugin is installed and invisible.
+#
+# The user-level path is the deliberate choice: /usr/lib/qt6/plugins/styles would work with no
+# environment file at all, and it needs sudo -- which is exactly what this installer promises never
+# to do, and what makes `rollback` able to undo everything.
+# --------------------------------------------------------------------------
+STYLE_SO="$AQUI/style-kde-macos/build/styles/kdemacosstyle.so"
+STYLE_DEST="$HOME/.local/lib/qt6/plugins/styles/kdemacosstyle.so"
+STYLE_ENV="$XDG_CONFIG_HOME/environment.d/50-kde-macos-style.conf"
+STYLE_PLUGIN_PATH="$HOME/.local/lib/qt6/plugins"
+
 VERDE=$'\033[32m'; ROJO=$'\033[31m'; AMBAR=$'\033[33m'; AZUL=$'\033[34m'; GRIS=$'\033[90m'; FIN=$'\033[0m'
 
 ok()    { printf '  %sOK%s   %s\n' "$VERDE" "$FIN" "$1"; }
@@ -245,6 +267,25 @@ cmd_plan() {
   actual="$(leer_clave kdeglobals General ColorScheme)"; [ -n "$actual" ] || actual="(not set)"
   printf '  %-34s %s\n' "kdeglobals [General] ColorScheme" "$actual -> KdeMacosLight"
   echo
+  info "The widget style (M6) — installed, NOT selected"
+  # NOT "source does not exist": a plugin that has not been compiled is a normal state on a fresh
+  # clone, and that sentence is reserved for a generator that was not run. tests/test-global-theme.sh
+  # forbids it in this output, which is what keeps the two meanings apart.
+  if [ -f "$STYLE_SO" ]; then
+    local accion_estilo
+    if [ ! -e "$STYLE_DEST" ]; then accion_estilo="CREATE"
+    elif cmp -s "$STYLE_SO" "$STYLE_DEST"; then accion_estilo="SAME"
+    else accion_estilo="CHANGE"; fi
+    printf '  %-9s %-58s %s\n' "$accion_estilo" "${STYLE_DEST/#$HOME/~}" "the KdeMacOS style plugin"
+    printf '  %-9s %-58s %s\n' "WRITE" "${STYLE_ENV/#$HOME/~}" "QT_PLUGIN_PATH for the session"
+    gris "  Selecting it is YOUR step, and it is not needed for the theme to work:"
+    gris "      kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle KdeMacOS"
+    gris "  Try it on ONE application first:  QT_PLUGIN_PATH=$STYLE_PLUGIN_PATH QT_STYLE_OVERRIDE=KdeMacOS dolphin"
+  else
+    printf '  %-9s %-58s %s\n' "NOT BUILT" "${STYLE_DEST/#$HOME/~}" "run style-kde-macos/build.sh first"
+  fi
+
+  echo
   gris "None of this has been applied. To apply it:  ./install.sh aplicar --si"
 }
 
@@ -404,6 +445,43 @@ cmd_aplicar() {
   fi
 
   echo
+  # ------------------------------------------------------------------
+  # M6 — the widget style: the plugin and the one variable that makes it visible.
+  #
+  # INSTALLING IS NOT SELECTING, and that is deliberate: `widgetStyle` decides how EVERY Qt
+  # application on the desktop is drawn, and that is the user's decision, not a side effect of an
+  # installer. What this writes is only the two things that make the style AVAILABLE -- Qt cannot
+  # see it otherwise, and neither half alone is enough.
+  # ------------------------------------------------------------------
+  if [ -f "$STYLE_SO" ]; then
+    mkdir -p "$(dirname "$STYLE_DEST")" || fallo "could not create $(dirname "$STYLE_DEST")"
+    if respaldar_una_vez "$STYLE_DEST"; then
+      if cp "$STYLE_SO" "$STYLE_DEST.tmp.$$" && mv "$STYLE_DEST.tmp.$$" "$STYLE_DEST"; then
+        ok "${STYLE_DEST/#$HOME/~}"
+      else
+        fallo "could not install the style plugin in $STYLE_DEST"
+      fi
+    else
+      aviso "could not back up $STYLE_DEST: it has been left unwritten"
+    fi
+    mkdir -p "$(dirname "$STYLE_ENV")" || fallo "could not create $(dirname "$STYLE_ENV")"
+    if respaldar_una_vez "$STYLE_ENV"; then
+      if printf 'QT_PLUGIN_PATH=%s\n' "$STYLE_PLUGIN_PATH" > "$STYLE_ENV.tmp.$$" && mv "$STYLE_ENV.tmp.$$" "$STYLE_ENV"; then
+        ok "${STYLE_ENV/#$HOME/~} (QT_PLUGIN_PATH)"
+      else
+        fallo "could not write $STYLE_ENV"
+      fi
+    fi
+    gris "  The style is AVAILABLE, not selected. To try it on one application, no relogin needed:"
+    gris "      QT_PLUGIN_PATH=$STYLE_PLUGIN_PATH QT_STYLE_OVERRIDE=KdeMacOS dolphin"
+    gris "  To select it for the whole session (then log out and back in):"
+    gris "      kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle KdeMacOS"
+  else
+    aviso "the widget style is not built: run style-kde-macos/build.sh, then apply again"
+    gris "  (nothing is written and nothing fails: the rest of the theme does not need it)"
+  fi
+
+  echo
   printf '  %s created · %s modified · %s unchanged\n' "$creados" "$cambiados" "$iguales"
   echo
   gris "The kde-gtk-config files have NOT been touched, on purpose."
@@ -447,7 +525,23 @@ cmd_verificar() {
   echo
   if [ "$fallos" -eq 0 ]; then ok "everything installed matches the repository"; else fallo "$fallos discrepancies"; fi
   echo
-  gris "Remember: the QStyle and the KWin effect are not part of this installer yet."
+  info "The widget style (M6)"
+  # Three separate questions, and they are separate on purpose: the plugin being INSTALLED says
+  # nothing about Qt being able to see it, and Qt seeing it says nothing about it being SELECTED.
+  if [ -f "$STYLE_SO" ]; then
+    if [ -f "$STYLE_DEST" ] && cmp -s "$STYLE_SO" "$STYLE_DEST"; then ok "the style plugin is installed and matches this build"
+    elif [ -f "$STYLE_DEST" ]; then fallo "the installed style plugin differs from this build: re-run aplicar"
+    else aviso "the style plugin is NOT installed (not built, or aplicar was not run)"; fi
+  else
+    gris "  (the style is not built here: nothing to compare)"
+  fi
+  if [ -f "$STYLE_ENV" ]; then ok "$(grep -c . "$STYLE_ENV" 2>/dev/null) line(s) in ${STYLE_ENV/#$HOME/~} (QT_PLUGIN_PATH)"
+  else aviso "no environment file: Qt will NOT see the style even once it is installed"; fi
+  local estilo_actual
+  estilo_actual="$(leer_clave kdeglobals KDE widgetStyle)"; [ -n "$estilo_actual" ] || estilo_actual="(not set)"
+  printf '  %-34s %s\n' "kdeglobals [KDE] widgetStyle" "$estilo_actual"
+  echo
+  gris "Remember: the KWin effect is still installed by effect-kwin/install.sh, and it needs sudo."
 }
 
 # --------------------------------------------------------------------------
