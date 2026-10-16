@@ -230,6 +230,13 @@ drawing folder icons of our own with that geometry -- the theme still points at 
 (`[kdeglobals][Icons] Theme=breeze`) and an icon theme is not a milestone of this ROADMAP.
 `HANDOFF.md` sections 10f and 10f-bis carry the measurements and their mistakes.
 
+**AMENDED 2026-10-16: THE TWO FIGURES ABOVE MOVED, AND SO DID THE "4x".** The reader those numbers came
+from was PHASE-DEPENDENT -- its errors cancelled at the one subpixel phase its self-test drew -- and
+with it fixed the app icon is **R/S = 0.250 +- 0.01** and the folder is **R/S = 0.097 +- 0.02**: about
+**2.6x tighter**, not 4x. The installed theme's 0.075 was correct all along, which means M5's errand
+changed direction: the theme is not the rounder of the two. The correction, the phase table and the
+two conclusions it reverses are in `HANDOFF.md` section 10p.
+
 ---
 
 ### M6 — Complete QStyle

@@ -2823,3 +2823,129 @@ properties rather than the sentences -- the track's thickness against the window
 supports, the knob's ratio against the kit's, the checkbox window against the kit's 5.5, and the
 declarations above; and `evidence/2026-10-16-m6-controls-measured.png` is OUR OWN drawing of the
 measured geometry, never a crop of Apple's pixels.
+
+## 10p. M5 re-measured with a phase-independent reader: two of the three figures moved, and one conclusion reversed (2026-10-16)
+
+Section 10o measured the corner reader's **subpixel phase dependence** and wrote the numbers down; it
+did not change the reader, because M5's figures were pinned by `tests/test-icon-geometry.sh` and the
+folder's 5.85 px had been cross-checked. This section does the other half. It fixes the reader, proves
+in isolation that the fix is a fix, re-measures every figure that depends on it, and reports the two
+M5 conclusions that do **not** survive.
+
+**THE BUG, WHICH IS THREE BUGS WEARING ONE COAT.** The old reader (`tools/measure-icon-geometry.py`)
+put a corner's edge at an interpolation between two neighbouring pixels and evaluated the fitted circle
+at `dy = the row index`:
+1. **The crossing.** `i + 1 - cov[i]` with `i` the first pixel at or above 0.5 is exact only while the
+   boundary sits in the LEFT half of the pixel it falls in. Past the midpoint the edge's own pixel
+   reads below 0.5, the search snaps to the fully-inked pixel before it, and the fraction is lost. A
+   straight edge therefore moved by up to half a pixel with the phase.
+2. **The `dy`.** `fit_all` fed the row INDEX as the model's distance below the edge, and the profile
+   started on a row that the top edge only half covered. At a half-pixel edge the two errors cancel
+   EXACTLY; at an integer edge nothing does. That cancel is the whole reason the old `--self-test`,
+   which drew every corner at the half-pixel phase, recovered R = 14, 20 and 26 with **0.00 px** of
+   error and never saw the failure.
+3. **A wrong mirror, found only after the top-right corner entered the sweep.** The corrected
+   falling-edge crossing was first written as if the ink were on the RIGHT (`k + 1 - c`); with the ink
+   on the left the boundary is `k + c`. A top-LEFT corner is read with the RISING crossing alone, so
+   every top-left self-test passed while the folder's top-right corner read **9 px for a drawn 6** and
+   was rejected on residual. The sweep now draws both corners.
+
+**THE TABLE, MEASURED IN ISOLATION.** Rounded boxes of a KNOWN radius were drawn at eight subpixel
+phases (0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9), in a 16 px box for R = 3, 5 and 8 and a 96 px box for
+R = 20, and read by both readers. "Old" is the old profile-and-fit-at-row-index path; "exact" is the
+shared reader the CLI now reports.
+
+| phase | drawn R | old fit | old err | exact fit | exact err |
+|---|---|---|---|---|---|
+| 0.00 | 3.0 | 0.50 | 2.50 | 2.70 | 0.30 |
+| 0.00 | 5.0 | 2.30 | 2.70 | 4.90 | 0.10 |
+| **0.00** | **8.0** | **5.30** | **2.70** | **7.65** | **0.35** |
+| 0.10 | 8.0 | 5.75 | 2.25 | 7.90 | 0.10 |
+| 0.25 | 8.0 | 6.35 | 1.65 | 7.85 | 0.15 |
+| 0.40 | 8.0 | 7.10 | 0.90 | 7.75 | 0.25 |
+| 0.50 | 8.0 | 8.00 | 0.00 | 7.75 | 0.25 |
+| 0.60 | 8.0 | 8.65 | 0.65 | 7.80 | 0.20 |
+| 0.75 | 8.0 | 9.30 | 1.30 | 7.65 | 0.35 |
+| 0.90 | 8.0 | 9.80 | 1.80 | 7.85 | 0.15 |
+| **0.00** | **20.0** | **16.40** | **3.60** | **19.65** | **0.35** |
+| 0.50 | 20.0 | 20.00 | 0.00 | 19.65 | 0.35 |
+| 0.90 | 20.0 | 21.80 | 1.80 | 19.70 | 0.30 |
+
+The old reader is exact at one phase and wrong by 3.6 px at another; the exact reader holds 0.40 px
+everywhere in this sweep. The two rows in bold are 10o's own examples, reproduced rather than trusted:
+**a drawn R = 8.0 read 5.30** and **a drawn R = 20.0 on a 96 px box read 16.40**.
+
+**WHAT THE INSTRUMENT NOW DOES, AND WHERE THE FORMULA LIVES.** The reader in
+`tools/measure-icon-geometry.py` takes each pixel's OWN coverage (the same definition the bar reader
+uses), finds the boundary with the partial coverage of BOTH pixels that straddle the 0.5 level, starts
+the profile on the first row whose whole height is inside the edge, and fits the circle at each row's
+real `dy`. Its `--self-test` draws **four phases x radii 3, 5, 8 and 20 x both the top-left and the
+top-right** corner, prints every case and the worst error, and asserts a bound; it measures **0.50 px**
+and the token's `reader_bound_px` is that worst case rounded UP to 0.75. The four primitives
+(`coverage`, the two crossings, the exact profile, the circle fit) now have ONE definition, in the
+geometry tool, and `tools/measure-controls.py` imports them instead of keeping a second copy -- the
+same rule that keeps the shader and `simulate.py` from drifting. `tests/test-icon-geometry.sh` runs the
+self-test ONCE, captures it, and asserts against the captured output; it also asserts the phases
+themselves, so a sweep that silently stops visiting the integer edge fails.
+
+**THE THREE FIGURES, OLD -> NEW.** Each was re-measured with the corrected reader; the uncertainty is
+rounded UP from the reader's bound and the figure's own residual.
+
+| figure | old | corrected | uncertainty | where |
+|---|---|---|---|---|
+| app icon R/S | 0.215 | **0.250** | 0.01 | `[measure]`, 12 valid of 14 |
+| app R on a 96 px icon | 20.6 px | **24.0 px** | 0.75 px | same |
+| macOS folder R/S | 0.049 | **0.097** | **0.02** | `[measure.folder]`, 4 of 4 |
+| macOS folder R on 120 px | 5.85 px | **11.65 px** | ~2 px | same |
+| MacTahoe folder R/S | 0.075 | **0.075** | 0.01 | `[measure.installed_theme]` |
+| MacTahoe, literal 120 px raster | 0.066 | **0.079** | -- | `radius_ratio_at_120` |
+| MacTahoe, 10x raster | 0.0754 | **0.0738** | -- | `radius_ratio_at_10x` |
+| app / folder | 4.4x | **2.6x** (3.0x with the free tangent) | -- | computed |
+| theme vs macOS | 1.5x rounder | **13% flatter** | -- | computed |
+
+The app figure was independently confirmed before it was written down: a three-parameter circle fitted
+to the raw silhouette boundary (tangent x = 391.12, top y = 69.07, both free) gives **R = 24.00 px with
+a 0.10 px residual** on a different subpixel estimator, against the reader's 23.75-24.50. The folder's
+correction is the same phase term the task predicted (~3.6 px on a 120 px folder): the old profile
+(5.10, 3.28, 2.20, 1.15, 0.45, 0.04) was a COMPRESSED version of the corrected one (6.14, 4.27, 3.25,
+2.21, 1.24, 1.14), and a compressed corner profile fits a smaller circle.
+
+**THE ONE FIGURE THE PIXELS CANNOT PIN, AND WHY ITS UNCERTAINTY GREW.** The folder is TWO shapes: the
+visible top-right arc belongs to the back shape (flat right edge at x = 433.5) and the front panel's
+edge takes over 0.85 px further right, about 10 px below the top. A fixed probe 30 px down reads the
+FRONT panel, so the tool's reproducible fit answers 11.65 px; fitting the same arc with its tangent
+line FREE (three parameters) answers **9.90 px with a 0.28 px residual** and a tangent at x = 433.60.
+Sweeping the tangent from 433.0 to 434.4 moves R from 8.1 to 12.9. That sweep -- 0.014 of ratio -- is
+why the folder's uncertainty is 0.02 and not 0.01, and why the token carries both readings instead of
+one confident digit. This is also the reason the folder's `--radius-max` had to move: at 9 the fit
+landed on the grid edge, which is M5's own trap.
+
+**DO THE CONCLUSIONS CHANGE? TWO OF THE THREE DO, AND ONE OF THEM REVERSES.**
+* **"The folder is ~4.4x tighter than the app icon": NO, not any more.** 0.250 / 0.097 = **2.6x**
+  (3.0x with the free tangent). The folder is still tighter than the app icon -- that half stands --
+  but the ratio the old reader reported was inflated by its own phase bias, and the test now pins a
+  BAND (2.0x .. 3.5x) instead of a floor, because a floor of 3 would pin the bias.
+* **"MacTahoe is ~1.5x rounder than macOS and outside the reference window": NO, AND THE SIGN FLIPS.**
+  The theme is still 0.075; what moved is macOS, from 0.049 to 0.097 +- 0.02. The theme is now the
+  FLATTER of the two, ~13% under the corrected figure, and it is no longer outside on the high side.
+  The corrected finding is that the two agree within the corrected window, with the theme at its low
+  edge. `tests/test-icon-geometry.sh` now asserts the disagreement on the LOW side (`inst < mac`) and
+  that the token records the reversal, so a later edit cannot quietly restore the old story.
+* **"The theme does not carry the measured geometry, so M5's errand stands": STILL TRUE, for the
+  opposite reason.** The errand was "the theme is too round"; it is actually "the theme is not round
+  enough", which is a smaller gap and a different one to close.
+
+**WHAT WAS *NOT* VERIFIED, SAID OUT LOUD.**
+* **The folder's tangent line is a choice, not a measurement.** 0.083 and 0.097 both fit within
+  0.34 px; nothing in this capture decides between them. The token's window covers both.
+* **The corner FAMILY is still unresolvable** at these sizes, exactly as `[not_verifiable] smoothing`
+  says: at an 8 px radius a circle, the kit's construction and a superellipse fit identically.
+* **The M6 controls token was measured with the previous shared reader.** `tools/measure-controls.py`
+  now imports the corrected primitives, and its own `--self-test` still holds (worst phase error
+  0.35 px), but `tokens/tokens-controls-measured.toml`'s checkbox radii and selection figures were NOT
+  re-derived in this step: the corrected falling-edge crossing moves a right or bottom edge by up to
+  half a pixel, which is inside those figures' 0.8-1.5 px uncertainties, and re-deriving them is a
+  named follow-up rather than a claim.
+* **The theme's 10x read needed the reader to scale with the icon.** A fixed 30 px probe and a fixed
+  16 px body sample are below a 1x icon's corner and INSIDE a 10x one's; both now scale with the
+  side, which is what makes the 10x cross-check (0.0738 against the SVG's own 0.0747) reproducible.
