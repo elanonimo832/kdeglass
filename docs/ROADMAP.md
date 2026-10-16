@@ -252,6 +252,70 @@ its shape, the decisions and the slices that follow are in
 
 ---
 
+### M7 — Unified window chrome
+
+The user put a real macOS Finder capture beside this desktop and named four differences, and
+all four are real. Each one is written here with the LAYER that owns it, because a milestone
+that does not say who owns it cannot be started, and one that collects four unrelated fixes
+becomes the drawer everything is swept into:
+
+| What the capture shows | The layer that owns it | Why not another layer |
+|---|---|---|
+| **One band** for the traffic lights, the title and the controls; ours is two stacked (the glass band, the app's toolbar under it) | **the decoration**, to stop reserving the strip, **and the application**, to draw its toolbar there | the effect can paint over the strip; it cannot give it away |
+| **The sidebar at full height**, behind that band, taking the colour of what is behind the window | **the effect** (vibrancy) **or the application** | the decoration does not draw the client area |
+| **The shadow**, wide and soft | **KWin's own window shadow**, the decoration's (`Decoration::setShadow()`) | the effect does not paint it, and must not |
+| **Margins and padding** | **the QStyle (M6)**, linked and not duplicated | a second copy in M7 is how the two drift apart |
+
+**What is known.** The decoration is an Aurorae theme, and `[Layout] TitleHeight` in
+`output/aurorae/KdeMacOS/KdeMacOSrc` is what makes its frame reserve a strip. The effect
+already MEASURES that strip as `clientGeometry().top() - frameGeometry().top()`
+(`effect-kwin/src/glass.cpp:1030`), and it already treats a zero as "there is no band to
+cover" -- which is exactly what a window with client-side decoration reports, and what M7's
+bar would report. Qt has `QMainWindow::setUnifiedTitleAndToolBarOnMac`, and Qt's own
+documentation describes it as the unified title-and-toolbar look **on macOS**: it is an
+application API, and a style cannot switch it on for an application that does not ask. The
+kit measures the window shadow as TWO layers -- diffuse `radio 54 / offset_y 18 / alfa 0.3`
+and contact `radio 1 / alfa 0.8` (`tokens/tokens-shape-effects.toml:85`, and the same pair
+under `[ventana.sombra_estado]`, whose provenance names a "Unified Toolbar + Title" window).
+
+**What is NOT known, and it is the first work of the milestone.** Which KDE decorations
+already do this: Breeze forks and macOS-style decorations exist, and whether any of them
+reserves no strip and draws its buttons over the client area is NOT established here -- what
+a first search found, and what it did NOT establish, is in `HANDOFF.md` §10k with its links.
+And how far a Qt application that was never designed for a unified chrome cooperates at all:
+with no title bar, dragging the window and double-clicking to maximize stop being the
+decoration's, and whether an application takes them over is an open question.
+
+**Done when:**
+- the reserved strip is **0** for the reference window in the terms M1 already measures it,
+  `clientGeometry().top() - frameGeometry().top()` -- the number a client-side-decorated
+  window already reports -- and the reference application's own controls occupy the region
+  the traffic lights sit in.
+- the sidebar carries the backdrop: with the window held still and only the background
+  changed, a rectangle inside the sidebar moves by at least the threshold `measure-glass.py`
+  already applies to the band (12), and the sidebar's top edge is at the window's top.
+- margins and padding are the ones **M6's gallery measures**, read from the token file and
+  not restated here.
+- the shadow is drawn by the decoration with the kit's two layers, and nothing of it is
+  painted by the effect (M1 already asserts the second half). **How the shadow's width and
+  softness get measured is an OPEN DECISION**: no tool in this repository measures a shadow,
+  and a threshold invented today would be taste with a number on it.
+- the criterion for the APPLICATION's half is written AFTER the research and not before: how
+  a Qt toolbar can be made to draw in that strip is exactly the open question, so a number
+  for it now would be invented.
+
+**The reference application is not chosen yet**: the one this repository already drives for M6
+is Dolphin, and whether it can carry a full-height sidebar is part of the research.
+
+**Depends on:** M1 (the material the sidebar needs), M2 (the chrome's top corners are the
+window's), M6 (which owns the padding and the instrument that measures it) and the decoration
+already in the tree (`output/aurorae/KdeMacOS`).
+
+**The observations, the prior art that was found and what it did not establish, and the
+questions the research has to answer are in [`HANDOFF.md`](HANDOFF.md) §10k.**
+
+---
+
 ## What remains to be verified (open risks)
 
 | Risk | Status |
