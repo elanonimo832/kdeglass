@@ -100,6 +100,22 @@ public:
     // NO control in either capture is disabled, so there is no source to measure and none is
     // invented; the base keeps drawing them and the token records the absence in words.
 
+    // SLICE 7 -- THE TRACKING, the one thing in the plan that `kdeglobals` cannot carry: the fonts
+    // M4 applies have their size in POINTS and a `QFont` has no letter-spacing there.
+    //
+    // WHY `polish(QWidget *)` IS THE HOOK. Qt DOES have tracking (`QFont::setLetterSpacing`), but a
+    // style cannot set it where the TEXT is drawn: the base style draws every label, and a
+    // `QProxyStyle` chains to a separate base object whose calls dispatch to itself (the same fact
+    // slice 2 met at the button's bevel). What a style CAN do is adjust the font of each widget as
+    // it is polished, which is the "font work per widget" the plan names as one of the two routes.
+    //
+    // AND THE ROLE IS NOT NEEDED, which is why this is a whole-widget rule rather than a whitelist:
+    // the token's `[tracking]` table is keyed by the TEXT SIZE (13 -> em1000 -6, 11 -> 6), not by
+    // the text style, so the font's size determines the tracking. A style that cannot know it is
+    // drawing a menu item does not need to: it needs the size, and it has it. The value comes from
+    // `tracking_table.h`, generated from the token so the two cannot disagree.
+    void polish(QWidget *w) override;
+
 private:
     void drawSelectedItemViewItem(const QStyleOptionViewItem &item, QPainter *p,
                                   const QWidget *w) const;

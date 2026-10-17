@@ -207,6 +207,24 @@ keyboard-only focus ring -- the accent pill IS the selected item's indicator in 
 is -- and NO control in either capture is disabled. There is no source to measure, so none is
 invented: the base keeps drawing both, and the token records the absence in words that the test reads.
 
+**Slice 7 is DONE, and it is the only slice whose value is not a figure but a FONT PROPERTY.** The 64
+tracking tokens had no destination (`kdeglobals` has no letter-spacing), so the style is their home:
+`polish(QWidget *)` reads the widget's font size, looks the size up in `src/tracking_table.h` -- which
+`tools/generate-style-tracking.py` GENERATES from `tokens/tokens-typography_macos.toml [tracking]`, so
+the token and the code cannot disagree -- and sets `QFont::setLetterSpacing`. Three things made it
+work, and each is a measurement rather than a preference. (1) THE ROLE IS NOT NEEDED: the token's
+table is keyed by the TEXT SIZE, not by the text style, so a style that cannot know it is drawing a
+menu item does not need to; that is why this is a whole-widget rule and not a whitelist. (2) THE SIZE
+IS THE PIXEL SIZE: M4 writes sizes in points (9.75 pt) so Qt does not turn the HIG's 13 into 17.3 px,
+and at 96 dpi 9.75 pt IS 13 px, so the token's size is the font's pixel size and a point-only font is
+converted with the screen's dpi. (3) THE SPACING IS STORED IN SIXTY-FOURTHS AND TRUNCATED: the token's
+-6 em1000 at 13 px is -0.078 and `letterSpacing()` returns -0.0625 (-4/64), +6 at 11 px is 0.066 ->
+4/64, +12 at 10 px is 0.12 -> 7/64 -- so the test asserts "within one 1/64 step AND not zero" with the
+window named, instead of an epsilon. The measurement that matters is not the font object but the
+TEXT: the reference string tightens by exactly the applied spacing times its glyphs (`271.78 ->
+269.09`, 43 glyphs, -0.0625 each). And a size the HIG does not publish returns 0 and leaves the font
+alone, because filling that gap would be a tracking nobody measured.
+
 ## OPEN — decided by measurement later, not invented now
 
 * **Whether the base should stay `QProxyStyle`-over-Breeze, or eventually become a

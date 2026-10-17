@@ -18,6 +18,8 @@
 // It runs under the OFFSCREEN platform: no screen, no session, no user. `tests/test-style.sh`
 // drives it.
 #include <QApplication>
+#include <QFont>
+#include <QFontMetricsF>
 #include <QProgressBar>
 #include <QColor>
 #include <QImage>
@@ -73,11 +75,57 @@ long paintedPixels(const QImage &image)
     return painted;
 }
 
+// SLICE 7 -- THE TRACKING, measured rather than assumed, and in TWO steps so a stored number cannot
+// pass for a drawn one. The style applies the tracking in `polish()`, so this creates a widget with a
+// KNOWN pixel size, hands it to the style, and reports (a) the spacing Qt then has on the font and
+// (b) the advance of one string WITH and WITHOUT it. A spacing that never reaches the text would
+// fail (b), which is why the width is measured and not derived from (a).
+//
+// The sizes are the body, the subheadline and the caption (13/11/10, the three the M4 fonts carry),
+// plus ONE the HIG does not publish (5), which must come back untouched: filling a gap with a
+// neighbouring value would be a tracking nobody measured.
+int probeTracking(QStyle *style)
+{
+    if (!style) {
+        std::printf("TRACKING: no style\n");
+        return 7;
+    }
+    const QString text = QStringLiteral("The quick brown fox jumps over the lazy dog");
+    for (int size : {13, 11, 10, 5}) {
+        QWidget w;
+        QFont plain = w.font();
+        plain.setPixelSize(size);
+        plain.setLetterSpacing(QFont::PercentageSpacing, 100.0);  // the "no tracking" reference
+        w.setFont(plain);
+        style->polish(&w);
+        const QFont applied = w.font();
+        if (applied.letterSpacingType() == QFont::AbsoluteSpacing && applied.letterSpacing() != 0.0) {
+            std::printf("TRACKING size=%d spacing=%.6f\n", size, double(applied.letterSpacing()));
+        } else {
+            std::printf("TRACKING size=%d spacing=none\n", size);
+        }
+        if (size == 13) {
+            const qreal plainWidth = QFontMetricsF(plain).horizontalAdvance(text);
+            const qreal trackedWidth = QFontMetricsF(applied).horizontalAdvance(text);
+            std::printf("WIDTH plain=%.2f tracked=%.2f\n", double(plainWidth), double(trackedWidth));
+        }
+    }
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+
+    // Slice 7 opens in its own mode: the tracking is a FONT question, and the render comparison
+    // below answers a drawing one. `tests/test-style-tracking.sh` drives this branch.
+    for (int i = 1; i < argc; ++i) {
+        if (qstrcmp(argv[i], "--tracking") == 0) {
+            return probeTracking(QStyleFactory::create(QStringLiteral("KdeMacOS")));
+        }
+    }
 
     // 1. The keys Qt reports: what a selection is matched against. A style whose metadata Keys are
     //    wrong is a style that exists and cannot be selected.

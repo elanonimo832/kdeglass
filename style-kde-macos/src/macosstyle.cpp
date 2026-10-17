@@ -1,13 +1,17 @@
 #include "macosstyle.h"
+#include "tracking_table.h"  // GENERATED from tokens/tokens-typography_macos.toml [tracking]
 
+#include <QFont>
 #include <QPainter>
 #include <QPalette>
 #include <QPolygonF>
+#include <QScreen>
 #include <QStyleFactory>
 #include <QStyleOptionButton>
 #include <QStyleOptionSlider>
 #include <QStyleOptionViewItem>
 #include <QStringList>
+#include <QWidget>
 
 // WHY THE BASE IS RESOLVED INSTEAD OF WRITTEN DOWN.
 //
@@ -52,6 +56,51 @@ QStyle *MacosStylePlugin::create(const QString &key)
         return new MacosStyle;
     }
     return nullptr;
+}
+
+// ---------------------------------------------------------------------------------------------
+// SLICE 7 -- THE TRACKING. See the header for WHY `polish` is the hook and why the ROLE is not
+// needed: the token's table is keyed by the TEXT SIZE, and the font has it. What is left here is the
+// UNIT and the two traps.
+//
+// THE macOS SIZE IS THE PIXEL SIZE. M4 writes the sizes in POINTS (9.75 pt) so that Qt's font engine,
+// which works in points, does not turn the HIG's 13 into 17.3 px; the HIG's "13 pt" is 13 PX, and at
+// 96 dpi 9.75 pt IS 13 px (HANDOFF 10d-bis). So the token's size is the font's PIXEL size, and a
+// font that carries only a point size is converted with the SCREEN's dpi, never with a guess. The
+// spacing then is `em1000 / 1000 * px` -- one unit, one multiplication, and the table carries the
+// em1000.
+//
+// TRAP 1: THE GUARD IS NOT AN OPTIMISATION. `setFont()` can bring the widget back through `polish`,
+// so the already-applied case returns before it; without that line the first widget would recurse.
+// TRAP 2: A SIZE THE HIG DOES NOT PUBLISH RETURNS 0, and 0 means "leave the font alone". Filling the
+// gap with a neighbour's value would be a tracking nobody measured.
+void MacosStyle::polish(QWidget *w)
+{
+    QProxyStyle::polish(w);
+    if (!w) {
+        return;
+    }
+    QFont font = w->font();
+    int px = font.pixelSize();
+    if (px <= 0 && font.pointSizeF() > 0.0) {
+        const QScreen *screen = w->screen();
+        const qreal dpi = screen ? screen->logicalDotsPerInchY() : 96.0;
+        px = qRound(font.pointSizeF() * dpi / 72.0);
+    }
+    if (px <= 0) {
+        return;
+    }
+    const int em1000 = kde_macos::trackingEm1000(px);
+    if (em1000 == 0) {
+        return;
+    }
+    const qreal spacing = em1000 / 1000.0 * px;
+    if (font.letterSpacingType() == QFont::AbsoluteSpacing
+        && qAbs(font.letterSpacing() - spacing) < 1e-9) {
+        return;
+    }
+    font.setLetterSpacing(QFont::AbsoluteSpacing, spacing);
+    w->setFont(font);
 }
 
 // ---------------------------------------------------------------------------------------------
