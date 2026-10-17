@@ -178,7 +178,6 @@ protected:
         for (int i = 0; i < rows.size(); ++i) {
             QStyleOptionMenuItem item;
             item.initFrom(this);
-            item.rect = QRect(2, y, width() - 4, 22);
             item.text = rows.at(i);
             item.menuItemType = QStyleOptionMenuItem::Normal;
             if (i == 2) {
@@ -187,8 +186,16 @@ protected:
                 item.state.setFlag(QStyle::State_Enabled, false);
             }
             item.checkType = QStyleOptionMenuItem::NotCheckable;
+            // THE ROW HEIGHT IS ASKED FOR, NOT WRITTEN DOWN. The first version hard-coded 22 -- which
+            // meant the row measured the INSTRUMENT and not the style: a slice could move
+            // `sizeFromContents(CT_MenuItem)` and this row would report DIFF 0 while looking like a
+            // measurement. It is the same trap as the canvas sized from the very `sizeHint` a slice
+            // changes (slice 2), in a different place.
+            const int rowHeight =
+                style()->sizeFromContents(QStyle::CT_MenuItem, &item, QSize(width(), 0), this).height();
+            item.rect = QRect(2, y, width() - 4, rowHeight);
             style()->drawControl(QStyle::CE_MenuItem, &item, &painter, this);
-            y += 22;
+            y += rowHeight;
         }
     }
 };

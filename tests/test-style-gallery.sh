@@ -36,14 +36,25 @@ lineedit-focused progressbar listview-selected tableheader"
 SIN_REFERENCIA="scrollbar tabbar menubar progressbar listview-selected tableheader"
 
 # THE PRIMITIVES THE LANDED SLICES MOVED, and the list is the contract exactly like the one above:
-# slice 2 moved the push button and slice 3 the checkbox and the radio button, so these eight rows --
-# and ONLY these eight -- are allowed to differ from the base. A ninth row moving means a slice
-# touched a control nobody measured, which is the failure this whole instrument exists to make
-# visible.
-CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled checkbox checkbox-checked checkbox-disabled radio radio-checked slider"
+# slice 2 moved the push button, slice 3 the checkbox and the radio button, slice 4 the slider and
+# slice 5 the menu's item height, so these rows -- and ONLY these -- are allowed to differ from the
+# base. One more row moving means a slice touched a control nobody measured, which is the failure
+# this whole instrument exists to make visible.
+CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled checkbox checkbox-checked checkbox-disabled radio radio-checked slider menu"
+
+# THE PRIMITIVES WHOSE METRICS MOVED WITHOUT THEIR PIXELS, and this list exists so that the
+# distinction is DECLARED instead of hidden: slice 5 answers the measured chevron box for the combo
+# (`subControlRect`), and Qt's proxy dispatches the base's OWN subControlRect, so the base keeps
+# drawing the arrow in its own box. A metric that moves while the pixels do not is a real API answer
+# AND an appearance that has not changed, and both halves are asserted below rather than leaving the
+# combo in the pixel-moved list where it would read as a redrawn control.
+METRIC_ONLY="combobox"
 
 es_cambiado() { # es_cambiado <primitivo>
   case " $CAMBIADOS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
+es_metrica_sola() { # es_metrica_sola <primitivo>: metrics moved, pixels did not
+  case " $METRIC_ONLY " in *" $1 "*) return 0 ;; *) return 1 ;; esac
 }
 
 echo "  -- the instrument exists and asks Qt the questions a style decision needs --"
@@ -116,7 +127,7 @@ for w in $WIDGETS; do
   # And the metrics are a no-op for every control this slice did NOT touch: a primitive whose metrics
   # move while its pixels do not is a change nobody measured. The button's are expected to move, and
   # the exact values it answers are asserted against the token below, not merely counted.
-  if es_cambiado "$w"; then
+  if es_cambiado "$w" || es_metrica_sola "$w"; then
     negar "'$w' is declared changed, so its metrics MUST have moved" \
       grep -qE "^METRICDIFF ${w} 0\$" <(printf '%s\n' "$salida")
   else
@@ -179,17 +190,43 @@ afirmar_contiene "and its size hint is that tall" \
   <(printf '%s\n' "$salida") "^OURS slider sizeHint=[0-9]+x${slider_grosor}\$"
 afirmar_contiene "the scrollbar was NOT given a figure the kit does not carry (no size token exists)" \
   <(printf '%s\n' "$salida") "^WIDGET scrollbar .* DIFF 0 of "
+# SLICE 5's references, read the same way. THE MENU ITEM'S HEIGHT is the kit's `[menu] height.medium`
+# (24 where the base answered 29) and it is DECLARED as the KIT'S FIGURE and NOT as a macOS
+# measurement: no capture in `muestras/` has an open menu, so nothing checked it against Apple. The
+# assertion pins the number and the fact that it moved -- it does not pretend a verification exists.
+menu_alto="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-sizes.toml','rb'))['menu']['height']['medium'])" 2>/dev/null)"
+afirmar_contiene "the token [menu] height.medium is a number (the assertion needs a reference, not a hole)" \
+  <(printf '%s\n' "$menu_alto") '^[0-9][0-9]*$'
+afirmar_contiene "our menu item IS that token" \
+  <(printf '%s\n' "$salida") "^OURS menu sizeFromContents\(CT_MenuItem\)=[0-9]+x${menu_alto}\$"
+afirmar_contiene "and the menu's PIXELS moved, because the row height is ASKED FOR and not written down" \
+  <(printf '%s\n' "$salida") "^WIDGET menu .* DIFF [1-9][0-9]* of "
+# THE COMBO'S CHEVRON BOX is MEASURED (20 x 20) and the override answers it -- but Qt's proxy chains
+# to a SEPARATE base object that dispatches its OWN subControlRect, so the base keeps drawing the
+# arrow in its own box. The METRIC is ours and the PIXELS are not, and both halves are asserted so
+# that the first cannot be read as the second (the same Qt fact slice 2 met at the button's bevel).
+chevron_caja="$(python3 -c "import tomllib;print(int(tomllib.load(open('$PROJECT/tokens/tokens-controls-measured.toml','rb'))['measure']['popup']['chevron_box_px'][0]))" 2>/dev/null)"
+afirmar_contiene "the measured chevron box is a number (the assertion needs a reference, not a hole)" \
+  <(printf '%s\n' "$chevron_caja") '^[0-9][0-9]*$'
+afirmar_contiene "our combo ANSWERS the measured chevron box" \
+  <(printf '%s\n' "$salida") "^OURS combobox subControlRect\(CC_ComboBox,SC_ComboBoxArrow\)=[0-9,-]+${chevron_caja},${chevron_caja}\$"
+afirmar_contiene "but the combo's pixels did NOT move: the base draws its own arrow rect (measured, declared)" \
+  <(printf '%s\n' "$salida") "^WIDGET combobox .* DIFF 0 of "
+# THE TABS HAVE NO REFERENCE AT ALL -- the kit's nearest thing is `[segmented]`, a different control --
+# so `tabbar` is not in CAMBIADOS and staying at zero IS the decision, pinned here.
+afirmar_contiene "the tabbar was NOT given a figure the kit does not carry" \
+  <(printf '%s\n' "$salida") "^WIDGET tabbar .* DIFF 0 of "
 # ONLY the declared primitives report a moved value. The OURS lines ARE the moved metrics, so the
 # check is that every one of them BELONGS to a declared primitive -- a property, not a number that
 # has to be kept in step by hand every time a slice lands.
 no_declarados=""
 while read -r w; do
   [ -z "$w" ] && continue
-  es_cambiado "$w" || no_declarados="$no_declarados $w"
+  es_cambiado "$w" || es_metrica_sola "$w" || no_declarados="$no_declarados $w"
 done < <(grep -E '^OURS ' <<<"$salida" | awk '{print $2}' | sort -u)
 afirmar_igual "only the declared primitives report a moved value" "" "$no_declarados"
 for w in $WIDGETS; do
-  if es_cambiado "$w"; then
+  if es_cambiado "$w" || es_metrica_sola "$w"; then
     afirmar_contiene "'$w' reports the value it moved to" <(printf '%s\n' "$salida") "^OURS ${w} "
   else
     negar "'$w' reports no moved value" grep -qE "^OURS ${w} " <(printf '%s\n' "$salida")

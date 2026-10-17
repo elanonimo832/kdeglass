@@ -157,6 +157,29 @@ reads the new metrics -- the geometry arrives without a second copy of it in the
 `tests/test-style.sh` moved `drawComplexControl` out of its "must stay absent" list and asserts it by
 name, which is the contract moving and not weakening.
 
+**Slice 5 is DONE for the MENU, and the combo is a MEASURED METRIC whose pixels did not move.** Two
+things landed and each is declared for what it is. `sizeFromContents(CT_MenuItem)` answers the KIT's
+item height -- `24` where the base drew `29`, the +21% slice 1 measured on screen -- and it is the
+KIT's figure and NOT a macOS measurement, because no capture in `muestras/` has an open menu; the
+test pins the number AND the fact that a macOS check does not exist, so it cannot read later as
+verified. `subControlRect(CC_ComboBox, SC_ComboBoxArrow)` answers the chevron's box, which IS
+measured (20 x 20 in `tokens/tokens-controls-measured.toml`) and agrees with the kit's
+`[combo_button] width_button.medium = 24` minus `inset.medium = 2` on both sides. But Qt's proxy
+chains to a SEPARATE base object that dispatches its OWN `subControlRect` -- the same fact slice 2
+met at the button's bevel -- so the combo's METRIC is ours and its PIXELS are still the base's, and
+`tests/test-style-gallery.sh` declares both halves in two lists (`CAMBIADOS` for pixels, `METRIC_ONLY`
+for the metric) instead of leaving the combo among the redrawn controls.
+
+The tab bar is DELIBERATELY untouched: slice 1 declared `tabbar` one of the controls with NO
+reference in the kit (the nearest thing, `[segmented]`, is a different control) and this slice does
+not invent a figure -- the test still expects `tabbar` at zero pixels, so the omission is a property.
+
+Slice 5 cost the instrument a correction only its own OUTPUT revealed: the menu row hard-coded its
+row height (`22`) and its own geometry, so `CT_MenuItem` could have moved and the row would still
+have reported `DIFF 0` while looking like a measurement. It is slice 2's trap -- a canvas sized from
+the very `sizeHint` the slice changes -- in a different place, and the row height is now ASKED FOR
+through the style.
+
 **THE PLAN ASKED THIS SLICE FOR THE TRACK'S THICKNESS, AND THE KIT DOES NOT CARRY IT**: `[slider.track]`
 has the insets (`1`) and the tick spacing (`2`) and nothing else, so the groove's rectangle stays the
 base's and only its drawing is macOS's. And the SCROLLBAR has **no size token anywhere in `tokens/`**

@@ -111,7 +111,8 @@ METRIC combobox subControlRect(CC_ComboBox,SC_ComboBoxFrame)=0,0,0,0
 METRIC combobox subControlRect(CC_ComboBox,SC_ComboBoxEditField)=6,6,74,18
 METRIC combobox subControlRect(CC_ComboBox,SC_ComboBoxArrow)=78,5,20,20
 METRIC combobox subElementRect(SE_ComboBoxFocusRect)=0,0,0,0
-METRICDIFF combobox 0
+OURS combobox subControlRect(CC_ComboBox,SC_ComboBoxArrow)=76,5,20,20
+METRICDIFF combobox 1
 METRIC tabbar sizeHint=160x30
 METRIC tabbar pixelMetric(PM_TabBarTabHSpace)=16
 METRIC tabbar pixelMetric(PM_TabBarTabVSpace)=8
@@ -130,7 +131,8 @@ METRIC menu pixelMetric(PM_MenuHMargin)=4
 METRIC menu pixelMetric(PM_MenuVMargin)=4
 METRIC menu pixelMetric(PM_MenuPanelWidth)=0
 METRIC menu sizeFromContents(CT_MenuItem)=74x29
-METRICDIFF menu 0
+OURS menu sizeFromContents(CT_MenuItem)=74x24
+METRICDIFF menu 1
 METRIC lineedit sizeHint=135x30
 METRIC lineedit pixelMetric(PM_DefaultFrameWidth)=6
 METRIC lineedit pixelMetric(PM_FocusFrameHMargin)=2

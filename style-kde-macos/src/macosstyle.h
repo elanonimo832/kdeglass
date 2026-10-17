@@ -63,6 +63,26 @@ public:
     // `subControlRect` picks up the new metrics by itself, so the geometry needs no second copy.
     void drawComplexControl(ComplexControl control, const QStyleOptionComplex *opt, QPainter *p,
                             const QWidget *w) const override;
+
+    // SLICE 5 -- the menus and the combo.
+    //
+    // `sizeFromContents(CT_MenuItem)` answers the KIT's item height (24, where the base drew 29:
+    // the +21% the instrument measured). It is the kit's figure and NOT a macOS measurement, and the
+    // token says so out loud -- no capture in `muestras/` has an open menu, so the reference could
+    // not be checked against Apple and the test PINS that it is unchecked rather than letting it
+    // read as verified.
+    //
+    // `subControlRect(CC_ComboBox, SC_ComboBoxArrow)` answers the chevron's box, which IS measured:
+    // 20 x 20 px (`tokens/tokens-controls-measured.toml` `chevron_box_px`), and it agrees with the
+    // kit's `[combo_button] width_button.medium = 24` minus its own `inset.medium = 2` on both
+    // sides. Two sources, one number.
+    //
+    // THE TABS ARE DELIBERATELY NOT HERE. Slice 1 declared `tabbar` one of the controls with NO
+    // reference in the kit (the nearest thing, `[segmented]`, is a different control), and this
+    // slice does not invent a figure for it. `tests/test-style-gallery.sh` still expects `tabbar` to
+    // differ by zero pixels, so the omission is a property and not an oversight.
+    QRect subControlRect(ComplexControl control, const QStyleOptionComplex *opt, SubControl sc,
+                         const QWidget *w) const override;
 };
 
 // The plugin Qt's QStyleFactory finds and calls. The IID must be the one Qt itself declares --

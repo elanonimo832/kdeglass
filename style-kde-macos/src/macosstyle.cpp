@@ -66,14 +66,31 @@ namespace {
 constexpr int kButtonHeight = 24;   // tokens/tokens-sizes.toml:88  [global] height.medium
 constexpr int kButtonRadius = 6;    // tokens/tokens-sizes.toml:27  [button] radius.medium
 constexpr int kButtonPadding = 16;  // tokens/tokens-sizes.toml:24  [button] padding_horizontal.medium
+// SLICE 5 -- the menu item's height. THE KIT'S FIGURE AND NOT A macOS MEASUREMENT: no capture in
+// `muestras/` has an open menu (tokens/tokens-controls-measured.toml records that), so this one
+// could not be checked against Apple. It is written here as the kit's number and the test PINS that
+// it is unchecked, so it cannot be read later as if it had been measured.
+constexpr int kMenuItemHeight = 24;  // tokens/tokens-sizes.toml:99  [menu] height.medium
+// SLICE 5 -- the combo's chevron, which IS measured: 20 x 20 px (tokens-controls-measured.toml
+// `chevron_box_px`) and equal to the kit's `width_button.medium = 24` minus `inset.medium = 2` on
+// each side. Two independent sources agreeing on one number is why this one is drawn.
+constexpr int kComboChevronBox = 20;    // tokens-controls-measured.toml  chevron_box_px
+constexpr int kComboChevronInset = 2;   // tokens/tokens-sizes.toml:52  [combo_button] inset.medium
 }
 
 QSize MacosStyle::sizeFromContents(ContentsType type, const QStyleOption *opt, const QSize &size,
                                    const QWidget *w) const
 {
     QSize s = QProxyStyle::sizeFromContents(type, opt, size, w);
+    // THE MENU ITEM'S HEIGHT, from the kit: the base draws 29 and the reference says 24 -- the +21%
+    // the instrument measured. Only the HEIGHT moves; the width is the base's, because the kit's
+    // figure for it is a header inset and not a content width.
+    if (type == CT_MenuItem) {
+        s.setHeight(kMenuItemHeight);
+        return s;
+    }
     if (type != CT_PushButton) {
-        // THE OTHER SEVENTEEN CONTROLS DO NOT MOVE HERE. They are later slices, each with its own
+        // THE OTHER CONTROLS DO NOT MOVE HERE. They are later slices, each with its own
         // measurement; the gallery asserts they still differ by zero pixels.
         return s;
     }
@@ -299,4 +316,22 @@ void MacosStyle::drawComplexControl(ComplexControl control, const QStyleOptionCo
     p->setPen(QPen(pal.mid().color().darker(115), 1));
     p->drawEllipse(QRectF(handle).adjusted(0.5, 0.5, -0.5, -0.5));
     p->restore();
+}
+
+// SLICE 5 -- the combo's chevron box. Only the ARROW'S BOX is ours: the base keeps its own frame,
+// its own text field and its own drawing of the arrow inside the box we hand it, so there is no
+// second copy of the combo's geometry here. The box is square, placed against the right edge inset
+// by the kit's `inset.medium`, and vertically centred on the base's own arrow rect -- the base's
+// rect is ASKED for, never reconstructed.
+QRect MacosStyle::subControlRect(ComplexControl control, const QStyleOptionComplex *opt,
+                                 SubControl sc, const QWidget *w) const
+{
+    const QRect base = QProxyStyle::subControlRect(control, opt, sc, w);
+    if (control != CC_ComboBox || sc != SC_ComboBoxArrow) {
+        return base;
+    }
+    const int box = kComboChevronBox;
+    const int x = base.right() - kComboChevronInset - box + 1;
+    const int y = base.center().y() - box / 2 + 1;
+    return QRect(x, y, box, box);
 }

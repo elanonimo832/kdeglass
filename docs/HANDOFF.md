@@ -3106,3 +3106,37 @@ the app icon still reads **R/S = 0.2500** (six valid rows of seven in `muestras/
 residuals 0.21-0.37 px), which is the figure `tokens/tokens-icon-geometry.toml` carries, and both
 self-tests are unchanged. So the fix moved no published figure; it removed a trap that the next 1-D
 caller would have fallen into.
+
+## 10r. M6 slice 5: the menu's item height, and a combo metric whose pixels did not move
+
+**What landed.** `sizeFromContents(CT_MenuItem)` answers the KIT's item height, `24` where the base
+drew `29` -- the +21% slice 1 measured. The gallery moved accordingly: `WIDGET menu ... DIFF 1111`,
+and `OURS menu sizeFromContents(CT_MenuItem)=74x24` against the base's `74x29`.
+`subControlRect(CC_ComboBox, SC_ComboBoxArrow)` answers the chevron's box, which is MEASURED: 20 x 20
+(`tokens/tokens-controls-measured.toml`, `[measure.popup] chevron_box_px`), and it agrees with the
+kit's `[combo_button] width_button.medium = 24` minus `inset.medium = 2` on each side -- two sources
+on one number, which is why it is drawn.
+
+**THE COMBO'S PIXELS DID NOT MOVE, AND THAT IS DECLARED, NOT HIDDEN.** Qt's `QProxyStyle` chains to a
+SEPARATE base-style object whose own `drawComplexControl` dispatches its OWN `subControlRect`, so the
+base keeps drawing the arrow in its own box. The metric is ours and the appearance is the base's:
+`tests/test-style-gallery.sh` now carries TWO lists -- `CAMBIADOS` (the primitives whose PIXELS moved)
+and `METRIC_ONLY` (the ones whose METRIC moved without the pixels) -- and asserts both halves, so the
+first cannot be read as the second. This is the same Qt fact slice 2 found at the button's bevel
+(`HANDOFF.md` 10i and the header's own note), met a second time.
+
+**What is the KIT's and not a MEASUREMENT.** The menu item's height is the kit's figure. No capture in
+`muestras/` has an open menu (`tokens/tokens-controls-measured.toml` records it), so nothing checked
+it against Apple, and the test asserts the number AND that the check does not exist.
+
+**What was deliberately NOT touched.** The tab bar: slice 1 declared `tabbar` one of the controls with
+NO reference in the kit, and no figure was invented for it -- the test still expects `DIFF 0`.
+
+**The instrument's own trap, met again.** The gallery's menu row hard-coded its row height (22), so
+`CT_MenuItem` could have moved and the row would have reported `DIFF 0` while looking like a
+measurement. The row height is now ASKED FOR through the style. It is slice 2's canvas trap -- a
+canvas sized from the very `sizeHint` the slice changes -- in a different place.
+
+**Landed as**: `sizeFromContents` (the `CT_MenuItem` case), `subControlRect` (the combo's chevron
+box), the constants `kMenuItemHeight`, `kComboChevronBox` and `kComboChevronInset` -- each with its
+file and line -- and the gallery's row height asked for instead of written down.

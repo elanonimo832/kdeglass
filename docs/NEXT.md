@@ -313,3 +313,19 @@ behind the bar and the radius alone did nothing.
     (the track), slice 5 (the chevron and the list row) and slice 6 (the selection) can consume these
     figures without re-checking them. `HANDOFF.md` 10q has the old -> new table for every figure and
     names, for each, whether it moved.
+
+16. **M6 — slice 5: THE MENU's item height is redrawn, and the combo is a MEASURED METRIC whose
+    pixels did not move.** `sizeFromContents(CT_MenuItem)` answers the kit's **24** where the base drew
+    **29** (the +21% slice 1 measured): the gallery moved to `DIFF 1111` and the metric reads `74x24`.
+    It is the KIT's figure and **not** a macOS measurement -- no capture in `muestras/` has an open
+    menu -- and the test pins the number AND the absence of that check, so it cannot read later as
+    verified. `subControlRect(CC_ComboBox, SC_ComboBoxArrow)` answers the chevron's box, which IS
+    measured (**20 x 20**, `tokens/tokens-controls-measured.toml`) and agrees with the kit's
+    `width_button.medium = 24` minus `inset.medium = 2` on each side. **But Qt's proxy dispatches the
+    base's OWN `subControlRect`** (the fact slice 2 met at the button's bevel), so the combo's METRIC
+    is ours and its PIXELS are the base's: the gallery now carries two declared lists, `CAMBIADOS` for
+    the pixels and `METRIC_ONLY` for the metric, so the first cannot be read as the second. The TAB
+    BAR is deliberately untouched (slice 1 declared it with no reference in the kit and no figure was
+    invented). Drawing the combo is therefore the open half of this slice -- named, not done. Slice 5
+    also fixed the instrument: the menu row hard-coded its row height, so `CT_MenuItem` could have
+    moved with the row still reporting `DIFF 0`; the height is now asked for through the style.
