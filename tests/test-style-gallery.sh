@@ -22,6 +22,7 @@
 ST="$PROJECT/style-kde-macos"
 GALERIA="$ST/build/bin/primitive-gallery"
 FUENTE="$ST/tests/primitive-gallery.cpp"
+FUENTE_CPP="$ST/src/macosstyle.cpp"
 
 # The primitives the gallery must render. This list is the CONTRACT between the test and the tool:
 # adding a control here without teaching the tool to draw it fails, which is the point.
@@ -50,11 +51,22 @@ CAMBIADOS="pushbutton pushbutton-default pushbutton-disabled checkbox checkbox-c
 # combo in the pixel-moved list where it would read as a redrawn control.
 METRIC_ONLY="combobox"
 
-es_cambiado() { # es_cambiado <primitivo>
-  case " $CAMBIADOS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+# THE PRIMITIVE WHOSE PIXELS MOVED WITHOUT ITS METRICS: the third and last category, and it is not
+# a convenience. Slice 6 DRAWS the item view's selection -- the Finder's two layers -- and that is a
+# DRAWING change: the geometry comes from the item's own rect and from the measured radii, not from a
+# pixel metric, so the metrics stay the base's. Put in CAMBIADOS it would fail the "its metrics MUST
+# have moved" check; put in neither list it would fail the pixel check. A drawing-only change is a
+# real and different kind of change, so it gets its own list instead of a loosened check.
+PIXEL_ONLY="listview-selected"
+
+es_cambiado() { # es_cambiado <primitivo>: its pixels moved (metrics moved or not, see the lists)
+  case " $CAMBIADOS $PIXEL_ONLY " in *" $1 "*) return 0 ;; *) return 1 ;; esac
 }
 es_metrica_sola() { # es_metrica_sola <primitivo>: metrics moved, pixels did not
   case " $METRIC_ONLY " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
+es_solo_pixel() { # es_solo_pixel <primitivo>: pixels moved, metrics did not
+  case " $PIXEL_ONLY " in *" $1 "*) return 0 ;; *) return 1 ;; esac
 }
 
 echo "  -- the instrument exists and asks Qt the questions a style decision needs --"
@@ -87,7 +99,7 @@ fi
 # not a reason to weaken the check: the tool still reports which and how many, and the rows below pin
 # them. The count is the DECLARED set's arithmetic, so it moves with `CAMBIADOS` and not by hand.
 afirmar_igual "the gallery reports that a primitive moved (exit 5)" "5" "$rc"
-afirmar_igual "and it counts exactly the declared ones" "$(wc -w <<<"$CAMBIADOS")" \
+afirmar_igual "and it counts exactly the declared ones" "$(wc -w <<<"$CAMBIADOS $PIXEL_ONLY")" \
   "$(sed -n 's/^CHANGED: \([0-9]*\)$/\1/p' <<<"$salida")"
 
 echo "  -- every declared primitive is rendered, and each one is a real render --"
@@ -127,7 +139,12 @@ for w in $WIDGETS; do
   # And the metrics are a no-op for every control this slice did NOT touch: a primitive whose metrics
   # move while its pixels do not is a change nobody measured. The button's are expected to move, and
   # the exact values it answers are asserted against the token below, not merely counted.
-  if es_cambiado "$w" || es_metrica_sola "$w"; then
+  if es_solo_pixel "$w"; then
+    # A DRAWING change with the base's metrics: the pixels had to move (the panel above) and the
+    # metrics had to stay, and both halves are asserted so neither can be read as the other.
+    afirmar_contiene "'$w' moved its PIXELS and answered the SAME metrics (slice 6 draws it)" \
+      <(printf '%s\n' "$salida") "^METRICDIFF ${w} 0\$"
+  elif es_cambiado "$w" || es_metrica_sola "$w"; then
     negar "'$w' is declared changed, so its metrics MUST have moved" \
       grep -qE "^METRICDIFF ${w} 0\$" <(printf '%s\n' "$salida")
   else
@@ -216,17 +233,50 @@ afirmar_contiene "but the combo's pixels did NOT move: the base draws its own ar
 # so `tabbar` is not in CAMBIADOS and staying at zero IS the decision, pinned here.
 afirmar_contiene "the tabbar was NOT given a figure the kit does not carry" \
   <(printf '%s\n' "$salida") "^WIDGET tabbar .* DIFF 0 of "
+# SLICE 6's references, read from the MEASURED token (`tokens/tokens-controls-measured.toml`
+# `[measure.selection]`) and not from the kit's Sizes: `listview-selected` has no reference in the
+# KIT -- it is on SIN_REFERENCIA -- but it is NOT unmeasured, and this block is what stops "no kit
+# reference" from reading as "nobody looked".
+celda_radio="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-controls-measured.toml','rb'))['measure']['selection']['cell_radius_px'])" 2>/dev/null)"
+pildora_radio="$(python3 -c "import tomllib;print(tomllib.load(open('$PROJECT/tokens/tokens-controls-measured.toml','rb'))['measure']['selection']['label_pill_radius_px'])" 2>/dev/null)"
+afirmar_contiene "the measured selection cell radius is a number (the assertion needs a reference, not a hole)" \
+  <(printf '%s\n' "$celda_radio") '^[0-9]+([.][0-9]+)?$'
+afirmar_contiene "and so is the label pill's radius" \
+  <(printf '%s\n' "$pildora_radio") '^[0-9]+([.][0-9]+)?$'
+# THE STYLE USES THOSE, compared NUMERICALLY: `14` and `14.0` are the same decision and a spelling
+# check would fail on the formatting instead of on the number.
+en_fuente_celda="$(sed -n 's/.*kSelectionCellRadius = \([0-9.]*\).*/\1/p' "$FUENTE_CPP" | head -1)"
+en_fuente_pildora="$(sed -n 's/.*kSelectionPillRadius = \([0-9.]*\).*/\1/p' "$FUENTE_CPP" | head -1)"
+afirmar_igual "the style's cell radius IS the measured token's" "1" \
+  "$(python3 -c "print(1 if abs(float('${celda_radio:-nan}') - float('${en_fuente_celda:-nan}')) < 1e-9 else 0)" 2>/dev/null)"
+afirmar_igual "and the pill's radius is ITS measured token's" "1" \
+  "$(python3 -c "print(1 if abs(float('${pildora_radio:-nan}') - float('${en_fuente_pildora:-nan}')) < 1e-9 else 0)" 2>/dev/null)"
+afirmar_contiene "the item view's pixels moved, because its selection is DRAWN and not delegated" \
+  <(printf '%s\n' "$salida") "^WIDGET listview-selected .* DIFF [1-9][0-9]* of "
+# AND BOTH LAYERS ARE IN THE SOURCE, not just the number: a style that painted ONE rectangle at the
+# right radius would pass a radius assertion and miss the capture's two layers.
+afirmar_codigo "the selection draws the CELL (the item's own rect, at the measured radius)" "$FUENTE_CPP" 'drawRoundedRect\(cellRect'
+afirmar_codigo "and the PILL behind the label, from the text's own rect" "$FUENTE_CPP" 'SE_ItemViewItemText'
+# THE DECLARED ABSENCES, pinned so they cannot read as oversights. No capture in `muestras/` has a
+# keyboard-only focus ring -- the accent pill IS the selected item's indicator in the one capture
+# there is -- and NO control in either capture is disabled, so slice 6 does not invent either; the
+# token says so in its own words and this reads the declaration, not a promise.
+afirmar_codigo "the focus ring is DECLARED not observed rather than invented" \
+  "$PROJECT/tokens/tokens-controls-measured.toml" 'focus_ring = "not observed'
 # ONLY the declared primitives report a moved value. The OURS lines ARE the moved metrics, so the
 # check is that every one of them BELONGS to a declared primitive -- a property, not a number that
 # has to be kept in step by hand every time a slice lands.
 no_declarados=""
 while read -r w; do
   [ -z "$w" ] && continue
-  es_cambiado "$w" || es_metrica_sola "$w" || no_declarados="$no_declarados $w"
+  # An OURS line is a MOVED METRIC. A PIXEL_ONLY primitive must not report one: its metrics are the
+  # base's, so an OURS line for it would be a metric that moved without being declared.
+  { es_metrica_sola "$w" || { es_cambiado "$w" && ! es_solo_pixel "$w"; }; } \
+    || no_declarados="$no_declarados $w"
 done < <(grep -E '^OURS ' <<<"$salida" | awk '{print $2}' | sort -u)
 afirmar_igual "only the declared primitives report a moved value" "" "$no_declarados"
 for w in $WIDGETS; do
-  if es_cambiado "$w" || es_metrica_sola "$w"; then
+  if es_metrica_sola "$w" || { es_cambiado "$w" && ! es_solo_pixel "$w"; }; then
     afirmar_contiene "'$w' reports the value it moved to" <(printf '%s\n' "$salida") "^OURS ${w} "
   else
     negar "'$w' reports no moved value" grep -qE "^OURS ${w} " <(printf '%s\n' "$salida")

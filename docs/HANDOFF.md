@@ -3140,3 +3140,59 @@ canvas sized from the very `sizeHint` the slice changes -- in a different place.
 **Landed as**: `sizeFromContents` (the `CT_MenuItem` case), `subControlRect` (the combo's chevron
 box), the constants `kMenuItemHeight`, `kComboChevronBox` and `kComboChevronInset` -- each with its
 file and line -- and the gallery's row height asked for instead of written down.
+
+## 10s. M6 slice 6: the item view's selection drawn in two layers, and two states left open on purpose
+
+**What landed.** `PE_PanelItemViewItem` -- the background primitive Qt's own item delegate calls
+before it draws the icon and the text -- now draws the Finder's ICON VIEW selection from
+`tokens/tokens-controls-measured.toml` `[measure.selection]`: the CELL over the item's own rect at
+the measured **14** px radius, and the accent PILL behind the label at **5.10**. The base still draws
+the text, in the palette's `HighlightedText` for a selected item, so the white-on-accent the capture
+shows arrives without this file setting a colour on a glyph. The gallery moved:
+`WIDGET listview-selected ... DIFF 5626 of 52800` (base 5354 painted, ours 5918).
+
+**A DRAWING CHANGE IS ITS OWN KIND OF CHANGE, AND THE TEST SAYS SO.** Slice 5 needed a list for "the
+metric moved, the pixels did not" (`METRIC_ONLY`); this slice needs the MIRROR -- the pixels moved,
+the metrics did not -- because the geometry comes from the item's OWN RECT and from the measured
+radii, not from a pixel metric. Put in `CAMBIADOS` it would have failed the "its metrics MUST have
+moved" check; put in neither it would have failed the pixel check. `tests/test-style-gallery.sh` now
+carries `PIXEL_ONLY`, and both halves are asserted: the pixels moved and `METRICDIFF listview-selected
+0`.
+
+**WHY THE COLOURS ARE THE PALETTE'S AND NOT THE TOKEN'S.** The token gives the LIGHT appearance --
+`cell_fill = "#E2E3E4"`, `label_pill_fill = "#0064E1"` -- and the plan requires every slice to honour
+`KdeMacosDark`. A light constant here would be a second palette, and a second palette is how the two
+drift. The style reads `QPalette::AlternateBase` for the cell (the role Qt spends on "a subtle
+background") and `QPalette::Highlight` for the pill (the accent), so the dark scheme arrives by
+itself; the token's colours are the reference the light scheme has to reproduce, which is what
+`QPalette::midlight` and the scheme's `[Colors:Window] BackgroundAlternate` already come close to.
+
+**THE RADII ARE ABSOLUTE AND THE PROPORTION IS NOT USED.** The measured cell is 144 px on a side, so
+14 is the radius AT THAT SIZE. An item view row is much smaller and the same 14 px would be a
+capsule; Qt clamps a rounded rect's radius to half the rect, so the shape stays valid and the value
+stays the measured one. The proportion (14/144 = 0.097) is written down and deliberately NOT used as
+a ratio: a ratio would be a second number nobody measured. The PILL'S PADDING (4 x 1 px) is the one
+figure in this slice without a token -- the measured pill is 79 x 17 and the text's own width is not
+separable from it in a coverage measurement -- and it is named as chosen, like the tick's stroke width
+in slice 3. The pill's rect is the base's OWN `SE_ItemViewItemText`, ASKED FOR rather than
+reconstructed from the decoration's margins (the rule slice 4 followed with the slider's sub-controls).
+
+**TWO STATES ARE LEFT OPEN ON PURPOSE, AND THE REASON IS THE SOURCE, NOT THE TIME.**
+* **The focus ring is not drawn.** The token records `focus_ring = "not observed"`: the accent pill IS
+  the selected item's indicator in the one capture there is, and a ring drawn only for keyboard focus
+  cannot appear in a mouse-driven capture. The base keeps drawing its own, and inventing a macOS ring
+  would be a colour from the sleeve.
+* **The disabled palette is not touched.** NO control in either capture is disabled, so there is no
+  source at all. The base keeps drawing the disabled state.
+Both absences are pinned: the test reads the token's own words (`focus_ring = "not observed`), so a
+later slice that invents a ring has to remove that declaration on purpose.
+
+**LIMITS, SAID SO THEY DO NOT READ AS COVERAGE.**
+* The cell's radius was measured on a 144 px cell and is applied ABSOLUTE, so an item view's small row
+  gets Qt's clamp and not the capture's proportion. That is a choice, not a measurement, and it is the
+  one place this slice's geometry is not the capture's.
+* The pill's padding is chosen (no token), and its width follows the text's rect rather than the
+  capture's 79 px, which was the text's own width on one Finder label.
+* The SIDEBAR's selection -- one layer, the text unchanged, row 32 px, `#EDEFF1` -- is NOT drawn: the
+  capture's two selections are of different natures, and a style with one "selected" brush cannot draw
+  both. The icon view's is the one this slice draws; the sidebar's is named here as the next state's.

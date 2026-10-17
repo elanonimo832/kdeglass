@@ -6,6 +6,7 @@
 #include <QStyleFactory>
 #include <QStyleOptionButton>
 #include <QStyleOptionSlider>
+#include <QStyleOptionViewItem>
 #include <QStringList>
 
 // WHY THE BASE IS RESOLVED INSTEAD OF WRITTEN DOWN.
@@ -185,6 +186,25 @@ constexpr qreal kTickHeight = 8.93;      // [checkboxes] height_checkmark.medium
 // tokens-colors.toml:132), is left untouched entirely rather than given a figure from the sleeve.
 constexpr int kSliderThickness = 16;   // [slider.knob_non_ticked_slider] height.medium
 constexpr int kSliderLength = 20;      // [slider.knob_non_ticked_slider] width.medium
+
+// SLICE 6 -- THE ITEM VIEW'S SELECTION, from the MEASURED token (it has no reference in the kit):
+//   tokens/tokens-controls-measured.toml [measure.selection]
+//     cell_px              = [144.0, 144.0]   (crisp edges, both crossings on the integer)
+//     cell_radius_px       = 14.0
+//     label_pill_radius_px = 5.10             (NOT a stadium: its ends would be 8.5)
+//     label_pill_px        = [79.0, 17.0]     (it follows the text's width and hangs BELOW the cell)
+// THE MEASURED CELL IS 144 px ON A SIDE, so these radii are the capture's values AT THAT SIZE. An
+// item view row is much smaller and the same 14 px would be a capsule, so the radius is the token's
+// ABSOLUTE value and Qt clamps it to half the rect: the shape stays valid and the value stays the
+// measured one. The proposition (14/144 = 0.097) is noted and deliberately NOT used as a ratio -- a
+// ratio would be a second number nobody measured.
+constexpr qreal kSelectionCellRadius = 14.0;   // [measure.selection] cell_radius_px
+constexpr qreal kSelectionPillRadius = 5.1;    // [measure.selection] label_pill_radius_px
+// THE PILL'S PADDING IS THE ONE FIGURE HERE WITHOUT A TOKEN: the measured pill is 79 x 17 px, and
+// the text's own width is not separable from it in a coverage measurement, so where the pill ends and
+// the glyphs begin is not sourceable. NAMED AS CHOSEN, like the tick's stroke width in slice 3.
+constexpr int kSelectionPillPadX = 4;
+constexpr int kSelectionPillPadY = 1;
 } // namespace
 
 int MacosStyle::pixelMetric(PixelMetric metric, const QStyleOption *opt, const QWidget *w) const
@@ -214,6 +234,20 @@ int MacosStyle::pixelMetric(PixelMetric metric, const QStyleOption *opt, const Q
 void MacosStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *opt, QPainter *p,
                                const QWidget *w) const
 {
+    // SLICE 6 -- THE ITEM VIEW'S SELECTION. `PE_PanelItemViewItem` is the BACKGROUND primitive Qt's
+    // own item delegate calls before it draws the icon and the text, so hooking it changes the
+    // selection's look and leaves the label, the icon and every other state to the base. The branch
+    // is first because it is a DRAWING change: it answers no metric, and the gallery declares it in
+    // its own list for exactly that reason.
+    if (element == PE_PanelItemViewItem) {
+        const auto *item = qstyleoption_cast<const QStyleOptionViewItem *>(opt);
+        if (item && (opt->state & State_Selected)) {
+            drawSelectedItemViewItem(*item, p, w);
+            return;
+        }
+        QProxyStyle::drawPrimitive(element, opt, p, w);
+        return;
+    }
     if (element != PE_IndicatorCheckBox && element != PE_IndicatorRadioButton) {
         QProxyStyle::drawPrimitive(element, opt, p, w);
         return;
@@ -261,6 +295,47 @@ void MacosStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *opt
                                        QPointF(c.x() - hw * 0.25, c.y() + hh),
                                        QPointF(c.x() + hw, c.y() - hh)}));
         }
+    }
+    p->restore();
+}
+
+// SLICE 6 -- THE ITEM VIEW'S SELECTION, DRAWN IN THE CAPTURE'S TWO LAYERS.
+//
+// WHAT THE SOURCE IS: `muestras/Untitled8.png` is the repository's only selection, and it shows the
+// Finder's ICON VIEW drawing a grey cell AND an accent pill behind the label, whose text turns WHITE
+// (`label_pill_fill = "#0064E1"`, `label_text_selected = "#FFFFFF"` in the token). The SIDEBAR draws
+// ONE layer instead -- a 32 px grey row whose text does NOT change -- which is why a style with a
+// single "selected" brush cannot draw both, and why this draws the icon view's and says so.
+//
+// THE COLOURS COME FROM THE PALETTE, NOT FROM THE TOKEN, and the reason is the plan's: every slice
+// has to honour `KdeMacosDark`, and a light constant written here would be a second palette. The
+// token's `#E2E3E4` and `#0064E1` are the LIGHT appearance the palette has to reproduce --
+// `QPalette::AlternateBase` is the role Qt spends on "a subtle background", and `QPalette::Highlight`
+// on "the accent" -- so the dark scheme arrives by itself. The text is the base's: it draws it in
+// `HighlightedText` for a selected item, which is the white the capture shows, without this file
+// setting a colour on a glyph.
+void MacosStyle::drawSelectedItemViewItem(const QStyleOptionViewItem &item, QPainter *p,
+                                          const QWidget *w) const
+{
+    const QPalette pal = item.palette;
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, true);
+    p->setPen(Qt::NoPen);
+    // THE CELL. Its RECT is the item's own, so the SIZE comes from the layout and the measured 144 px
+    // cell is never copied here; the token fixes the RADIUS, and Qt clamps it to half the rect.
+    const QRectF cellRect = QRectF(item.rect);
+    p->setBrush(pal.alternateBase().color());
+    p->drawRoundedRect(cellRect, kSelectionCellRadius, kSelectionCellRadius);
+    // THE PILL, behind the label. Its rect is the base's OWN `SE_ItemViewItemText`, ASKED FOR rather
+    // than reconstructed from the decoration's margins -- the same rule slice 4 followed with the
+    // slider's sub-controls. If the base reports no text rect (an item with no label), only the cell
+    // is drawn and no pill is invented for a label that is not there.
+    const QRect textRect = subElementRect(SE_ItemViewItemText, &item, w);
+    if (textRect.isValid() && !textRect.isEmpty()) {
+        const QRectF pill = QRectF(textRect).adjusted(-kSelectionPillPadX, -kSelectionPillPadY,
+                                                      kSelectionPillPadX, kSelectionPillPadY);
+        p->setBrush(pal.highlight().color());
+        p->drawRoundedRect(pill, kSelectionPillRadius, kSelectionPillRadius);
     }
     p->restore();
 }

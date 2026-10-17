@@ -329,3 +329,23 @@ behind the bar and the radius alone did nothing.
     invented). Drawing the combo is therefore the open half of this slice -- named, not done. Slice 5
     also fixed the instrument: the menu row hard-coded its row height, so `CT_MenuItem` could have
     moved with the row still reporting `DIFF 0`; the height is now asked for through the style.
+
+17. **M6 — slice 6: the ITEM VIEW's selection is drawn, in the capture's TWO layers.** `PE_PanelItemViewItem`
+    now draws the Finder's icon-view selection from `tokens/tokens-controls-measured.toml`
+    `[measure.selection]`: the cell over the ITEM'S OWN RECT at the measured **14** px radius, and the
+    accent pill behind the label at **5.10** (the base still draws the text, in the palette's
+    `HighlightedText`, which is the white the capture shows). The SIDEBAR's selection is ONE layer whose
+    text does not change, so a single "selected" brush cannot draw both; the icon view's is the one
+    drawn and the difference is written down. The radii are the token's ABSOLUTE values -- Qt clamps
+    them to half the rect, so a small row stays valid -- and the measured proportion is deliberately NOT
+    used as a ratio, which would be a second number nobody measured. The colours come from the PALETTE
+    (`AlternateBase`, `Highlight`), not from the token, because a light constant would be a second
+    palette for the dark scheme. The pill's PADDING is the one figure without a token (the measured pill
+    is 79 x 17 and the text's width is not separable from it) and is named as chosen. The gallery grew a
+    THIRD declared list, `PIXEL_ONLY`, for a change that moves pixels and not metrics, because the two
+    existing lists would each have failed it for the wrong reason. **FOCUS AND DISABLED are NOT
+    implemented**: no capture has a keyboard-only focus ring (the accent pill IS the indicator) and none
+    has a disabled control, so there is no source and none is invented; the base keeps drawing both and
+    the token records the absence. What remains of M6 is slice 7 (the tracking of the 64 tokens) and the
+    two open halves already named: DRAWING the combo (slice 5) and the slider's TRACK, whose thickness is
+    measured (**6.0 px**) and no longer unsourced.

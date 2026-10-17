@@ -187,6 +187,26 @@ base's and only its drawing is macOS's. And the SCROLLBAR has **no size token an
 differs by zero pixels. Naming which figure the kit does not carry is the answer the kit allows; a
 number from the sleeve is what this project does not do.
 
+**Slice 6 is DONE for the state that HAS a source, and it is a DRAWING change rather than a metric
+one.** The item view's selection draws the Finder's TWO layers from
+`tokens/tokens-controls-measured.toml` `[measure.selection]`: the cell over the item's own rect at the
+measured `14` px radius, and the accent pill behind the label at `5.10`, whose text turns white. The
+SIDEBAR's selection is ONE layer whose text does not change, which is why a style with a single
+"selected" brush cannot draw both; the icon view's is the one drawn, and the difference is written
+down. The radii are the token's ABSOLUTE values -- Qt clamps them to half the rect, so a small row
+stays valid -- and the measured proportion is deliberately NOT used as a ratio, because a ratio would
+be a second number nobody measured. The colours come from the palette (`AlternateBase` for the cell,
+`Highlight` for the pill) and not from the token, for the plan's own reason: a light constant would be
+a second palette. The pill's PADDING is the one figure without a token -- the measured pill is 79 x 17
+and the text's width is not separable from it -- and it is named as chosen, like the tick's stroke.
+`tests/test-style-gallery.sh` grew a THIRD list for this kind of change (`PIXEL_ONLY`: pixels moved,
+metrics did not), because the two existing lists would each have failed it for the wrong reason.
+
+**FOCUS AND DISABLED ARE NOT IMPLEMENTED, and that is the decision**: no capture in `muestras/` has a
+keyboard-only focus ring -- the accent pill IS the selected item's indicator in the one capture there
+is -- and NO control in either capture is disabled. There is no source to measure, so none is
+invented: the base keeps drawing both, and the token records the absence in words that the test reads.
+
 ## OPEN — decided by measurement later, not invented now
 
 * **Whether the base should stay `QProxyStyle`-over-Breeze, or eventually become a

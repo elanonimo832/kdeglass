@@ -28,6 +28,10 @@
 #include <QString>
 #include <QStylePlugin>
 
+// The selection's option is only a reference in the declaration below, so the include is in the .cpp
+// and this is enough here.
+class QStyleOptionViewItem;
+
 // The style itself. `subElementRect`, `standardIcon` and `styleHint` are still NOT overridden: each
 // needs its own slice and its own measurement, and `tests/test-style.sh` still expects those to be
 // absent -- it names the landed ones AND the absent ones, so an override nobody measured cannot
@@ -83,6 +87,22 @@ public:
     // differ by zero pixels, so the omission is a property and not an oversight.
     QRect subControlRect(ComplexControl control, const QStyleOptionComplex *opt, SubControl sc,
                          const QWidget *w) const override;
+
+    // SLICE 6 -- the item view's selection, and it is a DRAWING change rather than a metric one: the
+    // geometry comes from the item's own rect and from the measured radii, so the metrics stay the
+    // base's and `tests/test-style-gallery.sh` declares it in its own list (`PIXEL_ONLY`). It is the
+    // one state with a source: `muestras/Untitled8.png` shows the Finder's icon view drawing TWO
+    // layers -- a 144 px cell with radius 14 and an accent pill behind the label -- where the
+    // sidebar draws ONE grey row whose text does not change.
+    //
+    // FOCUS AND DISABLED ARE NOT HERE, and it is the rule of the house rather than an oversight: no
+    // capture has a keyboard-only focus ring (the accent pill IS the selected item's indicator) and
+    // NO control in either capture is disabled, so there is no source to measure and none is
+    // invented; the base keeps drawing them and the token records the absence in words.
+
+private:
+    void drawSelectedItemViewItem(const QStyleOptionViewItem &item, QPainter *p,
+                                  const QWidget *w) const;
 };
 
 // The plugin Qt's QStyleFactory finds and calls. The IID must be the one Qt itself declares --

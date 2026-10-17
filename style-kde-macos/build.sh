@@ -42,4 +42,6 @@ echo "  Install it for the session:   ../install.sh aplicar --si    (then log ou
 echo "  Try it on ONE application, without touching anything:"
 echo "      QT_PLUGIN_PATH=\"$HERE/build\" QT_STYLE_OVERRIDE=KdeMacOS dolphin"
 echo
-echo "The style still draws NOTHING by itself: it chains to the base style, on purpose."
+echo "The style draws the controls the landed slices name, and chains to the base for EVERYTHING"
+echo "else: tests/test-style-gallery.sh asserts the base's pixels are untouched wherever a slice has"
+echo "not declared a change."
